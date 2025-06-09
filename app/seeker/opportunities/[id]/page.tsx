@@ -1,12 +1,14 @@
 import React from 'react';
 import { getOpportunityById, type Opportunity } from '@/app/lib/opportunities';
-import OpportunityDetailClient from './OpportunityDetailClient';
+import OpportunityPageWrapper from './OpportunityPageWrapper';
 
 // Server component that fetches data dynamically
 export default async function OpportunityDetailPage({ 
-  params 
+  params,
+  searchParams
 }: { 
-  params: { id: string } 
+  params: { id: string };
+  searchParams?: { [key: string]: string | string[] | undefined };
 }) {
   try {
     const { opportunity, error } = await getOpportunityById(params.id);
@@ -28,8 +30,8 @@ export default async function OpportunityDetailPage({
       );
     }
 
-    // Pass the opportunity data to the client component
-    return <OpportunityDetailClient opportunity={opportunity} />;
+    // Pass the opportunity to the client wrapper component
+    return <OpportunityPageWrapper opportunity={opportunity} />;
     
   } catch (error) {
     console.error('Error in OpportunityDetailPage:', error);
