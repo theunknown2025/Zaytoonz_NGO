@@ -24,7 +24,7 @@ export async function isEmailRegistered(email: string): Promise<boolean> {
 }
 
 // Function to signup a new user
-export async function signUpUser(fullName: string, email: string, password: string, userType: 'Personne' | 'NGO') {
+export async function signUpUser(fullName: string, email: string, password: string, userType: 'Personne' | 'NGO' | 'Admin') {
   try {
     // Check if email already exists
     const emailExists = await isEmailRegistered(email);
@@ -59,7 +59,7 @@ export async function signUpUser(fullName: string, email: string, password: stri
         console.error('Error creating NGO details:', ngoError);
         return { user: null, error: ngoError.message };
       }
-    } else {
+    } else if (userType === 'Personne') {
       const { error: personneError } = await supabase
         .from('personne_details')
         .insert({ user_id: userData.id });
@@ -75,7 +75,7 @@ export async function signUpUser(fullName: string, email: string, password: stri
         id: userData.id,
         fullName: userData.full_name,
         email: userData.email,
-        userType: userData.user_type as 'Personne' | 'NGO'
+        userType: userData.user_type as 'Personne' | 'NGO' | 'Admin'
       }, 
       error: null 
     };
@@ -103,7 +103,12 @@ export async function signInUser(email: string, password: string) {
     // In a real implementation, you would verify the password hash here
     // For this example, we'll do a simple check (this is NOT secure and just for demo)
     const hashedPassword = 'hashed_' + password;
-    if (userData.password_hash !== hashedPassword) {
+    const doubleHashedPassword = 'hashed_' + hashedPassword;
+    if (
+      userData.password_hash !== hashedPassword &&
+      userData.password_hash !== password &&
+      userData.password_hash !== doubleHashedPassword
+    ) {
       return { user: null, error: 'Invalid email or password' };
     }
 
@@ -112,7 +117,7 @@ export async function signInUser(email: string, password: string) {
         id: userData.id,
         fullName: userData.full_name,
         email: userData.email,
-        userType: userData.user_type as 'Personne' | 'NGO'
+        userType: userData.user_type as 'Personne' | 'NGO' | 'Admin'
       }, 
       error: null 
     };

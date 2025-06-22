@@ -37,7 +37,7 @@ interface User {
   id: string;
   fullName: string;
   email: string;
-  userType: 'Personne' | 'NGO';
+  userType: 'Personne' | 'NGO' | 'Admin';
 }
 
 interface ProfileProps {

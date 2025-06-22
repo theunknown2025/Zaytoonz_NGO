@@ -34,6 +34,8 @@ export default function SignIn() {
           } else if (user.userType === 'Personne') {
             // Redirect to seeker dashboard for users with "Personne" role
             router.push('/seeker');
+          } else if (user.userType === 'Admin') {
+            router.push('/admin');
           } else {
             // Default redirect for other user types
             router.push('/dashboard');

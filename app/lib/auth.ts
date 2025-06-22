@@ -6,7 +6,7 @@ export type User = {
   id: string;
   fullName: string;
   email: string;
-  userType: 'Personne' | 'NGO';
+  userType: 'Personne' | 'NGO' | 'Admin';
 };
 
 // Mock database for users (in a real app, you'd use a proper database)
@@ -30,7 +30,7 @@ export const AuthService = {
     fullName: string, 
     email: string, 
     password: string, 
-    userType: 'Personne' | 'NGO'
+    userType: 'Personne' | 'NGO' | 'Admin'
   ): Promise<{ user: User | null; error: string | null }> => {
     // Call Supabase signup function
     const { user, error } = await signUpUser(fullName, email, password, userType);
@@ -75,7 +75,7 @@ export const AuthService = {
 export const AuthContext = createContext<{
   user: User | null;
   signIn: (email: string, password: string) => Promise<{ user: User | null; error: string | null }>;
-  signUp: (fullName: string, email: string, password: string, userType: 'Personne' | 'NGO') => Promise<{ user: User | null; error: string | null }>;
+  signUp: (fullName: string, email: string, password: string, userType: 'Personne' | 'NGO' | 'Admin') => Promise<{ user: User | null; error: string | null }>;
   signOut: () => Promise<{ error: string | null }>;
 }>({
   user: null,
