@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { scrapeJobData, scrapeJobDataAdvanced, JobData, JobListResult } from '../../../lib/scraper';
+import { scrapeJobData, JobData, JobListResult } from '../../../lib/scraper';
 import { supabase } from '../../../lib/supabase';
 
 export async function POST(request: NextRequest) {
   try {
-    const { url, advanced = false } = await request.json();
+    const { url } = await request.json();
     
     if (!url) {
       return NextResponse.json(
@@ -23,11 +23,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Scrape the job data - use advanced scraper if requested
-    console.log(`🚀 Starting ${advanced ? 'ADVANCED' : 'BASIC'} scraping for: ${url}`);
-    const scrapedData = advanced ? 
-      await scrapeJobDataAdvanced(url) : 
-      await scrapeJobData(url);
+    // Scrape the job data
+    const scrapedData = await scrapeJobData(url);
     
     if (!scrapedData) {
       return NextResponse.json(
