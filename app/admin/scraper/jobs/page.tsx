@@ -1,5 +1,5 @@
-import ScrapedJobs from '../ScrapedJobs';
+import ScrapedJobsEnhanced from '../ScrapedJobsEnhanced';
  
 export default function ScrapedJobsPage() {
-  return <ScrapedJobs />;
+  return <ScrapedJobsEnhanced />;
 } 

@@ -1,6 +1,112 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { scrapeJobData, JobData, JobListResult } from '../../../lib/scraper';
 import { supabase } from '../../../lib/supabase';
+
+// Define types locally to avoid dependency on the legacy scraper
+interface JobData {
+  title?: string;
+  company?: string;
+  location?: string;
+  job_type?: string;
+  salary_range?: string;
+  description?: string;
+  requirements?: string;
+  benefits?: string;
+  application_deadline?: string;
+  tags?: string[];
+  experience_level?: string;
+  remote_work?: boolean;
+  source_url?: string;
+  scraped_at?: string;
+  id?: string;
+}
+
+interface JobListResult {
+  jobs: JobData[];
+  summary: {
+    totalFound: number;
+    source: string;
+    pageTitle: string;
+  };
+}
+
+// Function to scrape job data using the new simple scraper API
+async function scrapeJobDataWithSimpleAPI(url: string): Promise<JobData | JobListResult | null> {
+  try {
+    // Define common job fields for scraping
+    const jobFields = [
+      { id: '1', name: 'title', selector: 'h1, .job-title, .title, [class*="title"]', type: 'text' as const, required: true },
+      { id: '2', name: 'company', selector: '.company, .employer, [class*="company"]', type: 'text' as const, required: false },
+      { id: '3', name: 'location', selector: '.location, .city, [class*="location"]', type: 'text' as const, required: false },
+      { id: '4', name: 'description', selector: '.description, .content, [class*="description"]', type: 'text' as const, required: false },
+      { id: '5', name: 'job_type', selector: '.job-type, .type, [class*="type"]', type: 'text' as const, required: false },
+      { id: '6', name: 'salary_range', selector: '.salary, .pay, [class*="salary"]', type: 'text' as const, required: false }
+    ];
+
+    // Call the simple scraper API
+    const response = await fetch('/api/scraper/zaytoonz-simple', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        url,
+        fields: jobFields,
+        itemSelector: 'article, .job, .position, .listing'
+      }),
+    });
+
+    if (!response.ok) {
+      console.error('Simple scraper API error:', response.status);
+      return null;
+    }
+
+    const data = await response.json();
+    
+    if (!data.items || data.items.length === 0) {
+      return null;
+    }
+
+    // Convert to expected format
+    if (data.items.length === 1) {
+      // Single job
+      const job = data.items[0];
+      return {
+        title: job.title,
+        company: job.company,
+        location: job.location,
+        description: job.description,
+        job_type: job.job_type,
+        salary_range: job.salary_range,
+        source_url: url,
+        scraped_at: new Date().toISOString()
+      } as JobData;
+    } else {
+      // Multiple jobs
+      const jobs = data.items.map((item: any) => ({
+        title: item.title,
+        company: item.company,
+        location: item.location,
+        description: item.description,
+        job_type: item.job_type,
+        salary_range: item.salary_range,
+        source_url: url,
+        scraped_at: new Date().toISOString()
+      }));
+
+      return {
+        jobs,
+        summary: {
+          totalFound: jobs.length,
+          source: url,
+          pageTitle: data.debug?.pageTitle || 'Scraped Jobs'
+        }
+      } as JobListResult;
+    }
+  } catch (error) {
+    console.error('Error calling simple scraper API:', error);
+    return null;
+  }
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -23,8 +129,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Scrape the job data
-    const scrapedData = await scrapeJobData(url);
+    // Scrape the job data using the new simple scraper API
+    const scrapedData = await scrapeJobDataWithSimpleAPI(url);
     
     if (!scrapedData) {
       return NextResponse.json(

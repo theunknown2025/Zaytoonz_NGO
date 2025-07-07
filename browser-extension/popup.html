@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Zaytoonz RSS Creator</title>
+    <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+    <div class="popup-container">
+        <!-- Header -->
+        <div class="header">
+            <img src="icons/icon32.png" alt="Zaytoonz" class="logo">
+            <h1>RSS Creator</h1>
+        </div>
+
+        <!-- Current Page Info -->
+        <div class="page-info">
+            <div class="url-display">
+                <span class="label">Current URL:</span>
+                <span id="currentUrl" class="url">Loading...</span>
+            </div>
+            <div class="detection-status">
+                <span id="detectionStatus" class="status">🔍 Analyzing page...</span>
+            </div>
+        </div>
+
+        <!-- Feed Creation Form -->
+        <div class="form-section">
+            <h3>Create RSS Feed</h3>
+            
+            <div class="form-group">
+                <label for="feedTitle">Feed Title:</label>
+                <input type="text" id="feedTitle" placeholder="Auto-detected from page">
+            </div>
+            
+            <div class="form-group">
+                <label for="feedDescription">Description:</label>
+                <textarea id="feedDescription" placeholder="Optional description" rows="2"></textarea>
+            </div>
+            
+            <div class="form-group">
+                <label>Job Detection:</label>
+                <div id="jobCount" class="job-count">Scanning for jobs...</div>
+            </div>
+            
+            <button id="createFeedBtn" class="create-btn" disabled>
+                <span class="btn-text">Create RSS Feed</span>
+                <span class="btn-loader" style="display: none;">⏳</span>
+            </button>
+        </div>
+
+        <!-- Recent Feeds -->
+        <div class="recent-section">
+            <h3>Recent Feeds</h3>
+            <div id="recentFeeds" class="recent-feeds">
+                <div class="no-feeds">No feeds created yet</div>
+            </div>
+        </div>
+
+        <!-- Integration -->
+        <div class="integration-section">
+            <h3>Zaytoonz Integration</h3>
+            <div class="integration-status">
+                <span id="integrationStatus">🔗 Checking connection...</span>
+            </div>
+            <button id="importToZaytoonz" class="import-btn" disabled>
+                Import to Zaytoonz Scraper
+            </button>
+        </div>
+
+        <!-- Settings -->
+        <div class="settings-section">
+            <details>
+                <summary>⚙️ Settings</summary>
+                <div class="settings-content">
+                    <div class="form-group">
+                        <label for="rssApiKey">RSS.app API Key:</label>
+                        <input type="password" id="rssApiKey" placeholder="Enter your RSS.app API key">
+                    </div>
+                    <div class="form-group">
+                        <label for="rssApiSecret">RSS.app API Secret:</label>
+                        <input type="password" id="rssApiSecret" placeholder="Enter your RSS.app API secret">
+                    </div>
+                    <div class="form-group">
+                        <label for="zaytoonzUrl">Zaytoonz URL:</label>
+                        <input type="url" id="zaytoonzUrl" value="http://localhost:3000" placeholder="http://localhost:3000">
+                    </div>
+                    <button id="saveSettings" class="save-btn">Save Settings</button>
+                </div>
+            </details>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <div class="links">
+                <a href="#" id="helpLink">Help</a>
+                <a href="#" id="feedbackLink">Feedback</a>
+            </div>
+            <div class="version">v1.0.0</div>
+        </div>
+    </div>
+
+    <script src="popup.js"></script>
+</body>
+</html> 

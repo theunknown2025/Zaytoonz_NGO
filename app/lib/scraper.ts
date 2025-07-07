@@ -1,5 +1,5 @@
 import puppeteer, { Browser, Page } from 'puppeteer';
-import * as cheerio from 'cheerio';
+import { JSDOM } from 'jsdom';
 
 export interface JobData {
   title?: string;
@@ -25,7 +25,117 @@ export interface JobListResult {
   };
 }
 
+// Configuration for external Python scraper
+const EXTERNAL_SCRAPER_CONFIG = {
+  enabled: process.env.NEXT_PUBLIC_USE_EXTERNAL_SCRAPER === 'true',
+  baseUrl: process.env.NEXT_PUBLIC_EXTERNAL_SCRAPER_URL || 'https://your-streamlit-app.streamlit.app',
+  apiKey: process.env.NEXT_PUBLIC_EXTERNAL_SCRAPER_API_KEY
+};
+
+// Add this interface for external scraper response
+export interface ExternalScraperResponse {
+  success: boolean;
+  data?: JobData | JobListResult;
+  error?: string;
+  message?: string;
+}
+
 export async function scrapeJobData(url: string): Promise<JobData | JobListResult | null> {
+  // Check if external scraper is enabled
+  if (EXTERNAL_SCRAPER_CONFIG.enabled) {
+    console.log('🐍 Using external Python scraper');
+    return await scrapeWithExternalPython(url);
+  }
+  
+  // Fall back to current implementation
+  console.log('🌐 Using local TypeScript scraper');
+  return await scrapeWithPuppeteer(url);
+}
+
+// New function for external Python scraper
+async function scrapeWithExternalPython(url: string): Promise<JobData | JobListResult | null> {
+  try {
+    // Enhanced request with configurable fields and model
+    const requestBody = {
+      url,
+      fields: ["title", "company", "location", "job_type", "salary_range", "description", "requirements", "benefits", "tags", "experience_level", "remote_work"],
+      model: process.env.NEXT_PUBLIC_PREFERRED_AI_MODEL || "gpt-4o-mini",
+      use_pagination: process.env.NEXT_PUBLIC_ENABLE_PAGINATION === 'true',
+      pagination_details: process.env.NEXT_PUBLIC_PAGINATION_DETAILS || ""
+    };
+
+    console.log(`🐍 Calling Python scraper for: ${url}`);
+    console.log(`📊 Using AI model: ${requestBody.model}`);
+    
+    const response = await fetch(`${EXTERNAL_SCRAPER_CONFIG.baseUrl}/api/scrape`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(EXTERNAL_SCRAPER_CONFIG.apiKey && {
+          'Authorization': `Bearer ${EXTERNAL_SCRAPER_CONFIG.apiKey}`
+        })
+      },
+      body: JSON.stringify(requestBody)
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const result: ExternalScraperResponse = await response.json();
+    
+    if (result.success) {
+      // Log cost information if available
+      if (result.metadata?.total_cost) {
+        console.log(`💰 Scraping cost: $${result.metadata.total_cost.toFixed(4)}`);
+      }
+      
+      // Handle multiple jobs response format
+      if (result.jobs && Array.isArray(result.jobs)) {
+        return {
+          jobs: result.jobs.map(job => ({
+            ...job,
+            source_url: url,
+            scraped_at: new Date().toISOString(),
+            id: `python-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+          })),
+          summary: {
+            totalFound: result.jobs.length,
+            source: url,
+            pageTitle: "AI-Scraped Jobs"
+          }
+        } as JobListResult;
+      }
+      
+      // Handle single job response
+      if (result.data) {
+        const jobData = result.data as JobData;
+        return {
+          ...jobData,
+          source_url: url,
+          scraped_at: new Date().toISOString(),
+          id: `python-${Date.now()}`
+        };
+      }
+      
+      return result.data;
+    } else {
+      console.error('External scraper error:', result.error);
+      return null;
+    }
+  } catch (error) {
+    console.error('Error calling external Python scraper:', error);
+    // Optionally fall back to local scraper
+    if (process.env.NEXT_PUBLIC_FALLBACK_TO_LOCAL === 'true') {
+      console.log('🔄 Falling back to local scraper');
+      return await scrapeWithPuppeteer(url);
+    }
+    return null;
+  }
+}
+
+// Rename existing function
+async function scrapeWithPuppeteer(url: string): Promise<JobData | JobListResult | null> {
   let browser: Browser | null = null;
   
   try {
@@ -492,8 +602,6 @@ function extractFromJobListingPage($: cheerio.Root, url: string): JobListResult 
     }
   };
 }
-
-
 
 function extractTextFromSelectors($: cheerio.Root, selectors: string[]): string | undefined {
   for (const selector of selectors) {

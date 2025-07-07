@@ -1,0 +1,14 @@
+litellm
+python-dotenv
+pydantic
+pandas
+openpyxl
+streamlit-tags
+supabase
+streamlit
+streamlit-tags
+crawl4ai
+fastapi
+uvicorn[standard]
+requests
+nest-asyncio

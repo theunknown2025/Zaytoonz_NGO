@@ -24,21 +24,28 @@ const nextConfig = {
       config.externals.push('undici');
     }
     
-    // Handle private fields syntax
+    // Handle private fields syntax for undici
     config.module.rules.push({
       test: /\.m?js$/,
+      include: /node_modules\/undici/,
       type: 'javascript/auto',
       resolve: {
         fullySpecified: false,
       },
-      exclude: /node_modules\/undici/,
+      parser: {
+        // Disable parsing of private fields to avoid syntax errors
+        requireEnsure: false,
+      },
     });
+
+
 
     return config;
   },
   experimental: {
     // Enable SWC for better compatibility
     esmExternals: 'loose',
+    serverComponentsExternalPackages: [],
   },
 }
 

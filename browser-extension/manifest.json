@@ -1,0 +1,55 @@
+{
+  "manifest_version": 3,
+  "name": "Zaytoonz RSS Creator",
+  "version": "1.0.0",
+  "description": "Create RSS feeds from job sites and import them into Zaytoonz NGO scraper",
+  
+  "permissions": [
+    "activeTab",
+    "storage",
+    "scripting"
+  ],
+  
+  "host_permissions": [
+    "https://api.rss.app/*",
+    "http://localhost:3000/*",
+    "https://*/*"
+  ],
+  
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Create RSS Feed",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "32": "icons/icon32.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"],
+      "css": ["content.css"]
+    }
+  ],
+  
+  "background": {
+    "service_worker": "background.js"
+  },
+  
+  "web_accessible_resources": [
+    {
+      "resources": ["icons/*"],
+      "matches": ["<all_urls>"]
+    }
+  ]
+} 

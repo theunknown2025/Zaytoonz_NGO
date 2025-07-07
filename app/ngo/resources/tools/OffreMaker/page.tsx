@@ -4,27 +4,28 @@ import { useState, useEffect } from 'react';
 import { ClipboardDocumentListIcon } from '@heroicons/react/24/outline';
 import NewTemplate, { Template } from './NewTemplate';
 import ListTemplates from './ListTemplates';
-import { saveTemplate, getTemplates, deleteTemplate } from './supabaseService';
+import ZaytoonzTemplates from './ZaytoonzTemplates';
+import { saveTemplate, getNGOTemplates, deleteTemplate } from './supabaseService';
 import { toast, Toaster } from 'react-hot-toast';
 
 export default function OffreMakerTool() {
-  const [activeTab, setActiveTab] = useState<'new-template' | 'my-templates'>('my-templates');
-  const [templates, setTemplates] = useState<Template[]>([]);
+  const [activeTab, setActiveTab] = useState<'new-template' | 'my-templates' | 'zaytoonz-templates'>('my-templates');
+  const [ngoTemplates, setNgoTemplates] = useState<Template[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingTemplateId, setEditingTemplateId] = useState<string | null>(null);
   const [editingTemplate, setEditingTemplate] = useState<Template | null>(null);
 
-  // Fetch templates on component mount
+  // Fetch NGO templates only on component mount
   useEffect(() => {
-    const fetchTemplates = async () => {
+    const fetchNGOTemplates = async () => {
       setLoading(true);
       try {
-        const { data, error } = await getTemplates();
+        const { data, error } = await getNGOTemplates();
         if (error) {
-          console.error('Error fetching templates:', error);
+          console.error('Error fetching NGO templates:', error);
           toast.error('Failed to load templates');
         } else if (data) {
-          setTemplates(data);
+          setNgoTemplates(data);
         }
       } catch (err) {
         console.error('Error in template fetch:', err);
@@ -34,7 +35,7 @@ export default function OffreMakerTool() {
       }
     };
 
-    fetchTemplates();
+    fetchNGOTemplates();
   }, []);
 
   // Handle saving a new template
@@ -51,13 +52,13 @@ export default function OffreMakerTool() {
       if (data) {
         if (editingTemplateId) {
           // Update existing template in state
-          setTemplates(templates.map(t => t.id === editingTemplateId ? data : t));
+          setNgoTemplates(ngoTemplates.map(t => t.id === editingTemplateId ? data : t));
           setEditingTemplateId(null);
           setEditingTemplate(null);
           toast.success('Template updated successfully');
         } else {
           // Add new template to state
-          setTemplates([data, ...templates]);
+          setNgoTemplates([data, ...ngoTemplates]);
           toast.success('Template saved successfully');
         }
         setActiveTab('my-templates');
@@ -68,9 +69,9 @@ export default function OffreMakerTool() {
     }
   };
 
-  // Handle editing a template
+  // Handle editing a template (only NGO templates can be edited)
   const handleEditTemplate = (templateId: string) => {
-    const template = templates.find(t => t.id === templateId);
+    const template = ngoTemplates.find(t => t.id === templateId);
     if (template) {
       setEditingTemplateId(templateId);
       setEditingTemplate(template);
@@ -78,7 +79,7 @@ export default function OffreMakerTool() {
     }
   };
 
-  // Handle deleting a template
+  // Handle deleting a template (only NGO templates can be deleted)
   const handleDeleteTemplate = async (templateId: string) => {
     try {
       const { error } = await deleteTemplate(templateId);
@@ -89,7 +90,7 @@ export default function OffreMakerTool() {
         return;
       }
       
-      setTemplates(templates.filter(template => template.id !== templateId));
+      setNgoTemplates(ngoTemplates.filter(template => template.id !== templateId));
       toast.success('Template deleted successfully');
     } catch (err) {
       console.error('Error in template delete:', err);
@@ -100,7 +101,7 @@ export default function OffreMakerTool() {
   // Handle using a template
   const handleUseTemplate = (templateId: string) => {
     // This would create a new opportunity based on the template
-    const template = templates.find(t => t.id === templateId);
+    const template = ngoTemplates.find(t => t.id === templateId);
     if (template) {
       toast.success(`Creating new opportunity using: ${template.title}`);
       // Navigate to opportunity creation page with template
@@ -113,6 +114,25 @@ export default function OffreMakerTool() {
     setEditingTemplateId(null);
     setEditingTemplate(null);
     setActiveTab('new-template');
+  };
+
+  // Handle use template from Zaytoonz Templates
+  const handleUseZaytoonzTemplate = (template: any) => {
+    // Create a new template based on the Zaytoonz template (without ID)
+    const newTemplate: Template = {
+      id: '', // No ID - let it be generated when saved
+      title: `${template.title} (Copy)`,
+      description: template.description,
+      fields: template.fields || []
+    };
+    
+    // Set as editing template and switch to new template tab
+    setEditingTemplate(newTemplate);
+    setEditingTemplateId(null);
+    setActiveTab('new-template');
+    
+    // Show success message
+    toast.success(`Template "${template.title}" loaded successfully!`);
   };
 
   return (
@@ -149,6 +169,16 @@ export default function OffreMakerTool() {
           >
             My Templates
           </button>
+          <button
+            onClick={() => setActiveTab('zaytoonz-templates')}
+            className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors ${
+              activeTab === 'zaytoonz-templates' 
+                ? 'border-[#556B2F] text-[#556B2F]' 
+                : 'border-transparent text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            Zaytoonz Templates
+          </button>
         </div>
         
         {/* New Template Tab */}
@@ -159,15 +189,22 @@ export default function OffreMakerTool() {
           />
         )}
         
-        {/* My Templates Tab */}
+        {/* My Templates Tab - Only NGO Templates */}
         {activeTab === 'my-templates' && (
           <ListTemplates 
-            templates={templates}
+            templates={ngoTemplates}
             onNewTemplate={handleNewTemplate}
             onEditTemplate={handleEditTemplate}
             onDeleteTemplate={handleDeleteTemplate}
             onUseTemplate={handleUseTemplate}
             loading={loading}
+          />
+        )}
+        
+        {/* Zaytoonz Templates Tab - Only Admin Templates */}
+        {activeTab === 'zaytoonz-templates' && (
+          <ZaytoonzTemplates 
+            onUseTemplate={handleUseZaytoonzTemplate}
           />
         )}
       </div>

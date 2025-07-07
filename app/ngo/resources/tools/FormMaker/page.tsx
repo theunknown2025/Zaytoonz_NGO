@@ -22,6 +22,7 @@ import { FormData, Section, Question, QuestionType } from './types';
 import { createClient } from '@supabase/supabase-js';
 import ListForms from './ListForms';
 import NewForm from './NewForm';
+import ZaytoonzTemplates from './ZaytoonzTemplates';
 // import { useUser } from '@clerk/nextjs';
 // import { db } from '@/lib/db';
 // import { LoadingIndicator } from '@/components/LoadingIndicator';
@@ -48,7 +49,7 @@ const toast = {
 
 export default function FormMakerTool() {
   // const { user, isLoaded } = useUser();
-  const [activeTab, setActiveTab] = useState<'list' | 'new'>('list');
+  const [activeTab, setActiveTab] = useState<'list' | 'new' | 'zaytoonz'>('list');
   const [displayMode, setDisplayMode] = useState<'sections' | 'all'>('sections');
   const [formTitle, setFormTitle] = useState('New Form');
   const [formDescription, setFormDescription] = useState('');
@@ -662,6 +663,20 @@ export default function FormMakerTool() {
     setActiveTab('list');
   };
 
+  // Handle use template from Zaytoonz Templates
+  const handleUseTemplate = (template: any) => {
+    // Pre-populate form with template data
+    setFormTitle(template.title);
+    setFormDescription(template.description);
+    setSections(template.sections || []);
+    
+    // Switch to new form tab
+    setActiveTab('new');
+    
+    // Show success message
+    toast.success(`Template "${template.title}" loaded successfully!`);
+  };
+
   return (
     <div className="px-4 py-6">
       <div className="w-full max-w-6xl mx-auto">
@@ -698,6 +713,16 @@ export default function FormMakerTool() {
           >
             My Forms
           </button>
+          <button
+            onClick={() => setActiveTab('zaytoonz')}
+            className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors ${
+              activeTab === 'zaytoonz' 
+                ? 'border-[#556B2F] text-[#556B2F]' 
+                : 'border-transparent text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            Zaytoonz Templates
+          </button>
         </div>
         
         {/* New Form Tab */}
@@ -716,6 +741,13 @@ export default function FormMakerTool() {
             onNewForm={handleNewForm} 
             onEditForm={handleEditForm}
             toast={toast}
+          />
+        )}
+        
+        {/* Zaytoonz Templates Tab */}
+        {activeTab === 'zaytoonz' && (
+          <ZaytoonzTemplates 
+            onUseTemplate={handleUseTemplate}
           />
         )}
       </div>

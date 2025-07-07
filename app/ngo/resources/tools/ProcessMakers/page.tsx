@@ -4,17 +4,19 @@ import { useState, useEffect } from 'react';
 import { 
   Cog6ToothIcon,
   PlusCircleIcon,
-  ListBulletIcon
+  ListBulletIcon,
+  RectangleGroupIcon
 } from '@heroicons/react/24/outline';
 import ListProcess from './ListProcess';
 import NewProcess from './NewProcess';
+import ZaytoonzTemplates from './ZaytoonzTemplates';
 import { Toaster } from 'react-hot-toast';
 import { useSearchParams } from 'next/navigation';
 import { getProcessTemplateWithSteps } from './services/processService';
 
 export default function ProcessMakersTool() {
   const searchParams = useSearchParams();
-  const [activeTab, setActiveTab] = useState<'list' | 'new' | 'detail'>('list');
+  const [activeTab, setActiveTab] = useState<'list' | 'new' | 'detail' | 'zaytoonz'>('list');
   const [activeProcess, setActiveProcess] = useState<number | null>(null);
   const [editProcessId, setEditProcessId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -40,7 +42,7 @@ export default function ProcessMakersTool() {
       const { tab, processId } = event.detail;
       
       if (tab) {
-        setActiveTab(tab as 'list' | 'new' | 'detail');
+        setActiveTab(tab as 'list' | 'new' | 'detail' | 'zaytoonz');
       }
       
       if (processId) {
@@ -89,6 +91,18 @@ export default function ProcessMakersTool() {
     { id: 5, name: 'Final Approval', assignee: 'Program Director', status: 'pending' },
   ];
 
+  // Handle use template from Zaytoonz Templates
+  const handleUseTemplate = (template: any) => {
+    // Here you would typically pass the template data to the NewProcess component
+    // For now, just switch to the new process tab
+    setActiveTab('new');
+    setEditProcessId(null);
+    
+    // In a real implementation, you might want to pass the template data
+    // to the NewProcess component via props or context
+    console.log('Using template:', template);
+  };
+
   return (
     <div className="px-4 py-6">
       <Toaster position="top-right" />
@@ -133,10 +147,26 @@ export default function ProcessMakersTool() {
                 activeTab === 'new'
                   ? 'text-white bg-gradient-to-r from-[#556B2F] to-[#6B8E23]'
                   : 'text-gray-900 bg-white hover:bg-gray-100'
-              } rounded-r-lg border border-gray-200 flex items-center`}
+              } border border-gray-200 flex items-center`}
             >
               <PlusCircleIcon className="w-4 h-4 mr-2" />
               {editProcessId ? 'Edit Process' : 'New Process'}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setActiveTab('zaytoonz');
+                setEditProcessId(null);
+                setActiveProcess(null);
+              }}
+              className={`py-2.5 px-5 text-sm font-medium ${
+                activeTab === 'zaytoonz'
+                  ? 'text-white bg-gradient-to-r from-[#556B2F] to-[#6B8E23]'
+                  : 'text-gray-900 bg-white hover:bg-gray-100'
+              } rounded-r-lg border border-gray-200 flex items-center`}
+            >
+              <RectangleGroupIcon className="w-4 h-4 mr-2" />
+              Zaytoonz Templates
             </button>
           </div>
         </div>
@@ -144,6 +174,7 @@ export default function ProcessMakersTool() {
         {/* Tab Content */}
         {activeTab === 'list' && <ListProcess />}
         {activeTab === 'new' && <NewProcess editProcessId={editProcessId} />}
+        {activeTab === 'zaytoonz' && <ZaytoonzTemplates onUseTemplate={handleUseTemplate} />}
         
         {/* Original Process Detail View - shown when activeTab is 'detail' */}
         {activeTab === 'detail' && activeProcess && (

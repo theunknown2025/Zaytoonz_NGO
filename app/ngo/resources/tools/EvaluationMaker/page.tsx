@@ -1,12 +1,24 @@
 'use client';
 
 import { useState } from 'react';
-import { ChartPieIcon, ListBulletIcon, PlusIcon } from '@heroicons/react/24/outline';
+import { ChartPieIcon, ListBulletIcon, PlusIcon, RectangleGroupIcon } from '@heroicons/react/24/outline';
 import NewEvaluation from './components/NewEvaluation';
 import ListEvaluations from './components/ListEvaluations';
+import ZaytoonzTemplates from './ZaytoonzTemplates';
 
 export default function EvaluationMaker() {
-  const [activeTab, setActiveTab] = useState<'new' | 'list'>('new');
+  const [activeTab, setActiveTab] = useState<'new' | 'list' | 'zaytoonz'>('new');
+
+  // Handle use template from Zaytoonz Templates
+  const handleUseTemplate = (template: any) => {
+    // Here you would typically pass the template data to the NewEvaluation component
+    // For now, just switch to the new evaluation tab
+    setActiveTab('new');
+    
+    // In a real implementation, you might want to pass the template data
+    // to the NewEvaluation component via props or context
+    console.log('Using template:', template);
+  };
 
   return (
     <div className="px-4 py-6">
@@ -50,6 +62,17 @@ export default function EvaluationMaker() {
                 <ListBulletIcon className="w-5 h-5 mr-2" />
                 List of Evaluations
               </button>
+              <button
+                onClick={() => setActiveTab('zaytoonz')}
+                className={`flex items-center px-6 py-3 text-sm font-medium rounded-md transition-all duration-200 ${
+                  activeTab === 'zaytoonz'
+                    ? 'bg-white text-[#556B2F] shadow-sm'
+                    : 'text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                <RectangleGroupIcon className="w-5 h-5 mr-2" />
+                Zaytoonz Templates
+              </button>
             </nav>
           </div>
         </div>
@@ -58,6 +81,11 @@ export default function EvaluationMaker() {
         <div className="bg-white rounded-lg shadow-sm border border-gray-200">
           {activeTab === 'new' && <NewEvaluation />}
           {activeTab === 'list' && <ListEvaluations />}
+          {activeTab === 'zaytoonz' && (
+            <div className="p-6">
+              <ZaytoonzTemplates onUseTemplate={handleUseTemplate} />
+            </div>
+          )}
         </div>
       </div>
     </div>

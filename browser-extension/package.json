@@ -1,0 +1,65 @@
+{
+  "name": "zaytoonz-rss-creator",
+  "version": "1.0.0",
+  "description": "Browser extension that creates RSS feeds from job sites and integrates with Zaytoonz NGO scraper",
+  "main": "popup.js",
+  "scripts": {
+    "build": "npm run clean && npm run copy-files",
+    "clean": "rm -rf dist",
+    "copy-files": "mkdir -p dist && cp -r *.html *.css *.js *.json icons dist/",
+    "lint": "eslint *.js",
+    "lint:fix": "eslint *.js --fix",
+    "test": "echo \"No tests specified yet\"",
+    "zip": "npm run build && cd dist && zip -r ../zaytoonz-rss-creator-v1.0.0.zip .",
+    "dev": "echo \"Load extension in developer mode\"",
+    "validate": "web-ext lint",
+    "start:firefox": "web-ext run --target=firefox-desktop",
+    "start:chrome": "echo \"Load unpacked extension in Chrome\""
+  },
+  "keywords": [
+    "browser-extension",
+    "rss",
+    "jobs",
+    "scraper",
+    "zaytoonz",
+    "ngo",
+    "chrome-extension",
+    "firefox-addon",
+    "job-search",
+    "morocco",
+    "rekrute",
+    "linkedin",
+    "indeed"
+  ],
+  "author": {
+    "name": "Zaytoonz NGO",
+    "email": "tech@zaytoonz.org",
+    "url": "https://zaytoonz.org"
+  },
+  "license": "MIT",
+  "homepage": "https://github.com/your-org/zaytoonz-rss-creator",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-org/zaytoonz-rss-creator.git"
+  },
+  "bugs": {
+    "url": "https://github.com/your-org/zaytoonz-rss-creator/issues"
+  },
+  "devDependencies": {
+    "eslint": "^8.55.0",
+    "web-ext": "^7.8.0"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  },
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "zaytoonz-rss-creator@zaytoonz.org",
+      "strict_min_version": "109.0"
+    }
+  },
+  "funding": {
+    "type": "opencollective",
+    "url": "https://opencollective.com/zaytoonz"
+  }
+} 

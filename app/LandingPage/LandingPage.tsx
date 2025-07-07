@@ -108,7 +108,7 @@ export default function LandingPage() {
               </a>
               <a
                 href="/auth/signup"
-                className="bg-olive-gradient text-white px-6 py-2 rounded-full font-medium hover:shadow-lg transition-all duration-300 transform hover:scale-105"
+                className="bg-olive-700 text-white px-6 py-2 rounded-full font-medium hover:bg-olive-800 hover:shadow-lg transition-all duration-300 transform hover:scale-105"
               >
                 Get Started
               </a>
@@ -141,7 +141,7 @@ export default function LandingPage() {
                   <a href="/auth/signin" className="block w-full text-left px-3 py-2 text-olive-700 hover:text-olive-600">
                     Sign In
                   </a>
-                  <a href="/auth/signup" className="block w-full mt-2 bg-olive-gradient text-white px-3 py-2 rounded-full font-medium text-center">
+                  <a href="/auth/signup" className="block w-full mt-2 bg-olive-700 text-white px-3 py-2 rounded-full font-medium text-center hover:bg-olive-800">
                     Get Started
                   </a>
                 </div>
@@ -152,19 +152,19 @@ export default function LandingPage() {
       </header>
 
       {/* Hero Section */}
-      <section id="home" className="pt-16 min-h-screen bg-gradient-to-br from-olive-50 via-white to-olive-100">
+      <section id="home" className="pt-16 min-h-screen bg-olive-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
           <div className="text-center">
             <div className="mb-6">
-              <span className="inline-block bg-olive-gradient text-white px-6 py-2 rounded-full text-sm font-semibold mb-4">
+              <span className="inline-block bg-olive-700 text-white px-6 py-2 rounded-full text-sm font-semibold mb-4">
                 🌍 Connecting Global Changemakers Since 2020
               </span>
             </div>
             
             <h1 className="text-4xl md:text-6xl font-bold text-olive-800 mb-6 leading-tight">
-              Connecting <span className="bg-olive-gradient bg-clip-text text-transparent">NGOs</span> with 
+              Connecting <span className="text-olive-600">NGOs</span> with 
               <br />
-              <span className="bg-olive-gradient bg-clip-text text-transparent">Youth Talents</span>
+              <span className="text-olive-600">Youth Talents</span>
             </h1>
             
             <p className="text-xl text-olive-600 mb-8 max-w-4xl mx-auto leading-relaxed">
@@ -174,10 +174,10 @@ export default function LandingPage() {
             </p>
             
             <div className="flex flex-col sm:flex-row gap-4 justify-center mb-16">
-              <a
-                href="/seeker"
-                className="bg-olive-gradient text-white px-8 py-4 rounded-full font-semibold text-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 flex items-center justify-center"
-              >
+                              <a
+                  href="/seeker"
+                  className="bg-olive-700 text-white px-8 py-4 rounded-full font-semibold text-lg hover:bg-olive-800 hover:shadow-xl transition-all duration-300 transform hover:scale-105 flex items-center justify-center"
+                >
                 Find Opportunities
                 <ArrowRight className="ml-2 h-5 w-5" />
               </a>
@@ -192,7 +192,7 @@ export default function LandingPage() {
 
             <div className="grid md:grid-cols-4 gap-8 mt-20">
               <div className="text-center">
-                <div className="bg-olive-gradient w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                <div className="bg-olive-600 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
                   <Users className="h-8 w-8 text-white" />
                 </div>
                 <h3 className="text-3xl font-bold text-olive-800 mb-2">15,000+</h3>
@@ -200,7 +200,7 @@ export default function LandingPage() {
                 <p className="text-sm text-olive-500 mt-1">From 85+ countries</p>
               </div>
               <div className="text-center">
-                <div className="bg-olive-gradient w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                <div className="bg-olive-600 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
                   <Target className="h-8 w-8 text-white" />
                 </div>
                 <h3 className="text-3xl font-bold text-olive-800 mb-2">750+</h3>
@@ -208,7 +208,7 @@ export default function LandingPage() {
                 <p className="text-sm text-olive-500 mt-1">Across 6 continents</p>
               </div>
               <div className="text-center">
-                <div className="bg-olive-gradient w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                <div className="bg-olive-600 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
                   <Globe className="h-8 w-8 text-white" />
                 </div>
                 <h3 className="text-3xl font-bold text-olive-800 mb-2">2.5M+</h3>
@@ -216,7 +216,7 @@ export default function LandingPage() {
                 <p className="text-sm text-olive-500 mt-1">Through our partnerships</p>
               </div>
               <div className="text-center">
-                <div className="bg-olive-gradient w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                <div className="bg-olive-600 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
                   <Award className="h-8 w-8 text-white" />
                 </div>
                 <h3 className="text-3xl font-bold text-olive-800 mb-2">97%</h3>
@@ -229,7 +229,7 @@ export default function LandingPage() {
       </section>
 
       {/* Features Section */}
-      <section id="features" className="py-20 bg-gradient-to-br from-olive-50 to-white">
+      <section id="features" className="py-20 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
             <h2 className="text-4xl font-bold text-olive-800 mb-4">
@@ -244,7 +244,7 @@ export default function LandingPage() {
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
             {features.map((feature, index) => (
               <div key={index} className="bg-white rounded-2xl p-8 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 border border-olive-100">
-                <div className="bg-olive-gradient w-16 h-16 rounded-xl flex items-center justify-center mb-6">
+                <div className="bg-olive-600 w-16 h-16 rounded-xl flex items-center justify-center mb-6">
                   {React.cloneElement(feature.icon, { className: "h-8 w-8 text-white" })}
                 </div>
                 <h3 className="text-xl font-bold text-olive-800 mb-3">{feature.title}</h3>
@@ -260,7 +260,7 @@ export default function LandingPage() {
       </section>
 
       {/* Platform Features Section */}
-      <section id="services" className="py-20 bg-gradient-to-br from-olive-50 to-white">
+      <section id="services" className="py-20 bg-olive-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
             <h2 className="text-4xl font-bold text-olive-800 mb-4">
@@ -275,7 +275,7 @@ export default function LandingPage() {
             {/* For Job Seekers */}
             <div className="bg-white rounded-3xl p-8 shadow-xl">
               <div className="text-center mb-8">
-                <div className="bg-olive-gradient w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4">
+                <div className="bg-olive-700 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4">
                   <Search className="h-10 w-10 text-white" />
                 </div>
                 <h3 className="text-3xl font-bold text-olive-800 mb-2">For Job Seekers</h3>
@@ -285,7 +285,7 @@ export default function LandingPage() {
               <div className="space-y-6">
                 <div className="border border-olive-200 rounded-xl p-6 hover:shadow-lg transition-all duration-300 hover:border-olive-300">
                   <div className="flex items-start space-x-4">
-                    <div className="bg-olive-gradient w-12 h-12 rounded-lg flex items-center justify-center flex-shrink-0">
+                    <div className="bg-olive-600 w-12 h-12 rounded-lg flex items-center justify-center flex-shrink-0">
                       <Search className="h-6 w-6 text-white" />
                     </div>
                     <div className="flex-1">
@@ -307,7 +307,7 @@ export default function LandingPage() {
 
                 <div className="border border-olive-200 rounded-xl p-6 hover:shadow-lg transition-all duration-300 hover:border-olive-300">
                   <div className="flex items-start space-x-4">
-                    <div className="bg-olive-gradient w-12 h-12 rounded-lg flex items-center justify-center flex-shrink-0">
+                    <div className="bg-olive-600 w-12 h-12 rounded-lg flex items-center justify-center flex-shrink-0">
                       <Briefcase className="h-6 w-6 text-white" />
                     </div>
                     <div className="flex-1">
@@ -329,7 +329,7 @@ export default function LandingPage() {
 
                 <div className="border border-olive-200 rounded-xl p-6 hover:shadow-lg transition-all duration-300 hover:border-olive-300">
                   <div className="flex items-start space-x-4">
-                    <div className="bg-olive-gradient w-12 h-12 rounded-lg flex items-center justify-center flex-shrink-0">
+                    <div className="bg-olive-600 w-12 h-12 rounded-lg flex items-center justify-center flex-shrink-0">
                       <Users className="h-6 w-6 text-white" />
                     </div>
                     <div className="flex-1">
@@ -353,7 +353,7 @@ export default function LandingPage() {
               <div className="mt-8 text-center">
                 <a
                   href="/seeker"
-                  className="bg-olive-gradient text-white px-8 py-4 rounded-full font-semibold text-lg hover:shadow-lg transition-all duration-300 transform hover:scale-105 flex items-center mx-auto w-fit"
+                  className="bg-olive-700 text-white px-8 py-4 rounded-full font-semibold text-lg hover:bg-olive-800 hover:shadow-lg transition-all duration-300 transform hover:scale-105 flex items-center mx-auto w-fit"
                 >
                   Start Job Search
                   <ArrowRight className="ml-2 h-5 w-5" />
@@ -362,7 +362,7 @@ export default function LandingPage() {
             </div>
 
             {/* For NGOs */}
-            <div className="bg-gradient-to-br from-olive-800 to-olive-600 rounded-3xl p-8 text-white shadow-xl">
+            <div className="bg-olive-800 rounded-3xl p-8 text-white shadow-xl">
               <div className="text-center mb-8">
                 <div className="bg-white/20 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4">
                   <Target className="h-10 w-10 text-white" />
@@ -470,7 +470,7 @@ export default function LandingPage() {
             {/* For Job Seekers */}
             <div>
               <div className="text-center mb-8">
-                <div className="bg-olive-gradient w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                <div className="bg-olive-600 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
                   <UserPlus className="h-8 w-8 text-white" />
                 </div>
                 <h3 className="text-2xl font-bold text-olive-800 mb-2">For Job Seekers</h3>
@@ -479,7 +479,7 @@ export default function LandingPage() {
 
               <div className="space-y-6">
                 <div className="flex items-start space-x-4">
-                  <div className="bg-olive-gradient w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0">
+                  <div className="bg-olive-600 w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0">
                     <span className="text-white font-bold">1</span>
                   </div>
                   <div className="flex-1">
@@ -494,7 +494,7 @@ export default function LandingPage() {
                 </div>
 
                 <div className="flex items-start space-x-4">
-                  <div className="bg-olive-gradient w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0">
+                  <div className="bg-olive-600 w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0">
                     <span className="text-white font-bold">2</span>
                   </div>
                   <div className="flex-1">
@@ -509,7 +509,7 @@ export default function LandingPage() {
                 </div>
 
                 <div className="flex items-start space-x-4">
-                  <div className="bg-olive-gradient w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0">
+                  <div className="bg-olive-600 w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0">
                     <span className="text-white font-bold">3</span>
                   </div>
                   <div className="flex-1">
@@ -524,7 +524,7 @@ export default function LandingPage() {
                 </div>
 
                 <div className="flex items-start space-x-4">
-                  <div className="bg-olive-gradient w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0">
+                  <div className="bg-olive-600 w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0">
                     <span className="text-white font-bold">4</span>
                   </div>
                   <div className="flex-1">
@@ -543,7 +543,7 @@ export default function LandingPage() {
             {/* For NGOs */}
             <div>
               <div className="text-center mb-8">
-                <div className="bg-olive-gradient w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                <div className="bg-olive-600 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
                   <Target className="h-8 w-8 text-white" />
                 </div>
                 <h3 className="text-2xl font-bold text-olive-800 mb-2">For NGOs</h3>
@@ -552,7 +552,7 @@ export default function LandingPage() {
 
               <div className="space-y-6">
                 <div className="flex items-start space-x-4">
-                  <div className="bg-olive-gradient w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0">
+                  <div className="bg-olive-600 w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0">
                     <span className="text-white font-bold">1</span>
                   </div>
                   <div className="flex-1">
@@ -567,7 +567,7 @@ export default function LandingPage() {
                 </div>
 
                 <div className="flex items-start space-x-4">
-                  <div className="bg-olive-gradient w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0">
+                  <div className="bg-olive-600 w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0">
                     <span className="text-white font-bold">2</span>
                   </div>
                   <div className="flex-1">
@@ -582,7 +582,7 @@ export default function LandingPage() {
                 </div>
 
                 <div className="flex items-start space-x-4">
-                  <div className="bg-olive-gradient w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0">
+                  <div className="bg-olive-600 w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0">
                     <span className="text-white font-bold">3</span>
                   </div>
                   <div className="flex-1">
@@ -597,7 +597,7 @@ export default function LandingPage() {
                 </div>
 
                 <div className="flex items-start space-x-4">
-                  <div className="bg-olive-gradient w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0">
+                  <div className="bg-olive-600 w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0">
                     <span className="text-white font-bold">4</span>
                   </div>
                   <div className="flex-1">
@@ -615,7 +615,7 @@ export default function LandingPage() {
           </div>
 
           <div className="mt-16 text-center">
-            <div className="bg-olive-gradient-light rounded-2xl p-8 max-w-4xl mx-auto">
+            <div className="bg-olive-100 rounded-2xl p-8 max-w-4xl mx-auto">
               <CheckCircle className="h-16 w-16 text-olive-600 mx-auto mb-4" />
               <h3 className="text-2xl font-bold text-olive-800 mb-4">Ready to Get Started?</h3>
               <p className="text-olive-600 text-lg mb-6">
@@ -624,7 +624,7 @@ export default function LandingPage() {
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
                 <a
                   href="/seeker"
-                  className="bg-olive-gradient text-white px-8 py-3 rounded-full font-semibold hover:shadow-lg transition-all duration-300 transform hover:scale-105"
+                  className="bg-olive-600 text-white px-8 py-3 rounded-full font-semibold hover:bg-olive-700 hover:shadow-lg transition-all duration-300 transform hover:scale-105"
                 >
                   Join as Talent
                 </a>
@@ -641,7 +641,7 @@ export default function LandingPage() {
       </section>
 
       {/* Call to Action */}
-      <section className="py-20 bg-olive-gradient">
+      <section className="py-20 bg-olive-700">
         <div className="max-w-4xl mx-auto text-center px-4 sm:px-6 lg:px-8">
           <h2 className="text-4xl font-bold text-white mb-6">
             Ready to Make an Impact?
@@ -667,7 +667,7 @@ export default function LandingPage() {
       </section>
 
       {/* Recent Opportunities Section */}
-      <section className="py-20 bg-gradient-to-br from-olive-50 to-white">
+      <section className="py-20 bg-olive-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
             <h2 className="text-4xl font-bold text-olive-800 mb-4">
@@ -684,7 +684,7 @@ export default function LandingPage() {
       </section>
 
       {/* Testimonials Section */}
-      <section className="py-20 bg-olive-gradient-light">
+      <section className="py-20 bg-olive-100">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
             <h2 className="text-4xl font-bold text-olive-800 mb-4">
@@ -791,7 +791,7 @@ export default function LandingPage() {
       </section>
 
       {/* About Section */}
-      <section id="about" className="py-20 bg-olive-gradient-light">
+      <section id="about" className="py-20 bg-olive-100">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
             <h2 className="text-4xl font-bold text-olive-800 mb-4">
@@ -835,7 +835,7 @@ export default function LandingPage() {
             
             <div className="bg-white rounded-2xl p-8 shadow-xl">
               <div className="text-center">
-                <div className="bg-olive-gradient w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-6">
+                <div className="bg-olive-600 w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-6">
                   <img src="/image.png" alt="Zaytoonz" className="h-16 w-auto" />
                 </div>
                 <h4 className="text-3xl font-bold text-olive-800 mb-2">Since 2020</h4>
@@ -883,7 +883,7 @@ export default function LandingPage() {
               
               <div className="space-y-6">
                 <div className="flex items-center space-x-4">
-                  <div className="bg-olive-gradient w-12 h-12 rounded-lg flex items-center justify-center">
+                  <div className="bg-olive-600 w-12 h-12 rounded-lg flex items-center justify-center">
                     <Mail className="h-6 w-6 text-white" />
                   </div>
                   <div>
@@ -893,7 +893,7 @@ export default function LandingPage() {
                 </div>
                 
                 <div className="flex items-center space-x-4">
-                  <div className="bg-olive-gradient w-12 h-12 rounded-lg flex items-center justify-center">
+                  <div className="bg-olive-600 w-12 h-12 rounded-lg flex items-center justify-center">
                     <Phone className="h-6 w-6 text-white" />
                   </div>
                   <div>
@@ -903,7 +903,7 @@ export default function LandingPage() {
                 </div>
                 
                 <div className="flex items-center space-x-4">
-                  <div className="bg-olive-gradient w-12 h-12 rounded-lg flex items-center justify-center">
+                  <div className="bg-olive-600 w-12 h-12 rounded-lg flex items-center justify-center">
                     <MapPin className="h-6 w-6 text-white" />
                   </div>
                   <div>
@@ -913,7 +913,7 @@ export default function LandingPage() {
                 </div>
               </div>
 
-              <div className="mt-8 p-6 bg-olive-gradient-light rounded-xl">
+              <div className="mt-8 p-6 bg-olive-100 rounded-xl">
                 <h4 className="text-xl font-semibold text-olive-800 mb-3">Office Hours</h4>
                 <div className="space-y-2 text-olive-600">
                   <p>Monday - Friday: 9:00 AM - 6:00 PM</p>
@@ -923,7 +923,7 @@ export default function LandingPage() {
               </div>
             </div>
 
-            <div className="bg-olive-gradient-light rounded-2xl p-8">
+            <div className="bg-olive-100 rounded-2xl p-8">
               <h3 className="text-2xl font-bold text-olive-800 mb-6">Send us a Message</h3>
               
               <form className="space-y-6">
@@ -987,7 +987,7 @@ export default function LandingPage() {
                 
                 <button
                   type="submit"
-                  className="w-full bg-olive-gradient text-white px-6 py-3 rounded-lg font-semibold hover:shadow-lg transition-all duration-300 transform hover:scale-105 flex items-center justify-center"
+                  className="w-full bg-olive-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-olive-700 hover:shadow-lg transition-all duration-300 transform hover:scale-105 flex items-center justify-center"
                 >
                   Send Message
                   <Send className="ml-2 h-5 w-5" />

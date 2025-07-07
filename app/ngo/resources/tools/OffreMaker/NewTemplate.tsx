@@ -26,10 +26,14 @@ export interface TemplateField {
 }
 
 export interface Template {
-  id: string;
+  id: string; // Can be empty string for new templates
   title: string;
   description?: string;
   fields: TemplateField[];
+  published?: boolean;
+  is_admin_template?: boolean;
+  created_at?: string;
+  updated_at?: string;
 }
 
 interface NewTemplateProps {
@@ -224,7 +228,7 @@ export default function NewTemplate({ onTemplateSaved, initialTemplate }: NewTem
 
   const saveTemplateDirectly = () => {
     const newTemplate: Template = {
-      id: initialTemplate?.id || Date.now().toString(),
+      id: initialTemplate?.id || '', // Only use existing ID if editing, otherwise let database generate
       title: templateTitle,
       description: templateDescription || undefined,
       fields: templateFields

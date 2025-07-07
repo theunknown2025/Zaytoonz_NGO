@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { 
   Cog6ToothIcon,
   PlusCircleIcon,
@@ -15,12 +15,14 @@ import {
   UserIcon,
   CheckCircleIcon,
   ExclamationTriangleIcon,
-  ArrowRightIcon
+  ArrowRightIcon,
+  GlobeAltIcon,
+  EyeSlashIcon
 } from '@heroicons/react/24/outline';
 import Link from 'next/link';
 
 interface ProcessStep {
-  id: string;
+  id?: string;
   title: string;
   description: string;
   assignee: string;
@@ -30,97 +32,32 @@ interface ProcessStep {
 }
 
 interface Process {
-  id: string;
+  id?: string;
   name: string;
   description: string;
   category: 'volunteer' | 'project' | 'event' | 'fundraising';
   status: 'draft' | 'active' | 'paused' | 'completed';
   steps: ProcessStep[];
-  createdAt: string;
-  lastModified: string;
-  progress: number;
+  published: boolean;
+  is_admin_template: boolean;
+  created_at?: string;
+  updated_at?: string;
+  progress?: number;
 }
 
 export default function ProcessMakers() {
-  const [activeTab, setActiveTab] = useState<'processes' | 'create' | 'templates'>('processes');
-  const [processes, setProcesses] = useState<Process[]>([
-    {
-      id: '1',
-      name: 'Volunteer Onboarding',
-      description: 'Complete process for onboarding new volunteers',
-      category: 'volunteer',
-      status: 'active',
-      steps: [
-        {
-          id: '1',
-          title: 'Application Review',
-          description: 'Review volunteer application and background check',
-          assignee: 'HR Team',
-          duration: '2 days',
-          status: 'completed',
-          dependencies: []
-        },
-        {
-          id: '2',
-          title: 'Orientation Session',
-          description: 'Conduct orientation session for new volunteers',
-          assignee: 'Training Team',
-          duration: '1 day',
-          status: 'in-progress',
-          dependencies: ['1']
-        },
-        {
-          id: '3',
-          title: 'Role Assignment',
-          description: 'Assign specific roles and responsibilities',
-          assignee: 'Program Manager',
-          duration: '1 day',
-          status: 'pending',
-          dependencies: ['2']
-        }
-      ],
-      createdAt: '2024-01-15',
-      lastModified: '2024-01-20',
-      progress: 66
-    },
-    {
-      id: '2',
-      name: 'Event Planning',
-      description: 'Standard process for organizing community events',
-      category: 'event',
-      status: 'draft',
-      steps: [
-        {
-          id: '1',
-          title: 'Event Proposal',
-          description: 'Create and submit event proposal',
-          assignee: 'Event Coordinator',
-          duration: '3 days',
-          status: 'pending',
-          dependencies: []
-        },
-        {
-          id: '2',
-          title: 'Budget Approval',
-          description: 'Get budget approval from management',
-          assignee: 'Finance Team',
-          duration: '2 days',
-          status: 'pending',
-          dependencies: ['1']
-        }
-      ],
-      createdAt: '2024-01-10',
-      lastModified: '2024-01-12',
-      progress: 0
-    }
-  ]);
+  const [activeTab, setActiveTab] = useState<'templates' | 'create'>('templates');
+  const [processes, setProcesses] = useState<Process[]>([]);
+  const [loading, setLoading] = useState(false);
 
-  const [newProcess, setNewProcess] = useState<Omit<Process, 'id' | 'createdAt' | 'lastModified' | 'progress'>>({
+  const [newProcess, setNewProcess] = useState<Omit<Process, 'id' | 'created_at' | 'updated_at' | 'progress'>>({
     name: '',
     description: '',
     category: 'volunteer',
     status: 'draft',
-    steps: []
+    steps: [],
+    published: false,
+    is_admin_template: true
   });
 
   const [editingProcess, setEditingProcess] = useState<Process | null>(null);
@@ -134,71 +71,160 @@ export default function ProcessMakers() {
     dependencies: []
   });
 
-  const handleCreateProcess = () => {
-    if (newProcess.name && newProcess.description) {
-      const process: Process = {
-        ...newProcess,
-        id: Date.now().toString(),
-        createdAt: new Date().toISOString().split('T')[0],
-        lastModified: new Date().toISOString().split('T')[0],
-        progress: 0
-      };
-      setProcesses([process, ...processes]);
-      setNewProcess({
-        name: '',
-        description: '',
-        category: 'volunteer',
-        status: 'draft',
-        steps: []
-      });
-      setActiveTab('processes');
+  useEffect(() => {
+    fetchProcesses();
+  }, []);
+
+  const fetchProcesses = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch('/api/admin/process-templates');
+      const data = await response.json();
+      
+      if (response.ok) {
+        setProcesses(data.templates || []);
+      } else {
+        console.error('Failed to fetch process templates:', data.error);
+      }
+    } catch (error) {
+      console.error('Error fetching process templates:', error);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleEditProcess = (process: Process) => {
+  const saveProcess = async () => {
+    if (!newProcess.name.trim()) {
+      alert('Please enter a process name');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const processData = {
+        name: newProcess.name,
+        description: newProcess.description,
+        status: newProcess.status,
+        steps: newProcess.steps,
+        created_by: 'admin-user-id' // TODO: Get actual admin user ID
+      };
+
+      const isEditing = editingProcess !== null;
+      const url = '/api/admin/process-templates';
+      const method = isEditing ? 'PATCH' : 'POST';
+      
+      const payload = isEditing 
+        ? { ...processData, id: editingProcess.id }
+        : processData;
+
+      const response = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        alert(`Process ${isEditing ? 'updated' : 'saved'} successfully!`);
+        await fetchProcesses();
+        resetForm();
+        setActiveTab('templates');
+      } else {
+        alert(data.error || `Failed to ${isEditing ? 'update' : 'save'} process`);
+      }
+    } catch (error) {
+      console.error('Error saving process:', error);
+      alert('An error occurred while saving the process');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const editProcess = (process: Process) => {
     setEditingProcess(process);
     setNewProcess(process);
     setActiveTab('create');
   };
 
-  const handleUpdateProcess = () => {
-    if (editingProcess && newProcess.name && newProcess.description) {
-      const updatedProcess: Process = {
-        ...newProcess,
-        id: editingProcess.id,
-        createdAt: editingProcess.createdAt,
-        lastModified: new Date().toISOString().split('T')[0],
-        progress: calculateProgress(newProcess.steps)
-      };
-      setProcesses(processes.map(p => p.id === editingProcess.id ? updatedProcess : p));
-      setEditingProcess(null);
-      setNewProcess({
-        name: '',
-        description: '',
-        category: 'volunteer',
-        status: 'draft',
-        steps: []
+  const deleteProcess = async (processId: string) => {
+    if (!confirm('Are you sure you want to delete this process template?')) {
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const response = await fetch(`/api/admin/process-templates?id=${processId}`, {
+        method: 'DELETE'
       });
-      setActiveTab('processes');
+
+      if (response.ok) {
+        alert('Process template deleted successfully!');
+        await fetchProcesses();
+      } else {
+        const data = await response.json();
+        alert(data.error || 'Failed to delete process template');
+      }
+    } catch (error) {
+      console.error('Error deleting process:', error);
+      alert('An error occurred while deleting the process');
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleDeleteProcess = (id: string) => {
-    setProcesses(processes.filter(p => p.id !== id));
+  const togglePublish = async (processId: string, currentPublished: boolean) => {
+    try {
+      setLoading(true);
+      const response = await fetch('/api/admin/templates/publish', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          templateId: processId,
+          templateType: 'process',
+          published: !currentPublished
+        })
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        alert(data.message);
+        await fetchProcesses();
+      } else {
+        alert(data.error || 'Failed to update process status');
+      }
+    } catch (error) {
+      console.error('Error updating process status:', error);
+      alert('An error occurred while updating the process');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleDuplicateProcess = (process: Process) => {
-    const duplicatedProcess: Process = {
-      ...process,
-      id: Date.now().toString(),
-      name: `${process.name} (Copy)`,
+  const resetForm = () => {
+    setEditingProcess(null);
+    setNewProcess({
+      name: '',
+      description: '',
+      category: 'volunteer',
       status: 'draft',
-      createdAt: new Date().toISOString().split('T')[0],
-      lastModified: new Date().toISOString().split('T')[0],
-      progress: 0,
+      steps: [],
+      published: false,
+      is_admin_template: true
+    });
+  };
+
+  const duplicateProcess = (process: Process) => {
+    const duplicatedProcess = {
+      ...process,
+      name: `${process.name} (Copy)`,
+      status: 'draft' as const,
+      published: false,
       steps: process.steps.map(step => ({ ...step, status: 'pending' as const }))
     };
-    setProcesses([duplicatedProcess, ...processes]);
+    setNewProcess(duplicatedProcess);
+    setActiveTab('create');
   };
 
   const handleAddStep = () => {
@@ -226,7 +252,7 @@ export default function ProcessMakers() {
   const handleDeleteStep = (stepId: string) => {
     setNewProcess({
       ...newProcess,
-      steps: newProcess.steps.filter(s => s.id !== stepId)
+      steps: newProcess.steps.filter(step => step.id !== stepId)
     });
   };
 
@@ -249,8 +275,8 @@ export default function ProcessMakers() {
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'active': return 'bg-green-50 text-green-700 border-green-200';
-      case 'draft': return 'bg-yellow-50 text-yellow-700 border-yellow-200';
-      case 'paused': return 'bg-orange-50 text-orange-700 border-orange-200';
+      case 'draft': return 'bg-gray-50 text-gray-700 border-gray-200';
+      case 'paused': return 'bg-yellow-50 text-yellow-700 border-yellow-200';
       case 'completed': return 'bg-blue-50 text-blue-700 border-blue-200';
       default: return 'bg-gray-50 text-gray-700 border-gray-200';
     }
@@ -283,389 +309,391 @@ export default function ProcessMakers() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center gap-3">
-              <Link href="/admin/Workshop" className="text-gray-400 hover:text-gray-600">
-                <ArrowLeftIcon className="w-5 h-5" />
-              </Link>
               <Cog6ToothIcon className="w-8 h-8 text-[#556B2F]" />
               <h1 className="text-2xl font-bold text-[#556B2F]">Process Makers</h1>
             </div>
             <div className="flex items-center gap-3">
-              <button 
-                onClick={() => setActiveTab('create')}
-                className="bg-[#556B2F] text-white px-4 py-2 rounded-lg hover:bg-[#6B8E23] transition-colors font-medium flex items-center gap-2"
+              <Link
+                href="/admin/Workshop"
+                className="text-gray-600 hover:text-gray-800 transition-colors font-medium flex items-center gap-2"
               >
-                <PlusCircleIcon className="w-4 h-4" />
-                New Process
-              </button>
+                <ArrowLeftIcon className="w-4 h-4" />
+                Back to Workshop
+              </Link>
             </div>
           </div>
         </div>
       </header>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Tabs */}
-        <div className="flex border-b border-gray-200 mb-8">
-          <button
-            onClick={() => setActiveTab('processes')}
-            className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors ${
-              activeTab === 'processes' 
-                ? 'border-[#556B2F] text-[#556B2F]' 
-                : 'border-transparent text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            My Processes ({processes.length})
-          </button>
-          <button
-            onClick={() => setActiveTab('create')}
-            className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors ${
-              activeTab === 'create' 
-                ? 'border-[#556B2F] text-[#556B2F]' 
-                : 'border-transparent text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            {editingProcess ? 'Edit Process' : 'Create Process'}
-          </button>
-          <button
-            onClick={() => setActiveTab('templates')}
-            className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors ${
-              activeTab === 'templates' 
-                ? 'border-[#556B2F] text-[#556B2F]' 
-                : 'border-transparent text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            Templates
-          </button>
-        </div>
-
-        {/* Processes Tab */}
-        {activeTab === 'processes' && (
-          <div className="space-y-6">
-            {processes.length === 0 ? (
-              <div className="text-center py-12">
-                <Cog6ToothIcon className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">No processes yet</h3>
-                <p className="text-gray-600 mb-6">Create your first process to get started.</p>
-                <button 
-                  onClick={() => setActiveTab('create')}
-                  className="bg-[#556B2F] text-white px-6 py-3 rounded-lg hover:bg-[#6B8E23] transition-colors font-medium"
+        <div className="space-y-8">
+          {/* Tab Navigation */}
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+            <div className="border-b border-gray-200">
+              <nav className="-mb-px flex space-x-8 px-6">
+                <button
+                  onClick={() => setActiveTab('templates')}
+                  className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
+                    activeTab === 'templates'
+                      ? 'border-[#556B2F] text-[#556B2F]'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  }`}
                 >
-                  Create Process
+                  Process Templates ({processes.length})
                 </button>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {processes.map((process) => (
-                  <div key={process.id} className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow">
-                    <div className="flex items-start justify-between mb-4">
-                      <div className="flex items-center gap-2">
-                        <span className={`text-xs font-medium px-2 py-1 rounded-full border ${getCategoryColor(process.category)}`}>
-                          {process.category}
-                        </span>
-                        <span className={`text-xs font-medium px-2 py-1 rounded-full border ${getStatusColor(process.status)}`}>
-                          {process.status}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <button
-                          onClick={() => handleEditProcess(process)}
-                          className="text-gray-400 hover:text-[#556B2F] p-1"
-                        >
-                          <PencilSquareIcon className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => handleDuplicateProcess(process)}
-                          className="text-gray-400 hover:text-[#556B2F] p-1"
-                        >
-                          <DocumentDuplicateIcon className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => handleDeleteProcess(process.id)}
-                          className="text-gray-400 hover:text-red-500 p-1"
-                        >
-                          <TrashIcon className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </div>
+                <button
+                  onClick={() => {
+                    setActiveTab('create');
+                    if (editingProcess) resetForm();
+                  }}
+                  className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
+                    activeTab === 'create'
+                      ? 'border-[#556B2F] text-[#556B2F]'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  }`}
+                >
+                  {editingProcess ? 'Edit Process' : 'Create New Process'}
+                </button>
+              </nav>
+            </div>
 
-                    <h3 className="text-lg font-semibold text-gray-900 mb-2">{process.name}</h3>
-                    <p className="text-gray-600 text-sm mb-4">{process.description}</p>
-
-                    {/* Progress Bar */}
-                    <div className="mb-4">
-                      <div className="flex items-center justify-between text-sm text-gray-600 mb-1">
-                        <span>Progress</span>
-                        <span>{process.progress}%</span>
-                      </div>
-                      <div className="w-full bg-gray-200 rounded-full h-2">
-                        <div 
-                          className="bg-[#556B2F] h-2 rounded-full transition-all duration-300"
-                          style={{ width: `${process.progress}%` }}
-                        ></div>
-                      </div>
-                    </div>
-
-                    {/* Steps Preview */}
-                    <div className="space-y-2 mb-4">
-                      {process.steps.slice(0, 3).map((step, index) => {
-                        const StatusIcon = getStepStatusIcon(step.status);
-                        return (
-                          <div key={step.id} className="flex items-center gap-3 text-sm">
-                            <StatusIcon className="w-4 h-4 text-gray-400" />
-                            <span className="flex-1 truncate">{step.title}</span>
-                            <span className={`text-xs px-2 py-1 rounded-full border ${getStepStatusColor(step.status)}`}>
-                              {step.status}
-                            </span>
-                          </div>
-                        );
-                      })}
-                      {process.steps.length > 3 && (
-                        <div className="text-xs text-gray-500 text-center">
-                          +{process.steps.length - 3} more steps
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="flex items-center justify-between text-xs text-gray-500">
-                      <span>Modified {process.lastModified}</span>
-                      <span>{process.steps.length} steps</span>
+            {activeTab === 'templates' && (
+              <div className="p-6">
+                {loading ? (
+                  <div className="text-center py-8">
+                    <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-[#556B2F]"></div>
+                    <p className="text-gray-600 mt-2">Loading templates...</p>
+                  </div>
+                ) : processes.length === 0 ? (
+                  <div className="text-center py-12">
+                    <Cog6ToothIcon className="mx-auto h-12 w-12 text-gray-400" />
+                    <h3 className="mt-2 text-sm font-medium text-gray-900">No process templates</h3>
+                    <p className="mt-1 text-sm text-gray-500">Get started by creating a new process template.</p>
+                    <div className="mt-6">
+                      <button
+                        onClick={() => setActiveTab('create')}
+                        className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-[#556B2F] hover:bg-[#6B8E23] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#556B2F]"
+                      >
+                        <PlusCircleIcon className="-ml-1 mr-2 h-5 w-5" />
+                        New Process Template
+                      </button>
                     </div>
                   </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
+                ) : (
+                  <div className="space-y-6">
+                    <div className="flex justify-between items-center">
+                      <div>
+                        <h3 className="text-lg font-medium text-gray-900">Process Templates</h3>
+                        <p className="text-sm text-gray-500">Manage your organization's workflow processes</p>
+                      </div>
+                      <button
+                        onClick={() => setActiveTab('create')}
+                        className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-[#556B2F] hover:bg-[#6B8E23] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#556B2F]"
+                      >
+                        <PlusCircleIcon className="-ml-1 mr-2 h-5 w-5" />
+                        New Process Template
+                      </button>
+                    </div>
 
-        {/* Create/Edit Process Tab */}
-        {activeTab === 'create' && (
-          <div className="max-w-4xl mx-auto">
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8">
-              <h3 className="text-xl font-semibold text-gray-900 mb-6">
-                {editingProcess ? 'Edit Process' : 'Create New Process'}
-              </h3>
-
-              <div className="space-y-6">
-                {/* Basic Information */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Process Name</label>
-                    <input
-                      type="text"
-                      value={newProcess.name}
-                      onChange={(e) => setNewProcess({...newProcess, name: e.target.value})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#556B2F]"
-                      placeholder="Enter process name"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Category</label>
-                    <select
-                      value={newProcess.category}
-                      onChange={(e) => setNewProcess({...newProcess, category: e.target.value as any})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#556B2F]"
-                    >
-                      <option value="volunteer">Volunteer</option>
-                      <option value="project">Project</option>
-                      <option value="event">Event</option>
-                      <option value="fundraising">Fundraising</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Description</label>
-                  <textarea
-                    value={newProcess.description}
-                    onChange={(e) => setNewProcess({...newProcess, description: e.target.value})}
-                    rows={3}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#556B2F]"
-                    placeholder="Describe the process"
-                  />
-                </div>
-
-                {/* Process Steps */}
-                <div>
-                  <div className="flex items-center justify-between mb-4">
-                    <label className="block text-sm font-medium text-gray-700">Process Steps</label>
-                    <button
-                      onClick={() => setShowStepModal(true)}
-                      className="bg-[#556B2F] text-white px-3 py-1 rounded text-sm hover:bg-[#6B8E23] transition-colors flex items-center gap-1"
-                    >
-                      <PlusCircleIcon className="w-4 h-4" />
-                      Add Step
-                    </button>
-                  </div>
-
-                  <div className="space-y-3">
-                    {newProcess.steps.map((step, index) => {
-                      const StatusIcon = getStepStatusIcon(step.status);
-                      return (
-                        <div key={step.id} className="border border-gray-200 rounded-lg p-4">
+                    <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+                      {processes.map((process) => (
+                        <div key={process.id} className="bg-white border border-gray-200 rounded-lg p-6 hover:shadow-md transition-shadow">
                           <div className="flex items-start justify-between">
                             <div className="flex-1">
-                              <div className="flex items-center gap-3 mb-2">
-                                <span className="text-sm font-medium text-gray-500">Step {index + 1}</span>
-                                <StatusIcon className="w-4 h-4 text-gray-400" />
-                                <span className={`text-xs px-2 py-1 rounded-full border ${getStepStatusColor(step.status)}`}>
-                                  {step.status}
+                              <div className="flex items-center gap-2 mb-2">
+                                <h3 className="text-lg font-medium text-gray-900">{process.name}</h3>
+                                <div className="flex items-center gap-2">
+                                  {process.published ? (
+                                    <GlobeAltIcon className="w-4 h-4 text-green-600" title="Published" />
+                                  ) : (
+                                    <EyeSlashIcon className="w-4 h-4 text-gray-400" title="Draft" />
+                                  )}
+                                </div>
+                              </div>
+                              <p className="text-sm text-gray-600 mb-3">{process.description}</p>
+                              
+                              <div className="flex items-center gap-4 mb-3">
+                                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${getCategoryColor(process.category)}`}>
+                                  {process.category}
+                                </span>
+                                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${getStatusColor(process.status)}`}>
+                                  {process.status}
+                                </span>
+                                <span className="text-sm text-gray-500">
+                                  {process.steps?.length || 0} steps
                                 </span>
                               </div>
-                              <h4 className="font-medium text-gray-900 mb-1">{step.title}</h4>
-                              <p className="text-sm text-gray-600 mb-2">{step.description}</p>
-                              <div className="flex items-center gap-4 text-xs text-gray-500">
-                                <div className="flex items-center gap-1">
-                                  <UserIcon className="w-3 h-3" />
-                                  <span>{step.assignee}</span>
+
+                              {process.steps && process.steps.length > 0 && (
+                                <div className="space-y-2">
+                                  <div className="flex justify-between items-center">
+                                    <span className="text-sm text-gray-700">Progress</span>
+                                    <span className="text-sm text-gray-600">{calculateProgress(process.steps)}%</span>
+                                  </div>
+                                  <div className="w-full bg-gray-200 rounded-full h-2">
+                                    <div 
+                                      className="bg-[#556B2F] h-2 rounded-full transition-all"
+                                      style={{ width: `${calculateProgress(process.steps)}%` }}
+                                    ></div>
+                                  </div>
                                 </div>
-                                <div className="flex items-center gap-1">
-                                  <ClockIcon className="w-3 h-3" />
-                                  <span>{step.duration}</span>
-                                </div>
-                              </div>
+                              )}
+                            </div>
+                          </div>
+
+                          <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-200">
+                            <div className="flex items-center gap-2">
+                              <button
+                                onClick={() => editProcess(process)}
+                                className="text-[#556B2F] hover:text-[#6B8E23] text-sm font-medium flex items-center gap-1"
+                              >
+                                <PencilSquareIcon className="w-4 h-4" />
+                                Edit
+                              </button>
+                              <button
+                                onClick={() => duplicateProcess(process)}
+                                className="text-gray-600 hover:text-gray-800 text-sm font-medium flex items-center gap-1"
+                              >
+                                <DocumentDuplicateIcon className="w-4 h-4" />
+                                Duplicate
+                              </button>
+                              <button
+                                onClick={() => process.id && togglePublish(process.id, process.published)}
+                                disabled={loading}
+                                className="text-blue-600 hover:text-blue-800 text-sm font-medium flex items-center gap-1"
+                              >
+                                {process.published ? (
+                                  <>
+                                    <EyeSlashIcon className="w-4 h-4" />
+                                    Unpublish
+                                  </>
+                                ) : (
+                                  <>
+                                    <GlobeAltIcon className="w-4 h-4" />
+                                    Publish
+                                  </>
+                                )}
+                              </button>
                             </div>
                             <button
-                              onClick={() => handleDeleteStep(step.id)}
-                              className="text-red-500 hover:text-red-700 p-1"
+                              onClick={() => process.id && deleteProcess(process.id)}
+                              className="text-red-600 hover:text-red-800 text-sm font-medium flex items-center gap-1"
                             >
                               <TrashIcon className="w-4 h-4" />
+                              Delete
                             </button>
                           </div>
                         </div>
-                      );
-                    })}
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {activeTab === 'create' && (
+              <div className="p-6">
+                <div className="space-y-8">
+                  <div>
+                    <h3 className="text-lg font-medium text-gray-900 mb-6">
+                      {editingProcess ? 'Edit Process Template' : 'Create New Process Template'}
+                    </h3>
+                    
+                    <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Process Name *
+                        </label>
+                        <input
+                          type="text"
+                          value={newProcess.name}
+                          onChange={(e) => setNewProcess({ ...newProcess, name: e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#556B2F] focus:border-transparent"
+                          placeholder="Enter process name"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Category
+                        </label>
+                        <select
+                          value={newProcess.category}
+                          onChange={(e) => setNewProcess({ ...newProcess, category: e.target.value as any })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#556B2F] focus:border-transparent"
+                        >
+                          <option value="volunteer">Volunteer</option>
+                          <option value="project">Project</option>
+                          <option value="event">Event</option>
+                          <option value="fundraising">Fundraising</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="mt-6">
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Description
+                      </label>
+                      <textarea
+                        value={newProcess.description}
+                        onChange={(e) => setNewProcess({ ...newProcess, description: e.target.value })}
+                        rows={3}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#556B2F] focus:border-transparent"
+                        placeholder="Describe the purpose and scope of this process"
+                      />
+                    </div>
                   </div>
 
-                  {newProcess.steps.length === 0 && (
-                    <div className="text-center py-8 border-2 border-dashed border-gray-300 rounded-lg">
-                      <Cog6ToothIcon className="w-12 h-12 text-gray-300 mx-auto mb-2" />
-                      <p className="text-gray-500">No steps added yet. Click "Add Step" to get started.</p>
+                  {/* Process Steps */}
+                  <div>
+                    <div className="flex justify-between items-center mb-4">
+                      <h4 className="text-md font-medium text-gray-900">Process Steps</h4>
+                      <button
+                        onClick={() => setShowStepModal(true)}
+                        className="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-[#556B2F] bg-[#556B2F]/10 hover:bg-[#556B2F]/20 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#556B2F]"
+                      >
+                        <PlusCircleIcon className="-ml-1 mr-2 h-4 w-4" />
+                        Add Step
+                      </button>
                     </div>
-                  )}
-                </div>
 
-                <div className="flex justify-end gap-4 pt-6 border-t border-gray-200">
-                  <button
-                    onClick={() => {
-                      setActiveTab('processes');
-                      setEditingProcess(null);
-                      setNewProcess({
-                        name: '',
-                        description: '',
-                        category: 'volunteer',
-                        status: 'draft',
-                        steps: []
-                      });
-                    }}
-                    className="px-6 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={editingProcess ? handleUpdateProcess : handleCreateProcess}
-                    className="px-6 py-2 bg-[#556B2F] text-white rounded-lg hover:bg-[#6B8E23] transition-colors"
-                  >
-                    {editingProcess ? 'Update Process' : 'Create Process'}
-                  </button>
+                    {newProcess.steps.length === 0 ? (
+                      <div className="text-center py-6 border-2 border-dashed border-gray-300 rounded-lg">
+                        <Cog6ToothIcon className="mx-auto h-8 w-8 text-gray-400" />
+                        <h3 className="mt-2 text-sm font-medium text-gray-900">No steps added yet</h3>
+                        <p className="mt-1 text-sm text-gray-500">Add steps to define your process workflow.</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        {newProcess.steps.map((step, index) => {
+                          const StatusIcon = getStepStatusIcon(step.status);
+                          return (
+                            <div key={step.id || index} className="border border-gray-200 rounded-lg p-4">
+                              <div className="flex items-start justify-between">
+                                <div className="flex-1">
+                                  <div className="flex items-center gap-2 mb-2">
+                                    <StatusIcon className="w-4 h-4 text-gray-500" />
+                                    <h5 className="font-medium text-gray-900">{step.title}</h5>
+                                    <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium border ${getStepStatusColor(step.status)}`}>
+                                      {step.status}
+                                    </span>
+                                  </div>
+                                  <p className="text-sm text-gray-600 mb-2">{step.description}</p>
+                                  <div className="flex items-center gap-4 text-sm text-gray-500">
+                                    <div className="flex items-center gap-1">
+                                      <UserIcon className="w-4 h-4" />
+                                      {step.assignee || 'Unassigned'}
+                                    </div>
+                                    <div className="flex items-center gap-1">
+                                      <ClockIcon className="w-4 h-4" />
+                                      {step.duration || 'No duration'}
+                                    </div>
+                                  </div>
+                                </div>
+                                <button
+                                  onClick={() => handleDeleteStep(step.id || index.toString())}
+                                  className="text-red-600 hover:text-red-800 ml-4"
+                                >
+                                  <TrashIcon className="w-4 h-4" />
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Actions */}
+                  <div className="flex justify-end gap-3 pt-6 border-t border-gray-200">
+                    <button
+                      onClick={() => setActiveTab('templates')}
+                      className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#556B2F]"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={saveProcess}
+                      disabled={loading || !newProcess.name.trim()}
+                      className="px-4 py-2 border border-transparent rounded-md shadow-sm text-white bg-[#556B2F] hover:bg-[#6B8E23] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#556B2F] disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {loading ? 'Saving...' : editingProcess ? 'Update Process' : 'Save Process'}
+                    </button>
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
           </div>
-        )}
+        </div>
+      </div>
 
-        {/* Templates Tab */}
-        {activeTab === 'templates' && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {[
-              { name: 'Volunteer Onboarding', category: 'volunteer', description: 'Standard process for new volunteer registration and orientation' },
-              { name: 'Event Planning', category: 'event', description: 'Complete workflow for organizing community events' },
-              { name: 'Project Management', category: 'project', description: 'Standard project lifecycle management process' },
-              { name: 'Fundraising Campaign', category: 'fundraising', description: 'End-to-end fundraising campaign workflow' },
-              { name: 'Grant Application', category: 'fundraising', description: 'Process for applying and managing grants' },
-              { name: 'Training Program', category: 'volunteer', description: 'Structured training program for volunteers' },
-            ].map((template, index) => (
-              <div key={index} className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow">
-                <div className="flex items-center gap-2 mb-3">
-                  <span className={`text-xs font-medium px-2 py-1 rounded-full border ${getCategoryColor(template.category)}`}>
-                    {template.category}
-                  </span>
-                </div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">{template.name}</h3>
-                <p className="text-gray-600 text-sm mb-4">{template.description}</p>
-                <button className="w-full bg-[#556B2F] text-white py-2 rounded-lg hover:bg-[#6B8E23] transition-colors font-medium">
-                  Use Template
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {/* Add Step Modal */}
-        {showStepModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg p-6 w-full max-w-md">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Add Process Step</h3>
+      {/* Add Step Modal */}
+      {showStepModal && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+          <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+            <div className="mt-3">
+              <h3 className="text-lg font-medium text-gray-900 mb-4">Add Process Step</h3>
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Step Title</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Step Title *</label>
                   <input
                     type="text"
                     value={newStep.title}
-                    onChange={(e) => setNewStep({...newStep, title: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#556B2F]"
+                    onChange={(e) => setNewStep({ ...newStep, title: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#556B2F] focus:border-transparent"
                     placeholder="Enter step title"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Description</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Description *</label>
                   <textarea
                     value={newStep.description}
-                    onChange={(e) => setNewStep({...newStep, description: e.target.value})}
+                    onChange={(e) => setNewStep({ ...newStep, description: e.target.value })}
                     rows={3}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#556B2F]"
-                    placeholder="Describe the step"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#556B2F] focus:border-transparent"
+                    placeholder="Describe what needs to be done"
                   />
                 </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Assignee</label>
-                    <input
-                      type="text"
-                      value={newStep.assignee}
-                      onChange={(e) => setNewStep({...newStep, assignee: e.target.value})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#556B2F]"
-                      placeholder="Who's responsible"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Duration</label>
-                    <input
-                      type="text"
-                      value={newStep.duration}
-                      onChange={(e) => setNewStep({...newStep, duration: e.target.value})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#556B2F]"
-                      placeholder="e.g., 2 days"
-                    />
-                  </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Assignee</label>
+                  <input
+                    type="text"
+                    value={newStep.assignee}
+                    onChange={(e) => setNewStep({ ...newStep, assignee: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#556B2F] focus:border-transparent"
+                    placeholder="Who is responsible for this step"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Duration</label>
+                  <input
+                    type="text"
+                    value={newStep.duration}
+                    onChange={(e) => setNewStep({ ...newStep, duration: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#556B2F] focus:border-transparent"
+                    placeholder="e.g., 2 days, 1 week"
+                  />
                 </div>
               </div>
               <div className="flex justify-end gap-3 mt-6">
                 <button
                   onClick={() => setShowStepModal(false)}
-                  className="px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50"
+                  className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleAddStep}
-                  className="px-4 py-2 bg-[#556B2F] text-white rounded-lg hover:bg-[#6B8E23]"
+                  disabled={!newStep.title.trim() || !newStep.description.trim()}
+                  className="px-4 py-2 border border-transparent rounded-md shadow-sm text-white bg-[#556B2F] hover:bg-[#6B8E23] disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Add Step
                 </button>
               </div>
             </div>
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }

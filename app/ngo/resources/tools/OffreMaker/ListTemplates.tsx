@@ -5,7 +5,9 @@ import {
   PlusCircleIcon,
   PencilSquareIcon,
   TrashIcon,
-  DocumentDuplicateIcon
+  DocumentDuplicateIcon,
+  Squares2X2Icon,
+  Bars3Icon
 } from '@heroicons/react/24/outline';
 import { Template } from './NewTemplate';
 
@@ -18,6 +20,8 @@ interface ListTemplatesProps {
   loading?: boolean;
 }
 
+type ViewMode = 'cards' | 'rows';
+
 export default function ListTemplates({ 
   templates, 
   onNewTemplate, 
@@ -28,6 +32,7 @@ export default function ListTemplates({
 }: ListTemplatesProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<ViewMode>('cards');
 
   // Filter templates based on search query
   const filteredTemplates = templates.filter(template => 
@@ -47,6 +52,109 @@ export default function ListTemplates({
     }
   };
 
+  const TemplateCard = ({ template }: { template: any }) => (
+    <div 
+      key={template.id}
+      className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow duration-200"
+    >
+      <div className="mb-2">
+        <h3 className="font-semibold text-gray-800 mb-1">{template.title}</h3>
+        <p className="text-sm text-gray-600 mb-3 line-clamp-2">
+          {template.description || 'No description provided'}
+        </p>
+        <div className="flex items-center text-xs text-gray-500 mb-4">
+          <span className="inline-flex items-center">
+            <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 8h10M7 12h10M7 16h10"></path>
+            </svg>
+            {template.fields?.length || 0} field{(template.fields?.length || 0) !== 1 ? 's' : ''}
+          </span>
+        </div>
+      </div>
+      <div className="flex space-x-2">
+        <button 
+          onClick={() => onEditTemplate(template.id)}
+          className="flex-1 py-2 px-3 border border-[#556B2F] text-[#556B2F] rounded-lg hover:bg-[#556B2F]/10 transition-colors text-sm flex items-center justify-center"
+        >
+          <PencilSquareIcon className="w-4 h-4 mr-1" />
+          Edit
+        </button>
+        <button 
+          onClick={() => onUseTemplate(template.id)}
+          className="flex-1 py-2 px-3 bg-[#556B2F] text-white rounded-lg hover:bg-[#556B2F]/90 transition-colors text-sm flex items-center justify-center"
+        >
+          <DocumentDuplicateIcon className="w-4 h-4 mr-1" />
+          Use
+        </button>
+        <button 
+          onClick={() => handleDelete(template.id)}
+          disabled={isDeleting === template.id}
+          className="py-2 px-3 text-red-600 border border-red-200 rounded-lg hover:bg-red-50 transition-colors text-sm flex items-center justify-center disabled:opacity-50"
+        >
+          {isDeleting === template.id ? (
+            <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+          ) : (
+            <TrashIcon className="w-4 h-4" />
+          )}
+        </button>
+      </div>
+    </div>
+  );
+
+  const TemplateRow = ({ template }: { template: any }) => (
+    <div key={template.id} className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-sm transition-shadow">
+      <div className="flex items-center justify-between">
+        <div className="flex-1">
+          <h3 className="font-semibold text-gray-800">{template.title}</h3>
+          <p className="text-sm text-gray-600 mt-1 line-clamp-1">
+            {template.description || 'No description provided'}
+          </p>
+          <div className="flex items-center text-xs text-gray-500 mt-2">
+            <span className="inline-flex items-center">
+              <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 8h10M7 12h10M7 16h10"></path>
+              </svg>
+              {template.fields?.length || 0} field{(template.fields?.length || 0) !== 1 ? 's' : ''}
+            </span>
+          </div>
+        </div>
+        <div className="flex space-x-2 ml-4">
+          <button 
+            onClick={() => onEditTemplate(template.id)}
+            className="py-2 px-3 border border-[#556B2F] text-[#556B2F] rounded-lg hover:bg-[#556B2F]/10 transition-colors text-sm flex items-center"
+          >
+            <PencilSquareIcon className="w-4 h-4 mr-1" />
+            Edit
+          </button>
+          <button 
+            onClick={() => onUseTemplate(template.id)}
+            className="py-2 px-3 bg-[#556B2F] text-white rounded-lg hover:bg-[#556B2F]/90 transition-colors text-sm flex items-center"
+          >
+            <DocumentDuplicateIcon className="w-4 h-4 mr-1" />
+            Use
+          </button>
+          <button 
+            onClick={() => handleDelete(template.id)}
+            disabled={isDeleting === template.id}
+            className="py-2 px-3 text-red-600 border border-red-200 rounded-lg hover:bg-red-50 transition-colors text-sm flex items-center disabled:opacity-50"
+          >
+            {isDeleting === template.id ? (
+              <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+            ) : (
+              <TrashIcon className="w-4 h-4" />
+            )}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -59,7 +167,33 @@ export default function ListTemplates({
     <div>
       <div className="mb-6 flex justify-between items-center">
         <h2 className="text-xl font-semibold text-gray-800">My Templates</h2>
-        <div className="flex space-x-3">
+        <div className="flex space-x-3 items-center">
+          {/* View Toggle */}
+          <div className="flex rounded-lg border border-gray-300 p-1">
+            <button
+              onClick={() => setViewMode('cards')}
+              className={`p-2 rounded-md transition-colors ${
+                viewMode === 'cards' 
+                  ? 'bg-[#556B2F] text-white' 
+                  : 'text-gray-500 hover:text-gray-700'
+              }`}
+              title="Card view"
+            >
+              <Squares2X2Icon className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => setViewMode('rows')}
+              className={`p-2 rounded-md transition-colors ${
+                viewMode === 'rows' 
+                  ? 'bg-[#556B2F] text-white' 
+                  : 'text-gray-500 hover:text-gray-700'
+              }`}
+              title="Row view"
+            >
+              <Bars3Icon className="w-4 h-4" />
+            </button>
+          </div>
+          
           <div className="relative w-64">
             <input 
               type="text" 
@@ -88,7 +222,9 @@ export default function ListTemplates({
             <DocumentDuplicateIcon className="w-12 h-12 text-gray-400" />
           </div>
           <h3 className="text-lg font-medium text-gray-900 mb-2">No templates found</h3>
-          <p className="text-gray-500 mb-6">Create your first template to start building forms quickly.</p>
+          <p className="text-gray-500 mb-6">
+            {searchQuery ? 'Try adjusting your search terms.' : 'Create your first template to start building forms quickly.'}
+          </p>
           <button
             onClick={onNewTemplate}
             className="py-2 px-6 bg-gradient-to-r from-[#556B2F] to-[#6B8E23] text-white rounded-lg hover:shadow-md transition-all"
@@ -97,58 +233,20 @@ export default function ListTemplates({
           </button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredTemplates.map(template => (
-            <div 
-              key={template.id}
-              className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow duration-200"
-            >
-              <div className="mb-2">
-                <h3 className="font-semibold text-gray-800 mb-1">{template.title}</h3>
-                <p className="text-sm text-gray-600 mb-3 line-clamp-2">
-                  {template.description || 'No description provided'}
-                </p>
-                <div className="flex items-center text-xs text-gray-500 mb-4">
-                  <span className="inline-flex items-center">
-                    <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 8h10M7 12h10M7 16h10"></path>
-                    </svg>
-                    {template.fields.length} field{template.fields.length !== 1 ? 's' : ''}
-                  </span>
-                </div>
-              </div>
-              <div className="flex space-x-2">
-                <button 
-                  onClick={() => onEditTemplate(template.id)}
-                  className="flex-1 py-2 px-3 border border-[#556B2F] text-[#556B2F] rounded-lg hover:bg-[#556B2F]/10 transition-colors text-sm flex items-center justify-center"
-                >
-                  <PencilSquareIcon className="w-4 h-4 mr-1" />
-                  Edit
-                </button>
-                <button 
-                  onClick={() => onUseTemplate(template.id)}
-                  className="flex-1 py-2 px-3 bg-[#556B2F] text-white rounded-lg hover:bg-[#556B2F]/90 transition-colors text-sm flex items-center justify-center"
-                >
-                  <DocumentDuplicateIcon className="w-4 h-4 mr-1" />
-                  Use
-                </button>
-                <button 
-                  onClick={() => handleDelete(template.id)}
-                  disabled={isDeleting === template.id}
-                  className="py-2 px-3 text-red-600 border border-red-200 rounded-lg hover:bg-red-50 transition-colors text-sm flex items-center justify-center disabled:opacity-50"
-                >
-                  {isDeleting === template.id ? (
-                    <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                  ) : (
-                    <TrashIcon className="w-4 h-4" />
-                  )}
-                </button>
-              </div>
+        <div>
+          {viewMode === 'cards' ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {filteredTemplates.map(template => (
+                <TemplateCard key={template.id} template={template} />
+              ))}
             </div>
-          ))}
+          ) : (
+            <div className="space-y-3">
+              {filteredTemplates.map(template => (
+                <TemplateRow key={template.id} template={template} />
+              ))}
+            </div>
+          )}
         </div>
       )}
     </div>
