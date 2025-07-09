@@ -179,8 +179,8 @@ export default function ListForms({ onNewForm, onEditForm }: ListFormsProps) {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-[#556B2F]">Admin Form Templates</h2>
-          <p className="text-gray-600">Manage your admin form templates</p>
+          <h2 className="text-2xl font-bold text-[#556B2F]">My Form Templates</h2>
+          <p className="text-gray-600">Manage form templates created by admin</p>
         </div>
         <button
           onClick={onNewForm}

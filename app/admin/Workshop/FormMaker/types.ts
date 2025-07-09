@@ -23,6 +23,7 @@ export interface FormData {
   sections: Section[];
   published?: boolean;
   is_admin_template?: boolean;
+  user_id?: string;
 }
 
 export interface FormTemplate {
@@ -34,4 +35,5 @@ export interface FormTemplate {
   is_admin_template: boolean;
   created_at?: string;
   updated_at?: string;
+  user_id?: string;
 } 

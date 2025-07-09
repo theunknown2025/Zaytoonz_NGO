@@ -15,6 +15,9 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 const supabase = createClient(supabaseUrl, supabaseKey);
 
+// Admin user UUID from the database (admin@zaytoonz.com)
+const ADMIN_USER_ID = 'bd360d39-542f-4aa0-8826-3e0a831de9bd';
+
 interface FormTemplate {
   id: string;
   title: string;
@@ -44,11 +47,13 @@ export default function ZaytoonzTemplates({ onUseTemplate }: ZaytoonzTemplatesPr
     try {
       setLoading(true);
       
-      // Fetch all admin form templates (both published and draft)
+      // Fetch only published form templates created by admin user
       const { data, error } = await supabase
         .from('forms_templates')
         .select('*')
         .eq('is_admin_template', true)
+        .eq('user_id', ADMIN_USER_ID) // Only admin-created templates
+        .eq('published', true) // Only published templates
         .order('created_at', { ascending: false });
 
       if (error) {
@@ -130,7 +135,7 @@ export default function ZaytoonzTemplates({ onUseTemplate }: ZaytoonzTemplatesPr
           <DocumentTextIcon className="w-12 h-12 text-gray-400 mx-auto mb-4" />
           <h3 className="text-lg font-medium text-gray-900 mb-2">No templates found</h3>
           <p className="text-gray-500">
-            {searchTerm ? 'Try adjusting your search terms.' : 'No Zaytoonz admin forms are available yet.'}
+            {searchTerm ? 'Try adjusting your search terms.' : 'No published Zaytoonz admin forms are available yet.'}
           </p>
         </div>
       ) : (

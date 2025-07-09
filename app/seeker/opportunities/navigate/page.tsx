@@ -79,8 +79,10 @@ export default function NavigatePage() {
         setError(fetchError);
         console.error('Error fetching opportunities:', fetchError);
       } else if (data) {
-        setOpportunities(data);
-        setFilteredOpportunities(data);
+        // Filter out job opportunities since they now have their own dedicated page
+        const nonJobOpportunities = data.filter(opp => opp.category !== 'job');
+        setOpportunities(nonJobOpportunities);
+        setFilteredOpportunities(nonJobOpportunities);
       }
     } catch (err) {
       console.error('Unexpected error:', err);
@@ -111,14 +113,16 @@ export default function NavigatePage() {
       setLoading(true);
       setError(null);
       
-      const category = selectedCategory === 'all' ? undefined : selectedCategory as 'job' | 'funding' | 'training';
+      const category = selectedCategory === 'all' ? undefined : selectedCategory as 'funding' | 'training';
       const { opportunities: searchResults, error: searchError } = await searchOpportunities(searchQuery.trim(), category);
       
       if (searchError) {
         setError(searchError);
         console.error('Error searching opportunities:', searchError);
       } else if (searchResults) {
-        setFilteredOpportunities(searchResults);
+        // Filter out job opportunities from search results
+        const nonJobResults = searchResults.filter(opp => opp.category !== 'job');
+        setFilteredOpportunities(nonJobResults);
       }
     } catch (err) {
       console.error('Unexpected error during search:', err);
@@ -323,7 +327,7 @@ export default function NavigatePage() {
           <div className="flex items-center justify-between h-16">
             <div>
               <h1 className="text-2xl font-bold text-gray-900">Navigate Opportunities</h1>
-              <p className="text-sm text-gray-600">Discover jobs, funding, and training programs</p>
+              <p className="text-sm text-gray-600">Discover funding and training programs</p>
             </div>
           </div>
         </div>
@@ -353,7 +357,6 @@ export default function NavigatePage() {
                     className="pl-10 pr-10 py-4 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 appearance-none bg-white min-w-[160px]"
                   >
                     <option value="all">All Categories</option>
-                    <option value="job">Jobs</option>
                     <option value="funding">Funding</option>
                     <option value="training">Training</option>
                   </select>

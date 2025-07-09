@@ -21,8 +21,11 @@ export async function saveFormTemplate(
     if (!formData.sections || formData.sections.length === 0) {
       return { success: false, error: 'Form must have at least one section' };
     }
+    if (!userId) {
+      return { success: false, error: 'User authentication required to save form' };
+    }
 
-    // Insert form template
+    // Insert form template with proper user_id
     const { data, error } = await supabase
       .from('forms_templates')
       .insert({
@@ -30,7 +33,8 @@ export async function saveFormTemplate(
         description: formData.description || '',
         status: 'draft',
         sections: formData.sections,
-        user_id: null // Set user_id to null to avoid foreign key constraint
+        user_id: userId, // Use the provided user_id for NGO forms
+        is_admin_template: false // NGO forms are not admin templates
       })
       .select('id')
       .single();
@@ -155,10 +159,10 @@ export async function saveFormImage(
 /**
  * Get all forms for a user
  */
-export async function getUserForms() {
+export async function getUserForms(userId?: string) {
   try {
-    // Fetch all forms from the database
-    const { data, error } = await supabase
+    // Build the query
+    let query = supabase
       .from('forms_templates')
       .select(`
         id, 
@@ -170,8 +174,15 @@ export async function getUserForms() {
         updated_at,
         user_id,
         published
-      `)
-      .order('updated_at', { ascending: false });
+      `);
+
+    // Filter by user_id if provided (for NGO users)
+    if (userId) {
+      query = query.eq('user_id', userId);
+    }
+
+    // Execute query with ordering
+    const { data, error } = await query.order('updated_at', { ascending: false });
 
     if (error) {
       console.error('Error fetching forms:', error);

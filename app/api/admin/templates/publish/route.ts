@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/app/lib/supabase';
+import { supabase } from '@/app/lib/supabase';
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = createClient();
     const body = await request.json();
     const { templateId, templateType, published } = body;
+
+    console.log('Publish request received:', { templateId, templateType, published });
 
     if (!templateId || !templateType) {
       return NextResponse.json({ error: 'Template ID and type are required' }, { status: 400 });
@@ -29,6 +30,8 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'Invalid template type' }, { status: 400 });
     }
 
+    console.log(`Updating ${tableName} table for template ${templateId}`);
+
     const { data: template, error } = await supabase
       .from(tableName)
       .update({
@@ -43,9 +46,11 @@ export async function POST(request: NextRequest) {
     if (error) {
       console.error(`Error ${published ? 'publishing' : 'unpublishing'} ${templateType} template:`, error);
       return NextResponse.json({ 
-        error: `Failed to ${published ? 'publish' : 'unpublish'} template` 
+        error: `Failed to ${published ? 'publish' : 'unpublish'} template: ${error.message}` 
       }, { status: 500 });
     }
+
+    console.log(`Template ${published ? 'published' : 'unpublished'} successfully:`, template);
 
     return NextResponse.json({ 
       template,

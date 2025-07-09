@@ -671,11 +671,11 @@ export default function LandingPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
             <h2 className="text-4xl font-bold text-olive-800 mb-4">
-              Recent Opportunities
+              Latest Opportunities
             </h2>
             <p className="text-xl text-olive-600 max-w-3xl mx-auto">
-              Discover the latest opportunities shared by our partner organizations. 
-              Find jobs, funding, and training programs that match your interests.
+              Discover the most recent opportunities from our partner NGOs and external sources worldwide. 
+              Find jobs, funding, and training programs that match your interests and career goals.
             </p>
           </div>
 

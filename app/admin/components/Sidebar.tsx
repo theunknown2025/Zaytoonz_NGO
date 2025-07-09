@@ -95,6 +95,12 @@ export function Sidebar({ user }: SidebarProps) {
             </Link>
           </li>
           <li>
+            <Link href="/admin/NGOManagement" className="flex items-center px-4 py-3 text-sm rounded-xl group transition-all duration-200 text-gray-700 hover:bg-[#556B2F]/10">
+              <UserGroupIcon className="mr-3 h-5 w-5 flex-shrink-0 text-[#556B2F]" />
+              NGOs Management
+            </Link>
+          </li>
+          <li>
             <button
               onClick={() => setShowExternal(!showExternal)}
               className={`flex items-center justify-between w-full px-4 py-3 text-sm rounded-xl group transition-all duration-200 text-gray-700 hover:bg-[#556B2F]/10`}
@@ -108,18 +114,23 @@ export function Sidebar({ user }: SidebarProps) {
             {showExternal && (
               <ul className="pl-10 mt-1 space-y-1">
                 <li>
-                  <Link href="#" className="flex items-center px-4 py-2 text-sm rounded-xl group transition-all duration-200 text-gray-700 hover:bg-[#556B2F]/10">
+                  <Link href="/admin/ExternalOpportunities" className="flex items-center px-4 py-2 text-sm rounded-xl group transition-all duration-200 text-gray-700 hover:bg-[#556B2F]/10">
+                    <RectangleGroupIcon className="mr-3 h-4 w-4 flex-shrink-0 text-[#556B2F]" /> Overview
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/admin/ExternalOpportunities/Jobs" className="flex items-center px-4 py-2 text-sm rounded-xl group transition-all duration-200 text-gray-700 hover:bg-[#556B2F]/10">
                     <BriefcaseIcon className="mr-3 h-4 w-4 flex-shrink-0 text-[#556B2F]" /> Jobs
                   </Link>
                 </li>
                 <li>
-                  <Link href="#" className="flex items-center px-4 py-2 text-sm rounded-xl group transition-all duration-200 text-gray-700 hover:bg-[#556B2F]/10">
-                    <BanknotesIcon className="mr-3 h-4 w-4 flex-shrink-0 text-[#556B2F]" /> Fundings
+                  <Link href="/admin/ExternalOpportunities/Funding" className="flex items-center px-4 py-2 text-sm rounded-xl group transition-all duration-200 text-gray-700 hover:bg-[#556B2F]/10">
+                    <BanknotesIcon className="mr-3 h-4 w-4 flex-shrink-0 text-[#556B2F]" /> Funding
                   </Link>
                 </li>
                 <li>
-                  <Link href="#" className="flex items-center px-4 py-2 text-sm rounded-xl group transition-all duration-200 text-gray-700 hover:bg-[#556B2F]/10">
-                    <AcademicCapIcon className="mr-3 h-4 w-4 flex-shrink-0 text-[#556B2F]" /> Trainings
+                  <Link href="/admin/ExternalOpportunities/Training" className="flex items-center px-4 py-2 text-sm rounded-xl group transition-all duration-200 text-gray-700 hover:bg-[#556B2F]/10">
+                    <AcademicCapIcon className="mr-3 h-4 w-4 flex-shrink-0 text-[#556B2F]" /> Training
                   </Link>
                 </li>
               </ul>

@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from 'react';
-import { RssIcon, ArrowRightIcon, GlobeAltIcon, CheckCircleIcon, ExclamationTriangleIcon, ArrowLeftIcon, EyeIcon } from '@heroicons/react/24/outline';
+import { RssIcon, ArrowRightIcon, GlobeAltIcon, CheckCircleIcon, ExclamationTriangleIcon, ArrowLeftIcon, EyeIcon, TrashIcon, CloudArrowDownIcon } from '@heroicons/react/24/outline';
 import { useServerScraper } from './hooks/useServerScraper';
 import { WebsitePreview } from './components/WebsitePreview';
 
@@ -39,8 +39,142 @@ export default function ZaytoonzScraperPage() {
   const [urlError, setUrlError] = useState('');
   const [isValidUrl, setIsValidUrl] = useState(false);
   const [websiteLoading, setWebsiteLoading] = useState(false);
+  const [removedItems, setRemovedItems] = useState<Set<number>>(new Set());
+  const [savingItems, setSavingItems] = useState<Set<number>>(new Set());
+  const [savedItems, setSavedItems] = useState<Set<number>>(new Set());
+  const [selectedItems, setSelectedItems] = useState<Set<number>>(new Set());
+  const [batchSaving, setBatchSaving] = useState(false);
 
   const { scrapeWebsite, loading: scrapeLoading, error: scrapeError } = useServerScraper();
+
+  // Validation function to check if an item has all required fields
+  const validateItem = (item: ExtractedItem, requiredFields: FieldMapping[]): boolean => {
+    const requiredFieldNames = requiredFields.filter(field => field.required).map(field => field.name);
+    
+    // If no fields are marked as required, check if at least one field has a value
+    if (requiredFieldNames.length === 0) {
+      return Object.values(item).some(value => value && value.trim().length > 0);
+    }
+    
+    // Check if all required fields have values
+    return requiredFieldNames.every(fieldName => {
+      const value = item[fieldName];
+      return value && value.trim().length > 0;
+    });
+  };
+
+  // Function to get filtered and valid items
+  const getValidItems = (): ExtractedItem[] => {
+    if (!extractedData) return [];
+    
+    return extractedData.items.filter((item, index) => {
+      if (removedItems.has(index)) return false;
+      return validateItem(item, fields);
+    });
+  };
+
+  // Function to save an opportunity to the database
+  const saveOpportunity = async (item: ExtractedItem, index: number) => {
+    setSavingItems(prev => new Set(Array.from(prev).concat(index)));
+    
+    try {
+      const response = await fetch('/api/scraper/save-opportunity', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          item,
+          sourceUrl: websiteUrl,
+          fields
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to save opportunity');
+      }
+
+      setSavedItems(prev => new Set(Array.from(prev).concat(index)));
+    } catch (error) {
+      console.error('Error saving opportunity:', error);
+      alert('Failed to save opportunity: ' + (error instanceof Error ? error.message : 'Unknown error'));
+    } finally {
+      setSavingItems(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(index);
+        return newSet;
+      });
+    }
+  };
+
+  // Function to remove an item from display
+  const removeItem = (index: number) => {
+    setRemovedItems(prev => new Set(Array.from(prev).concat(index)));
+  };
+
+  // Function to toggle item selection
+  const toggleItemSelection = (index: number) => {
+    setSelectedItems(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(index)) {
+        newSet.delete(index);
+      } else {
+        newSet.add(index);
+      }
+      return newSet;
+    });
+  };
+
+  // Function to select all visible items
+  const selectAllItems = () => {
+    if (!extractedData) return;
+    
+    const validIndices = extractedData.items
+      .map((_, index) => index)
+      .filter(index => !removedItems.has(index) && validateItem(extractedData.items[index], fields));
+    
+    setSelectedItems(new Set(validIndices));
+  };
+
+  // Function to deselect all items
+  const deselectAllItems = () => {
+    setSelectedItems(new Set());
+  };
+
+  // Function to batch save selected items
+  const batchSaveSelected = async () => {
+    if (!extractedData || selectedItems.size === 0) return;
+    
+    setBatchSaving(true);
+    const selectedArray = Array.from(selectedItems);
+    
+    try {
+      for (const index of selectedArray) {
+        if (!savedItems.has(index) && !removedItems.has(index)) {
+          const item = extractedData.items[index];
+          if (validateItem(item, fields)) {
+            await saveOpportunity(item, index);
+          }
+        }
+      }
+      setSelectedItems(new Set()); // Clear selection after saving
+    } catch (error) {
+      console.error('Error in batch save:', error);
+    } finally {
+      setBatchSaving(false);
+    }
+  };
+
+  // Function to batch remove selected items
+  const batchRemoveSelected = () => {
+    setRemovedItems(prev => {
+      const newSet = new Set(prev);
+      selectedItems.forEach(index => newSet.add(index));
+      return newSet;
+    });
+    setSelectedItems(new Set()); // Clear selection after removing
+  };
 
   const validateURL = (input: string) => {
     try {
@@ -103,6 +237,12 @@ export default function ZaytoonzScraperPage() {
   const handlePreview = async () => {
     if (fields.length === 0) return;
     
+    // Reset state when fetching new data
+    setRemovedItems(new Set());
+    setSavedItems(new Set());
+    setSavingItems(new Set());
+    setSelectedItems(new Set());
+    
     const data = await scrapeWebsite(websiteUrl, fields);
     if (data) {
       setExtractedData(data);
@@ -119,11 +259,16 @@ export default function ZaytoonzScraperPage() {
     setWebsiteUrl('');
     setFields([]);
     setExtractedData(null);
+    setRemovedItems(new Set());
+    setSavedItems(new Set());
+    setSavingItems(new Set());
+    setSelectedItems(new Set());
   };
 
   const exportData = (format: 'json' | 'csv' | 'rss') => {
     if (!extractedData) return;
 
+    const validItems = getValidItems();
     let content = '';
     let filename = '';
     let mimeType = '';
@@ -132,13 +277,13 @@ export default function ZaytoonzScraperPage() {
 
     switch (format) {
       case 'json':
-        content = JSON.stringify(extractedData, null, 2);
+        content = JSON.stringify({ ...extractedData, items: validItems }, null, 2);
         filename = 'scraped-data.json';
         mimeType = 'application/json';
         break;
       case 'csv':
         const headers = fieldNames.join(',');
-        const rows = extractedData.items.map(item => 
+        const rows = validItems.map(item => 
           fieldNames.map(field => `"${(item[field] || '').toString().replace(/"/g, '""')}"`).join(',')
         );
         content = [headers, ...rows].join('\n');
@@ -146,7 +291,7 @@ export default function ZaytoonzScraperPage() {
         mimeType = 'text/csv';
         break;
       case 'rss':
-        const rssItems = extractedData.items.map(item => `
+        const rssItems = validItems.map(item => `
     <item>
       <title>${item[fieldNames[0]] || 'Untitled'}</title>
       <link>${item[fieldNames.find(f => f.includes('link') || f.includes('url')) || '']}</link>
@@ -376,12 +521,12 @@ export default function ZaytoonzScraperPage() {
                 <h4 className="font-semibold text-gray-900 mb-3">Quick Add Common Fields:</h4>
                 <div className="flex flex-wrap gap-2">
                   {[
-                    { name: 'Title', selector: 'h1, h2, h3, .title, [class*="title"]', type: 'text' as const },
-                    { name: 'Description', selector: 'p, .description, .excerpt, .summary', type: 'text' as const },
-                    { name: 'Link', selector: 'a', type: 'link' as const },
-                    { name: 'Company', selector: '.company, .employer, .organization', type: 'text' as const },
-                    { name: 'Location', selector: '.location, .city, .place', type: 'text' as const },
-                    { name: 'Date', selector: '.date, .published, time, .deadline', type: 'date' as const },
+                    { name: 'Title', selector: 'h1, h2, h3, .title, [class*="title"]', type: 'text' as const, required: true },
+                    { name: 'Description', selector: 'p, .description, .excerpt, .summary', type: 'text' as const, required: false },
+                    { name: 'Link', selector: 'a', type: 'link' as const, required: true },
+                    { name: 'Company', selector: '.company, .employer, .organization', type: 'text' as const, required: false },
+                    { name: 'Location', selector: '.location, .city, .place', type: 'text' as const, required: false },
+                    { name: 'Date', selector: '.date, .published, time, .deadline', type: 'date' as const, required: false },
                   ].map((field) => (
                     <button
                       key={field.name}
@@ -391,7 +536,7 @@ export default function ZaytoonzScraperPage() {
                           name: field.name,
                           selector: field.selector,
                           type: field.type,
-                          required: false
+                          required: field.required
                         };
                         setFields([...fields, newField]);
                       }}
@@ -430,6 +575,15 @@ export default function ZaytoonzScraperPage() {
                       <option value="image">Image</option>
                       <option value="date">Date</option>
                     </select>
+                    <label className="flex items-center space-x-1">
+                      <input
+                        type="checkbox"
+                        checked={field.required}
+                        onChange={(e) => updateField(field.id, { required: e.target.checked })}
+                        className="rounded border-gray-300 text-[#556B2F] focus:ring-[#556B2F]"
+                      />
+                      <span className="text-sm text-gray-600">Required</span>
+                    </label>
                     <button
                       onClick={() => removeField(field.id)}
                       className="px-3 py-2 text-red-600 hover:text-red-700 font-medium"
@@ -495,49 +649,190 @@ export default function ZaytoonzScraperPage() {
 
               {extractedData && (
                 <div className="space-y-4">
-                  <div className="flex items-center justify-between p-4 bg-green-50 border border-green-200 rounded-lg">
-                    <div className="flex items-center space-x-2">
-                      <CheckCircleIcon className="w-5 h-5 text-green-600" />
-                      <span className="text-green-700 font-medium">
-                        Successfully extracted {extractedData.total} items
-                      </span>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <button
-                        onClick={() => exportData('json')}
-                        className="px-3 py-1 bg-white border border-green-300 text-green-700 text-sm rounded-lg hover:bg-green-50 transition-colors duration-200"
-                      >
-                        Export JSON
-                      </button>
-                      <button
-                        onClick={() => exportData('csv')}
-                        className="px-3 py-1 bg-white border border-green-300 text-green-700 text-sm rounded-lg hover:bg-green-50 transition-colors duration-200"
-                      >
-                        Export CSV
-                      </button>
-                      <button
-                        onClick={() => exportData('rss')}
-                        className="px-3 py-1 bg-white border border-green-300 text-green-700 text-sm rounded-lg hover:bg-green-50 transition-colors duration-200"
-                      >
-                        Export RSS
-                      </button>
-                    </div>
-                  </div>
+                  {(() => {
+                    const validItems = getValidItems();
+                    const totalItems = extractedData.total;
+                    const filteredItems = totalItems - removedItems.size;
+                    const invalidItems = filteredItems - validItems.length;
 
-                  <div className="space-y-3">
-                    {extractedData.items.map((item, index) => (
-                      <div key={index} className="p-4 border border-gray-200 rounded-lg">
-                        <div className="grid grid-cols-2 gap-4">
-                          {Object.entries(item).map(([key, value]) => (
-                            <div key={key} className="space-y-1">
-                              <p className="text-sm font-medium text-gray-700">{key}:</p>
-                              <p className="text-sm text-gray-600">{value || 'No data'}</p>
-                            </div>
-                          ))}
+                    return (
+                      <>
+                        <div className="flex items-center justify-between p-4 bg-green-50 border border-green-200 rounded-lg">
+                          <div className="flex items-center space-x-2">
+                            <CheckCircleIcon className="w-5 h-5 text-green-600" />
+                            <span className="text-green-700 font-medium">
+                              Successfully extracted {totalItems} items
+                              {invalidItems > 0 && (
+                                <span className="text-orange-600"> • {invalidItems} items hidden (missing required fields)</span>
+                              )}
+                            </span>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <button
+                              onClick={() => exportData('json')}
+                              className="px-3 py-1 bg-white border border-green-300 text-green-700 text-sm rounded-lg hover:bg-green-50 transition-colors duration-200"
+                            >
+                              Export JSON
+                            </button>
+                            <button
+                              onClick={() => exportData('csv')}
+                              className="px-3 py-1 bg-white border border-green-300 text-green-700 text-sm rounded-lg hover:bg-green-50 transition-colors duration-200"
+                            >
+                              Export CSV
+                            </button>
+                            <button
+                              onClick={() => exportData('rss')}
+                              className="px-3 py-1 bg-white border border-green-300 text-green-700 text-sm rounded-lg hover:bg-green-50 transition-colors duration-200"
+                            >
+                              Export RSS
+                            </button>
+                          </div>
                         </div>
-                      </div>
-                    ))}
-                  </div>
+
+                        {/* Batch Operations */}
+                        {validItems.length > 0 && (
+                          <div className="flex items-center justify-between p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                            <div className="flex items-center space-x-4">
+                              <div className="flex items-center space-x-2">
+                                <input
+                                  type="checkbox"
+                                  checked={selectedItems.size === validItems.length && validItems.length > 0}
+                                  onChange={() => {
+                                    if (selectedItems.size === validItems.length) {
+                                      deselectAllItems();
+                                    } else {
+                                      selectAllItems();
+                                    }
+                                  }}
+                                  className="rounded border-gray-300 text-[#556B2F] focus:ring-[#556B2F]"
+                                />
+                                <span className="text-sm font-medium text-gray-700">
+                                  Select All ({selectedItems.size} of {validItems.length} selected)
+                                </span>
+                              </div>
+                            </div>
+                            {selectedItems.size > 0 && (
+                              <div className="flex items-center space-x-2">
+                                <button
+                                  onClick={batchRemoveSelected}
+                                  className="px-3 py-1 bg-red-100 hover:bg-red-200 text-red-700 text-sm rounded-lg transition-colors duration-200"
+                                >
+                                  Remove Selected ({selectedItems.size})
+                                </button>
+                                <button
+                                  onClick={batchSaveSelected}
+                                  disabled={batchSaving}
+                                  className="px-3 py-1 bg-[#556B2F] hover:bg-[#6B8E23] disabled:bg-gray-400 text-white text-sm rounded-lg transition-colors duration-200 flex items-center space-x-1"
+                                >
+                                  {batchSaving ? (
+                                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                  ) : null}
+                                  <span>{batchSaving ? 'Saving...' : `Save Selected (${selectedItems.size})`}</span>
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        <div className="space-y-3">
+                          {extractedData.items.map((item, index) => {
+                            if (removedItems.has(index)) return null;
+                            
+                            const isValid = validateItem(item, fields);
+                            if (!isValid) return null;
+
+                            const isBeingSaved = savingItems.has(index);
+                            const isSaved = savedItems.has(index);
+                            const isSelected = selectedItems.has(index);
+
+                            return (
+                              <div key={index} className={`p-4 border rounded-lg transition-all duration-200 ${
+                                isSelected ? 'border-[#556B2F] bg-[#556B2F]/5' : 'border-gray-200'
+                              }`}>
+                                <div className="flex justify-between items-start mb-3">
+                                  <div className="flex items-center space-x-3">
+                                    <input
+                                      type="checkbox"
+                                      checked={isSelected}
+                                      onChange={() => toggleItemSelection(index)}
+                                      className="rounded border-gray-300 text-[#556B2F] focus:ring-[#556B2F]"
+                                    />
+                                    <h3 className="text-sm font-medium text-gray-900">Item {index + 1}</h3>
+                                  </div>
+                                  <div className="flex items-center space-x-2">
+                                    {isSaved ? (
+                                      <span className="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">
+                                        ✓ Saved
+                                      </span>
+                                    ) : (
+                                      <>
+                                        <button
+                                          onClick={() => removeItem(index)}
+                                          className="px-3 py-1 bg-red-100 hover:bg-red-200 text-red-700 text-sm rounded-lg transition-colors duration-200 flex items-center space-x-1"
+                                        >
+                                          <TrashIcon className="w-4 h-4" />
+                                          <span>Remove</span>
+                                        </button>
+                                        <button
+                                          onClick={() => saveOpportunity(item, index)}
+                                          disabled={isBeingSaved}
+                                          className="px-3 py-1 bg-[#556B2F] hover:bg-[#6B8E23] disabled:bg-gray-400 text-white text-sm rounded-lg transition-colors duration-200 flex items-center space-x-1"
+                                        >
+                                          {isBeingSaved ? (
+                                            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                          ) : (
+                                            <CloudArrowDownIcon className="w-4 h-4" />
+                                          )}
+                                          <span>{isBeingSaved ? 'Saving...' : 'Save'}</span>
+                                        </button>
+                                      </>
+                                    )}
+                                  </div>
+                                </div>
+                                <div className="grid grid-cols-2 gap-4">
+                                  {Object.entries(item).map(([key, value]) => {
+                                    // Handle different field types
+                                    const field = fields.find(f => f.name === key);
+                                    const isLinkField = field?.type === 'link';
+                                    
+                                    return (
+                                      <div key={key} className="space-y-1">
+                                        <p className="text-sm font-medium text-gray-700">{key}:</p>
+                                        {isLinkField && value ? (
+                                          <a
+                                            href={value}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="text-sm text-[#556B2F] hover:text-[#6B8E23] hover:underline"
+                                          >
+                                            View opportunity
+                                          </a>
+                                        ) : (
+                                          <p className="text-sm text-gray-600">{value || 'No data'}</p>
+                                        )}
+                                      </div>
+                                    );
+                                  })}
+                                  {/* Source field - always show last */}
+                                  <div className="space-y-1">
+                                    <p className="text-sm font-medium text-gray-700">Source:</p>
+                                    <a
+                                      href={websiteUrl}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="text-sm text-[#556B2F] hover:text-[#6B8E23] hover:underline"
+                                    >
+                                      View opportunity
+                                    </a>
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </>
+                    );
+                  })()}
                 </div>
               )}
             </div>

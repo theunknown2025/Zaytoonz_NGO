@@ -1,10 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/app/lib/supabase';
+import { supabase } from '@/app/lib/supabase';
 
 export async function GET(request: NextRequest) {
   try {
-    const supabase = createClient();
-    
     const { data: templates, error } = await supabase
       .from('evaluation_templates')
       .select('*')
@@ -25,17 +23,17 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = createClient();
     const body = await request.json();
     
     const templateData = {
-      name: body.name,
+      title: body.title,
       description: body.description,
-      scale: body.scale || 10,
+      type: body.type,
       criteria: body.criteria,
+      status: 'draft',
       published: false,
       is_admin_template: true,
-      created_by: body.created_by // Admin user ID
+      user_id: body.user_id // Admin user ID
     };
 
     const { data: template, error } = await supabase
@@ -58,7 +56,6 @@ export async function POST(request: NextRequest) {
 
 export async function PATCH(request: NextRequest) {
   try {
-    const supabase = createClient();
     const body = await request.json();
     const { id, ...updates } = body;
 
@@ -87,7 +84,6 @@ export async function PATCH(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
-    const supabase = createClient();
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
 

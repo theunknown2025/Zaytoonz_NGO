@@ -7,8 +7,8 @@ export default function OpportunitiesPage() {
   const router = useRouter();
   
   useEffect(() => {
-    // Redirect to navigate page
-    router.push('/seeker/opportunities/navigate');
+    // Redirect to jobs page as the main opportunities page
+    router.push('/seeker/opportunities/jobs');
   }, [router]);
   
   return (

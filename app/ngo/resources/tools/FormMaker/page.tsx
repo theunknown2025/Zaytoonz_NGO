@@ -23,10 +23,7 @@ import { createClient } from '@supabase/supabase-js';
 import ListForms from './ListForms';
 import NewForm from './NewForm';
 import ZaytoonzTemplates from './ZaytoonzTemplates';
-// import { useUser } from '@clerk/nextjs';
-// import { db } from '@/lib/db';
-// import { LoadingIndicator } from '@/components/LoadingIndicator';
-// import { toast } from 'sonner';
+import { useAuth } from '@/app/lib/auth';
 
 // Initialize Supabase client
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL as string;
@@ -48,7 +45,7 @@ const toast = {
 };
 
 export default function FormMakerTool() {
-  // const { user, isLoaded } = useUser();
+  const { user } = useAuth(); // Get current user from auth context
   const [activeTab, setActiveTab] = useState<'list' | 'new' | 'zaytoonz'>('list');
   const [displayMode, setDisplayMode] = useState<'sections' | 'all'>('sections');
   const [formTitle, setFormTitle] = useState('New Form');
@@ -288,7 +285,7 @@ export default function FormMakerTool() {
       }
       
       // Fetch all forms from the database
-      const result = await getUserForms();
+      const result = await getUserForms(user?.id);
       
       if (result.success && Array.isArray(result.forms)) {
         // If no forms found, display empty state
@@ -470,7 +467,7 @@ export default function FormMakerTool() {
         }
       } else {
         // Save new form
-        result = await saveFormTemplate(formData, undefined);
+        result = await saveFormTemplate(formData, user?.id);
         
         if (!result.success) {
           toast.error(result.error || 'Failed to save form');

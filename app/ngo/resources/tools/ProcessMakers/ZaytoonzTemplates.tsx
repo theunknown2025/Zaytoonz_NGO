@@ -7,7 +7,9 @@ import {
   EyeIcon,
   ArrowDownTrayIcon,
   MagnifyingGlassIcon,
-  CheckCircleIcon
+  CheckCircleIcon,
+  GlobeAltIcon,
+  EyeSlashIcon
 } from '@heroicons/react/24/outline';
 
 // Initialize Supabase client
@@ -17,9 +19,11 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 
 interface ProcessTemplate {
   id: string;
-  title: string;
+  name: string;
   description: string;
-  stages: any[];
+  steps?: any[];
+  published: boolean;
+  status: string;
   created_at: string;
   updated_at?: string;
 }
@@ -43,11 +47,19 @@ export default function ZaytoonzTemplates({ onUseTemplate }: ZaytoonzTemplatesPr
     try {
       setLoading(true);
       
-      // Try to fetch process templates (table might not exist yet)
+      // Fetch ALL admin process templates (both published and draft)
       const { data, error } = await supabase
         .from('process_templates')
-        .select('*')
-        .eq('published', true)
+        .select(`
+          *,
+          process_steps (
+            id,
+            name,
+            description,
+            status_options,
+            display_order
+          )
+        `)
         .eq('is_admin_template', true)
         .order('created_at', { ascending: false });
 
@@ -67,7 +79,7 @@ export default function ZaytoonzTemplates({ onUseTemplate }: ZaytoonzTemplatesPr
   };
 
   const filteredTemplates = templates.filter(template =>
-    (template.title?.toLowerCase().includes(searchTerm.toLowerCase()) ?? false) ||
+    (template.name?.toLowerCase().includes(searchTerm.toLowerCase()) ?? false) ||
     (template.description?.toLowerCase().includes(searchTerm.toLowerCase()) ?? false)
   );
 
@@ -80,7 +92,7 @@ export default function ZaytoonzTemplates({ onUseTemplate }: ZaytoonzTemplatesPr
       <div className="flex items-center justify-center py-12">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#556B2F] mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading Zaytoonz templates...</p>
+          <p className="mt-4 text-gray-600">Loading Zaytoonz process templates...</p>
         </div>
       </div>
     );
@@ -93,8 +105,8 @@ export default function ZaytoonzTemplates({ onUseTemplate }: ZaytoonzTemplatesPr
         <div className="inline-flex items-center justify-center w-16 h-16 mb-4 bg-gradient-to-r from-[#556B2F] to-[#6B8E23] rounded-full">
           <Cog6ToothIcon className="w-8 h-8 text-white" />
         </div>
-        <h2 className="text-2xl font-bold text-[#556B2F] mb-2">Zaytoonz Process Templates</h2>
-        <p className="text-gray-600">Professional process templates created by our team to help you get started quickly</p>
+        <h2 className="text-2xl font-bold text-[#556B2F] mb-2">Zaytoonz Admin Process Templates</h2>
+        <p className="text-gray-600">Professional process templates created by the admin team for NGO organizations</p>
       </div>
 
       {/* Search */}
@@ -115,12 +127,12 @@ export default function ZaytoonzTemplates({ onUseTemplate }: ZaytoonzTemplatesPr
       {filteredTemplates.length === 0 ? (
         <div className="text-center py-12 bg-white rounded-lg shadow-sm border border-gray-200">
           <Cog6ToothIcon className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-gray-900 mb-2">No templates found</h3>
+          <h3 className="text-lg font-medium text-gray-900 mb-2">No process templates found</h3>
           <p className="text-gray-500">
-            {searchTerm ? 'Try adjusting your search terms.' : 'No Zaytoonz process templates are available yet.'}
+            {searchTerm ? 'Try adjusting your search terms.' : 'No admin process templates are available yet.'}
           </p>
           <p className="text-sm text-gray-400 mt-2">
-            Process templates will be created by the Admin team and will appear here once available.
+            Process templates will be created by the admin team and will appear here once available.
           </p>
         </div>
       ) : (
@@ -136,15 +148,22 @@ export default function ZaytoonzTemplates({ onUseTemplate }: ZaytoonzTemplatesPr
                     <Cog6ToothIcon className="w-6 h-6" />
                   </div>
                   <div>
-                    <h3 className="font-semibold text-gray-800">{template.title || 'Untitled Template'}</h3>
+                    <h3 className="font-semibold text-gray-800">{template.name || 'Untitled Template'}</h3>
                     <div className="flex items-center gap-2 mt-1">
                       <span className="text-xs font-medium bg-purple-50 text-purple-700 px-2 py-1 rounded-full border border-purple-200">
-                        Process Template
+                        Admin Template
                       </span>
-                      <div className="flex items-center gap-1">
-                        <CheckCircleIcon className="w-3 h-3 text-green-500" />
-                        <span className="text-xs text-green-600">Verified</span>
-                      </div>
+                      {template.published ? (
+                        <div className="flex items-center gap-1">
+                          <GlobeAltIcon className="w-3 h-3 text-green-500" />
+                          <span className="text-xs text-green-600 font-medium">Published</span>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-1">
+                          <EyeSlashIcon className="w-3 h-3 text-yellow-500" />
+                          <span className="text-xs text-yellow-600 font-medium">Draft</span>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -154,7 +173,7 @@ export default function ZaytoonzTemplates({ onUseTemplate }: ZaytoonzTemplatesPr
               
               <div className="flex items-center justify-between">
                 <div className="text-xs text-gray-500">
-                  <span className="font-medium">{template.stages?.length || 0}</span> stages
+                  <span className="font-medium">{template.steps?.length || 0}</span> steps
                   <span className="mx-2">•</span>
                   <span>Created {new Date(template.created_at).toLocaleDateString()}</span>
                 </div>
@@ -192,71 +211,67 @@ export default function ZaytoonzTemplates({ onUseTemplate }: ZaytoonzTemplatesPr
                     <Cog6ToothIcon className="w-6 h-6" />
                   </div>
                   <div>
-                    <h3 className="text-lg font-semibold text-gray-800">{selectedTemplate.title || 'Untitled Template'}</h3>
-                    <span className="text-xs font-medium bg-purple-50 text-purple-700 px-2 py-1 rounded-full border border-purple-200">
-                      Process Template
-                    </span>
+                    <h3 className="text-lg font-semibold text-gray-800">{selectedTemplate.name || 'Untitled Template'}</h3>
+                    <div className="flex items-center gap-2 mt-1">
+                      <span className="text-xs font-medium bg-purple-50 text-purple-700 px-2 py-1 rounded-full border border-purple-200">
+                        Admin Template
+                      </span>
+                      {selectedTemplate.published ? (
+                        <div className="flex items-center gap-1">
+                          <GlobeAltIcon className="w-3 h-3 text-green-500" />
+                          <span className="text-xs text-green-600 font-medium">Published</span>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-1">
+                          <EyeSlashIcon className="w-3 h-3 text-yellow-500" />
+                          <span className="text-xs text-yellow-600 font-medium">Draft</span>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
                 <button
                   onClick={() => setSelectedTemplate(null)}
                   className="text-gray-400 hover:text-gray-600"
                 >
-                  ✕
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
                 </button>
               </div>
               
-              <div className="space-y-6">
+              <div className="space-y-4">
                 <div>
-                  <h4 className="font-medium text-gray-800 mb-2">Description</h4>
+                  <h4 className="text-sm font-medium text-gray-700 mb-2">Description</h4>
                   <p className="text-gray-600">{selectedTemplate.description || 'No description available'}</p>
                 </div>
                 
-                <div>
-                  <h4 className="font-medium text-gray-800 mb-3">Process Stages</h4>
-                  <div className="space-y-3">
-                    {selectedTemplate.stages?.map((stage, index) => (
-                      <div key={index} className="bg-gray-50 p-4 rounded-lg">
-                        <div className="flex items-center gap-3 mb-2">
-                          <span className="w-6 h-6 bg-[#556B2F] text-white rounded-full flex items-center justify-center text-xs font-medium">
-                            {index + 1}
-                          </span>
-                          <h5 className="font-medium text-gray-800">{stage.name}</h5>
-                          {stage.assignee && (
-                            <span className="text-xs bg-gray-200 text-gray-600 px-2 py-1 rounded">
-                              {stage.assignee}
+                {selectedTemplate.steps && selectedTemplate.steps.length > 0 && (
+                  <div>
+                    <h4 className="text-sm font-medium text-gray-700 mb-2">Process Steps ({selectedTemplate.steps.length})</h4>
+                    <div className="space-y-2">
+                      {selectedTemplate.steps.map((step, index) => (
+                        <div key={index} className="p-3 bg-gray-50 rounded-lg">
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <h5 className="font-medium text-gray-800">{step.name || `Step ${index + 1}`}</h5>
+                              <p className="text-sm text-gray-600">{step.description || 'No description'}</p>
+                            </div>
+                            <span className="text-xs bg-gray-200 text-gray-700 px-2 py-1 rounded">
+                              Step {index + 1}
                             </span>
-                          )}
+                          </div>
                         </div>
-                        {stage.description && (
-                          <p className="text-sm text-gray-600 ml-9">{stage.description}</p>
-                        )}
-                      </div>
-                    ))}
+                      ))}
+                    </div>
                   </div>
-                </div>
-                
-                <div>
-                  <h4 className="font-medium text-gray-800 mb-2">Template Details</h4>
-                  <div className="bg-gray-50 p-4 rounded-lg">
-                    <p className="text-sm text-gray-600">
-                      <span className="font-medium">Stages:</span> {selectedTemplate.stages?.length || 0}<br/>
-                      <span className="font-medium">Created:</span> {new Date(selectedTemplate.created_at).toLocaleDateString()}<br/>
-                      {selectedTemplate.updated_at && (
-                        <>
-                          <span className="font-medium">Updated:</span> {new Date(selectedTemplate.updated_at).toLocaleDateString()}<br/>
-                        </>
-                      )}
-                      <span className="font-medium">Status:</span> <span className="text-green-600">Available</span>
-                    </p>
-                  </div>
-                </div>
+                )}
               </div>
               
-              <div className="flex gap-3 mt-6">
+              <div className="flex gap-3 mt-6 pt-4 border-t border-gray-200">
                 <button
                   onClick={() => setSelectedTemplate(null)}
-                  className="px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                  className="flex-1 px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
                 >
                   Close
                 </button>
@@ -265,9 +280,8 @@ export default function ZaytoonzTemplates({ onUseTemplate }: ZaytoonzTemplatesPr
                     handleUseTemplate(selectedTemplate);
                     setSelectedTemplate(null);
                   }}
-                  className="px-4 py-2 bg-[#556B2F] text-white rounded-lg hover:bg-[#6B8E23] transition-colors flex items-center gap-2"
+                  className="flex-1 px-4 py-2 bg-[#556B2F] text-white rounded-lg hover:bg-[#6B8E23] transition-colors"
                 >
-                  <ArrowDownTrayIcon className="w-4 h-4" />
                   Use This Template
                 </button>
               </div>

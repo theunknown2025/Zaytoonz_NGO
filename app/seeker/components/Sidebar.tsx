@@ -17,7 +17,8 @@ import {
   BellIcon,
   WrenchScrewdriverIcon,
   ChartBarIcon,
-  ChevronDownIcon
+  ChevronDownIcon,
+  GlobeAltIcon
 } from "@heroicons/react/24/outline";
 
 interface SidebarProps {
@@ -76,6 +77,11 @@ export const Sidebar: React.FC<SidebarProps> = ({ user }) => {
       icon: BriefcaseIcon,
       hasSubmenu: true,
       submenuItems: [
+        {
+          name: "Jobs",
+          href: "/seeker/opportunities/jobs",
+          icon: BriefcaseIcon
+        },
         {
           name: "Navigate",
           href: "/seeker/opportunities/navigate",

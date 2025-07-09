@@ -1,5 +1,8 @@
 import { FormData, FormTemplate } from '../types';
 
+// Default admin user UUID from the database (admin@zaytoonz.com)
+const DEFAULT_ADMIN_USER_ID = 'bd360d39-542f-4aa0-8826-3e0a831de9bd';
+
 /**
  * Save an admin form template
  */
@@ -19,8 +22,11 @@ export async function saveAdminFormTemplate(
       title: formData.title,
       description: formData.description || '',
       sections: formData.sections,
-      user_id: userId || 'admin-user-id'
+      user_id: userId || DEFAULT_ADMIN_USER_ID,
+      is_admin_template: true // Explicitly set this flag
     };
+
+    console.log('Saving admin form template with data:', templateData);
 
     const response = await fetch('/api/admin/forms-templates', {
       method: 'POST',
@@ -29,6 +35,7 @@ export async function saveAdminFormTemplate(
     });
 
     const data = await response.json();
+    console.log('API response:', { status: response.status, data });
 
     if (response.ok) {
       return { success: true, formId: data.template.id };
@@ -49,13 +56,22 @@ export async function updateAdminFormTemplate(
   formData: Partial<FormData>
 ): Promise<{ success: boolean; error?: string }> {
   try {
+    const updateData = {
+      id: formId,
+      ...formData,
+      is_admin_template: true // Ensure this remains true during updates
+    };
+
+    console.log('Updating admin form template with data:', updateData);
+
     const response = await fetch('/api/admin/forms-templates', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id: formId, ...formData })
+      body: JSON.stringify(updateData)
     });
 
     const data = await response.json();
+    console.log('Update API response:', { status: response.status, data });
 
     if (response.ok) {
       return { success: true };
@@ -148,19 +164,39 @@ export async function getAdminFormTemplateById(
   templateId: string
 ): Promise<{ success: boolean; template?: FormTemplate; error?: string }> {
   try {
-    const { success, templates } = await getAdminFormTemplates();
+    console.log('Fetching admin form template by ID:', templateId);
     
-    if (!success || !templates) {
-      return { success: false, error: 'Failed to fetch templates' };
-    }
-
-    const template = templates.find(t => t.id === templateId);
+    // Make a direct API call to get the specific template
+    const response = await fetch(`/api/admin/forms-templates?id=${templateId}`);
     
-    if (!template) {
-      return { success: false, error: 'Template not found' };
+    if (!response.ok) {
+      const errorData = await response.json();
+      console.error('Error fetching template by ID:', errorData);
+      return { success: false, error: errorData.error || 'Failed to fetch template' };
     }
+    
+    const data = await response.json();
+    
+    if (data.template) {
+      console.log('Successfully fetched template by ID:', data.template);
+      return { success: true, template: data.template };
+    } else {
+      // Fallback to getting all templates and finding the one we need
+      console.log('Template not found directly, trying fallback method');
+      const { success, templates } = await getAdminFormTemplates();
+      
+      if (!success || !templates) {
+        return { success: false, error: 'Failed to fetch templates' };
+      }
 
-    return { success: true, template };
+      const template = templates.find(t => t.id === templateId);
+      
+      if (!template) {
+        return { success: false, error: 'Template not found' };
+      }
+
+      return { success: true, template };
+    }
   } catch (error) {
     console.error('Exception fetching admin form template by ID:', error);
     return { success: false, error: 'Failed to fetch template' };

@@ -44,7 +44,7 @@ export default function FormMaker() {
             </div>
             <div>
               <h1 className="text-3xl font-bold text-[#556B2F]">Admin Form Maker</h1>
-              <p className="text-gray-600">Create and manage admin form templates</p>
+              <p className="text-gray-600">Create and manage your form templates</p>
             </div>
           </div>
 
