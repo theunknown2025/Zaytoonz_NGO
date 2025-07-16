@@ -78,11 +78,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ user }) => {
       hasSubmenu: true,
       submenuItems: [
         {
-          name: "Jobs",
-          href: "/seeker/opportunities/jobs",
-          icon: BriefcaseIcon
-        },
-        {
           name: "Navigate",
           href: "/seeker/opportunities/navigate",
           icon: MapIcon
@@ -96,6 +91,11 @@ export const Sidebar: React.FC<SidebarProps> = ({ user }) => {
           name: "Alerts",
           href: "/seeker/opportunities/alerts",
           icon: BellIcon
+        },
+        {
+          name: "External",
+          href: "/seeker/opportunities/external",
+          icon: GlobeAltIcon
         }
       ]
     },

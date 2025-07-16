@@ -26,7 +26,6 @@ interface Opportunity {
   status: string;
   source?: 'saved' | 'scraped';
   source_url?: string;
-  link?: string;
   company?: string;
 }
 
@@ -87,7 +86,6 @@ const RecentOpportunities: React.FC = () => {
           status: opp.status,
           source: 'scraped' as const,
           source_url: opp.source_url,
-          link: opp.metadata?.link || opp.source_url, // Use opportunity link from metadata or fallback to source
           company: opp.company
         }));
       }
@@ -524,7 +522,7 @@ const RecentOpportunities: React.FC = () => {
                   {/* Action Button */}
                   {opportunity.source === 'scraped' ? (
                     <a 
-                      href={opportunity.link}
+                      href={opportunity.source_url}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="w-full bg-gradient-to-r from-olive-500 to-olive-600 hover:from-olive-600 hover:to-olive-700 text-white py-3 px-4 rounded-lg font-semibold hover:shadow-lg transition-all duration-300 flex items-center justify-center space-x-2 group"

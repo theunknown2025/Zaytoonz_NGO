@@ -657,37 +657,37 @@ export default function ZaytoonzScraperPage() {
 
                     return (
                       <>
-                        <div className="flex items-center justify-between p-4 bg-green-50 border border-green-200 rounded-lg">
-                          <div className="flex items-center space-x-2">
-                            <CheckCircleIcon className="w-5 h-5 text-green-600" />
-                            <span className="text-green-700 font-medium">
+                  <div className="flex items-center justify-between p-4 bg-green-50 border border-green-200 rounded-lg">
+                    <div className="flex items-center space-x-2">
+                      <CheckCircleIcon className="w-5 h-5 text-green-600" />
+                      <span className="text-green-700 font-medium">
                               Successfully extracted {totalItems} items
                               {invalidItems > 0 && (
                                 <span className="text-orange-600"> • {invalidItems} items hidden (missing required fields)</span>
                               )}
-                            </span>
-                          </div>
-                          <div className="flex items-center space-x-2">
-                            <button
-                              onClick={() => exportData('json')}
-                              className="px-3 py-1 bg-white border border-green-300 text-green-700 text-sm rounded-lg hover:bg-green-50 transition-colors duration-200"
-                            >
-                              Export JSON
-                            </button>
-                            <button
-                              onClick={() => exportData('csv')}
-                              className="px-3 py-1 bg-white border border-green-300 text-green-700 text-sm rounded-lg hover:bg-green-50 transition-colors duration-200"
-                            >
-                              Export CSV
-                            </button>
-                            <button
-                              onClick={() => exportData('rss')}
-                              className="px-3 py-1 bg-white border border-green-300 text-green-700 text-sm rounded-lg hover:bg-green-50 transition-colors duration-200"
-                            >
-                              Export RSS
-                            </button>
-                          </div>
-                        </div>
+                      </span>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <button
+                        onClick={() => exportData('json')}
+                        className="px-3 py-1 bg-white border border-green-300 text-green-700 text-sm rounded-lg hover:bg-green-50 transition-colors duration-200"
+                      >
+                        Export JSON
+                      </button>
+                      <button
+                        onClick={() => exportData('csv')}
+                        className="px-3 py-1 bg-white border border-green-300 text-green-700 text-sm rounded-lg hover:bg-green-50 transition-colors duration-200"
+                      >
+                        Export CSV
+                      </button>
+                      <button
+                        onClick={() => exportData('rss')}
+                        className="px-3 py-1 bg-white border border-green-300 text-green-700 text-sm rounded-lg hover:bg-green-50 transition-colors duration-200"
+                      >
+                        Export RSS
+                      </button>
+                    </div>
+                  </div>
 
                         {/* Batch Operations */}
                         {validItems.length > 0 && (
@@ -734,7 +734,7 @@ export default function ZaytoonzScraperPage() {
                           </div>
                         )}
 
-                        <div className="space-y-3">
+                  <div className="space-y-3">
                           {extractedData.items.map((item, index) => {
                             if (removedItems.has(index)) return null;
                             
@@ -789,15 +789,15 @@ export default function ZaytoonzScraperPage() {
                                     )}
                                   </div>
                                 </div>
-                                <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-2 gap-4">
                                   {Object.entries(item).map(([key, value]) => {
                                     // Handle different field types
                                     const field = fields.find(f => f.name === key);
                                     const isLinkField = field?.type === 'link';
                                     
                                     return (
-                                      <div key={key} className="space-y-1">
-                                        <p className="text-sm font-medium text-gray-700">{key}:</p>
+                            <div key={key} className="space-y-1">
+                              <p className="text-sm font-medium text-gray-700">{key}:</p>
                                         {isLinkField && value ? (
                                           <a
                                             href={value}
@@ -808,7 +808,7 @@ export default function ZaytoonzScraperPage() {
                                             View opportunity
                                           </a>
                                         ) : (
-                                          <p className="text-sm text-gray-600">{value || 'No data'}</p>
+                              <p className="text-sm text-gray-600">{value || 'No data'}</p>
                                         )}
                                       </div>
                                     );
@@ -826,7 +826,7 @@ export default function ZaytoonzScraperPage() {
                                     </a>
                                   </div>
                                 </div>
-                              </div>
+                            </div>
                             );
                           })}
                         </div>
