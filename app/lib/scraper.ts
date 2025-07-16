@@ -14,6 +14,9 @@ export interface JobData {
   tags?: string[];
   experience_level?: string;
   remote_work?: boolean;
+  source_url?: string;
+  scraped_at?: string;
+  id?: string;
 }
 
 export interface JobListResult {
@@ -36,8 +39,12 @@ const EXTERNAL_SCRAPER_CONFIG = {
 export interface ExternalScraperResponse {
   success: boolean;
   data?: JobData | JobListResult;
+  jobs?: any[];
   error?: string;
   message?: string;
+  metadata?: {
+    total_cost?: number;
+  };
 }
 
 export async function scrapeJobData(url: string): Promise<JobData | JobListResult | null> {
@@ -118,7 +125,7 @@ async function scrapeWithExternalPython(url: string): Promise<JobData | JobListR
         };
       }
       
-      return result.data;
+      return result.data || null;
     } else {
       console.error('External scraper error:', result.error);
       return null;

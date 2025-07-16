@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/app/lib/supabase';
+import { supabase } from '@/app/lib/supabase';
 
 export async function GET(request: NextRequest) {
   try {
-    const supabase = createClient();
     
     const { data: templates, error } = await supabase
       .from('process_templates')
@@ -34,7 +33,6 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = createClient();
     const body = await request.json();
     
     const templateData = {
@@ -88,7 +86,6 @@ export async function POST(request: NextRequest) {
 
 export async function PATCH(request: NextRequest) {
   try {
-    const supabase = createClient();
     const body = await request.json();
     const { id, steps, ...updates } = body;
 
@@ -146,7 +143,6 @@ export async function PATCH(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
-    const supabase = createClient();
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
 
