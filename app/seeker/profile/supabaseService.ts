@@ -27,6 +27,7 @@ export interface SeekerProfileData {
   lastName: string;
   dateOfBirth?: string;
   nationality?: string;
+  latestJobTitle?: string;
   yearsOfExperience?: number;
   fieldsOfExperience: string[];
   aboutMe?: string;
@@ -114,6 +115,7 @@ export async function saveProfile(profileData: SeekerProfileData, profilePicture
       last_name: profileData.lastName,
       date_of_birth: profileData.dateOfBirth || null,
       nationality: profileData.nationality || null,
+      latest_job_title: profileData.latestJobTitle || null,
       years_of_experience: profileData.yearsOfExperience || null,
       fields_of_experience: profileData.fieldsOfExperience,
       about_me: profileData.aboutMe || null,

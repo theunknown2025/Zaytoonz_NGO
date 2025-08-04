@@ -1,15 +1,33 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
-import { UserIcon, CameraIcon, PlusIcon, XMarkIcon, BellIcon } from '@heroicons/react/24/outline';
+import { 
+  UserIcon, 
+  CameraIcon, 
+  PlusIcon, 
+  XMarkIcon, 
+  BellIcon, 
+  PencilIcon, 
+  CheckIcon, 
+  XMarkIcon as XIcon,
+  CalendarIcon,
+  FlagIcon,
+  ClockIcon,
+  BriefcaseIcon,
+  DocumentTextIcon,
+  MagnifyingGlassIcon,
+  ChevronDownIcon
+} from '@heroicons/react/24/outline';
 import { PhotoIcon } from '@heroicons/react/24/solid';
 import { saveProfile, getProfile, SeekerProfileData } from './supabaseService';
+import { countries, Country } from './countries';
 
 interface ProfileData {
   firstName: string;
   lastName: string;
   dateOfBirth: string;
   nationality: string;
+  latestJobTitle: string;
   yearsOfExperience: number | '';
   fieldsOfExperience: string[];
   aboutMe: string;
@@ -23,6 +41,7 @@ export default function SeekerProfile() {
     lastName: '',
     dateOfBirth: '',
     nationality: '',
+    latestJobTitle: '',
     yearsOfExperience: '',
     fieldsOfExperience: [],
     aboutMe: '',
@@ -30,16 +49,34 @@ export default function SeekerProfile() {
     profilePictureUrl: ''
   });
 
+  const [editMode, setEditMode] = useState(false);
   const [newField, setNewField] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingData, setIsLoadingData] = useState(true);
   const [previewUrl, setPreviewUrl] = useState<string>('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Nationality dropdown states
+  const [showNationalityDropdown, setShowNationalityDropdown] = useState(false);
+  const [nationalitySearch, setNationalitySearch] = useState('');
+  const [filteredCountries, setFilteredCountries] = useState<Country[]>(countries);
+
   // Load existing profile data on component mount
   useEffect(() => {
     loadProfileData();
   }, []);
+
+  // Filter countries based on search
+  useEffect(() => {
+    if (nationalitySearch.trim() === '') {
+      setFilteredCountries(countries);
+    } else {
+      const filtered = countries.filter(country =>
+        country.name.toLowerCase().includes(nationalitySearch.toLowerCase())
+      );
+      setFilteredCountries(filtered);
+    }
+  }, [nationalitySearch]);
 
   const loadProfileData = async () => {
     try {
@@ -58,6 +95,7 @@ export default function SeekerProfile() {
           lastName: data.last_name || '',
           dateOfBirth: data.date_of_birth || '',
           nationality: data.nationality || '',
+          latestJobTitle: data.latest_job_title || '',
           yearsOfExperience: data.years_of_experience || '',
           fieldsOfExperience: data.fields_of_experience || [],
           aboutMe: data.about_me || '',
@@ -147,6 +185,7 @@ export default function SeekerProfile() {
         lastName: profileData.lastName,
         dateOfBirth: profileData.dateOfBirth || undefined,
         nationality: profileData.nationality || undefined,
+        latestJobTitle: profileData.latestJobTitle || undefined,
         yearsOfExperience: typeof profileData.yearsOfExperience === 'number' ? profileData.yearsOfExperience : undefined,
         fieldsOfExperience: profileData.fieldsOfExperience,
         aboutMe: profileData.aboutMe || undefined,
@@ -174,6 +213,7 @@ export default function SeekerProfile() {
       }
 
       alert('Profile saved successfully!');
+      setEditMode(false); // Exit edit mode after successful save
     } catch (error: any) {
       console.error('Error saving profile:', error);
       const errorMessage = error.message || error.toString();
@@ -185,6 +225,32 @@ export default function SeekerProfile() {
 
   const triggerFileInput = () => {
     fileInputRef.current?.click();
+  };
+
+  const toggleEditMode = () => {
+    setEditMode(!editMode);
+  };
+
+  const cancelEdit = () => {
+    setEditMode(false);
+    // Reload original data
+    loadProfileData();
+  };
+
+  const selectNationality = (country: Country) => {
+    setProfileData(prev => ({
+      ...prev,
+      nationality: country.name
+    }));
+    setShowNationalityDropdown(false);
+    setNationalitySearch('');
+  };
+
+  const toggleNationalityDropdown = () => {
+    setShowNationalityDropdown(!showNationalityDropdown);
+    if (!showNationalityDropdown) {
+      setNationalitySearch('');
+    }
   };
 
   // Show loading spinner while data is being loaded
@@ -223,13 +289,39 @@ export default function SeekerProfile() {
       
       <div className="p-6 max-w-4xl mx-auto">
         <div className="bg-white rounded-xl shadow-sm p-6 mb-6">
-          <h2 className="text-2xl font-semibold text-gray-800 mb-2">Your Profile</h2>
-          <p className="text-gray-600">
-            Complete your profile to help employers find you and increase your chances of getting hired.
-          </p>
+          <div className="flex justify-between items-center">
+            <div>
+              <h2 className="text-2xl font-semibold text-gray-800 mb-2">Your Profile</h2>
+              <p className="text-gray-600">
+                {editMode 
+                  ? "Edit your profile information below."
+                  : "Complete your profile to help employers find you and increase your chances of getting hired."
+                }
+              </p>
+            </div>
+            {!editMode ? (
+              <button
+                onClick={toggleEditMode}
+                className="px-4 py-2 bg-olive-medium hover:bg-olive-dark text-white rounded-lg font-medium transition-colors flex items-center gap-2"
+              >
+                <PencilIcon className="w-4 h-4" />
+                Edit Profile
+              </button>
+            ) : (
+              <div className="flex gap-2">
+                <button
+                  onClick={cancelEdit}
+                  className="px-4 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-lg font-medium transition-colors flex items-center gap-2"
+                >
+                  <XIcon className="w-4 h-4" />
+                  Cancel
+                </button>
+              </div>
+            )}
+          </div>
         </div>
 
-        <form onSubmit={handleSubmit} className="bg-white rounded-xl shadow-sm p-8 space-y-8">
+        <div className="bg-white rounded-xl shadow-sm p-8 space-y-8">
           {/* Profile Picture Section */}
           <div className="flex flex-col items-center space-y-4">
             <div className="relative">
@@ -244,13 +336,15 @@ export default function SeekerProfile() {
                   <UserIcon className="w-16 h-16 text-gray-400" />
                 )}
               </div>
-              <button
-                type="button"
-                onClick={triggerFileInput}
-                className="absolute bottom-0 right-0 bg-olive-medium hover:bg-olive-dark text-white p-2 rounded-full shadow-lg transition-colors"
-              >
-                <CameraIcon className="w-5 h-5" />
-              </button>
+              {editMode && (
+                <button
+                  type="button"
+                  onClick={triggerFileInput}
+                  className="absolute bottom-0 right-0 bg-olive-medium hover:bg-olive-dark text-white p-2 rounded-full shadow-lg transition-colors"
+                >
+                  <CameraIcon className="w-5 h-5" />
+                </button>
+              )}
             </div>
             <input
               ref={fileInputRef}
@@ -259,173 +353,319 @@ export default function SeekerProfile() {
               onChange={handleImageChange}
               className="hidden"
             />
-            <p className="text-sm text-gray-500 text-center">
-              Click the camera icon to upload your profile picture<br />
-              Maximum file size: 5MB
-            </p>
+            {editMode && (
+              <p className="text-sm text-gray-500 text-center">
+                Click the camera icon to upload your profile picture<br />
+                Maximum file size: 5MB
+              </p>
+            )}
           </div>
 
           {/* Personal Information */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
+                <UserIcon className="w-4 h-4 text-olive-medium" />
                 First Name *
               </label>
-              <input
-                type="text"
-                required
-                value={profileData.firstName}
-                onChange={(e) => handleInputChange('firstName', e.target.value)}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-olive-medium focus:border-olive-medium transition-colors"
-                placeholder="Enter your first name"
-              />
+              {editMode ? (
+                <input
+                  type="text"
+                  required
+                  value={profileData.firstName}
+                  onChange={(e) => handleInputChange('firstName', e.target.value)}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-olive-medium focus:border-olive-medium transition-colors"
+                  placeholder="Enter your first name"
+                />
+              ) : (
+                <div className="px-4 py-3 bg-gray-50 rounded-lg">
+                  <span className="text-gray-800">
+                    {profileData.firstName || 'Not specified'}
+                  </span>
+                </div>
+              )}
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
+                <UserIcon className="w-4 h-4 text-olive-medium" />
                 Last Name *
               </label>
-              <input
-                type="text"
-                required
-                value={profileData.lastName}
-                onChange={(e) => handleInputChange('lastName', e.target.value)}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-olive-medium focus:border-olive-medium transition-colors"
-                placeholder="Enter your last name"
-              />
+              {editMode ? (
+                <input
+                  type="text"
+                  required
+                  value={profileData.lastName}
+                  onChange={(e) => handleInputChange('lastName', e.target.value)}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-olive-medium focus:border-olive-medium transition-colors"
+                  placeholder="Enter your last name"
+                />
+              ) : (
+                <div className="px-4 py-3 bg-gray-50 rounded-lg">
+                  <span className="text-gray-800">
+                    {profileData.lastName || 'Not specified'}
+                  </span>
+                </div>
+              )}
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
+                <CalendarIcon className="w-4 h-4 text-olive-medium" />
                 Date of Birth
               </label>
-              <input
-                type="date"
-                value={profileData.dateOfBirth}
-                onChange={(e) => handleInputChange('dateOfBirth', e.target.value)}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-olive-medium focus:border-olive-medium transition-colors"
-              />
+              {editMode ? (
+                <input
+                  type="date"
+                  value={profileData.dateOfBirth}
+                  onChange={(e) => handleInputChange('dateOfBirth', e.target.value)}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-olive-medium focus:border-olive-medium transition-colors"
+                />
+              ) : (
+                <div className="px-4 py-3 bg-gray-50 rounded-lg">
+                  <span className="text-gray-800">
+                    {profileData.dateOfBirth ? new Date(profileData.dateOfBirth).toLocaleDateString() : 'Not specified'}
+                  </span>
+                </div>
+              )}
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
+                <FlagIcon className="w-4 h-4 text-olive-medium" />
                 Nationality
               </label>
-              <input
-                type="text"
-                value={profileData.nationality}
-                onChange={(e) => handleInputChange('nationality', e.target.value)}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-olive-medium focus:border-olive-medium transition-colors"
-                placeholder="Enter your nationality"
-              />
+              {editMode ? (
+                <div className="relative">
+                  <button
+                    type="button"
+                    onClick={toggleNationalityDropdown}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-olive-medium focus:border-olive-medium transition-colors flex items-center justify-between bg-white"
+                  >
+                    <span className={profileData.nationality ? 'text-gray-800' : 'text-gray-500'}>
+                      {profileData.nationality || 'Select your nationality'}
+                    </span>
+                    <ChevronDownIcon className="w-4 h-4 text-gray-400" />
+                  </button>
+                  
+                  {showNationalityDropdown && (
+                    <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-hidden">
+                      <div className="p-2 border-b border-gray-200">
+                        <div className="relative">
+                          <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                          <input
+                            type="text"
+                            value={nationalitySearch}
+                            onChange={(e) => setNationalitySearch(e.target.value)}
+                            placeholder="Search countries..."
+                            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-olive-medium focus:border-olive-medium"
+                            autoFocus
+                          />
+                        </div>
+                      </div>
+                      <div className="max-h-48 overflow-y-auto">
+                        {filteredCountries.map((country) => (
+                          <button
+                            key={country.code}
+                            type="button"
+                            onClick={() => selectNationality(country)}
+                            className="w-full px-4 py-2 text-left hover:bg-gray-100 focus:bg-gray-100 focus:outline-none"
+                          >
+                            {country.name}
+                          </button>
+                        ))}
+                        {filteredCountries.length === 0 && (
+                          <div className="px-4 py-2 text-gray-500 text-center">
+                            No countries found
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="px-4 py-3 bg-gray-50 rounded-lg">
+                  <span className="text-gray-800">
+                    {profileData.nationality || 'Not specified'}
+                  </span>
+                </div>
+              )}
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
+                <BriefcaseIcon className="w-4 h-4 text-olive-medium" />
+                Latest Job Title
+              </label>
+              {editMode ? (
+                <input
+                  type="text"
+                  value={profileData.latestJobTitle}
+                  onChange={(e) => handleInputChange('latestJobTitle', e.target.value)}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-olive-medium focus:border-olive-medium transition-colors"
+                  placeholder="e.g., Software Engineer, Marketing Manager"
+                />
+              ) : (
+                <div className="px-4 py-3 bg-gray-50 rounded-lg">
+                  <span className="text-gray-800">
+                    {profileData.latestJobTitle || 'Not specified'}
+                  </span>
+                </div>
+              )}
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
+                <ClockIcon className="w-4 h-4 text-olive-medium" />
                 Years of Experience
               </label>
-              <input
-                type="number"
-                min="0"
-                max="50"
-                value={profileData.yearsOfExperience}
-                onChange={(e) => handleInputChange('yearsOfExperience', e.target.value ? parseInt(e.target.value) : '')}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-olive-medium focus:border-olive-medium transition-colors"
-                placeholder="0"
-              />
+              {editMode ? (
+                <input
+                  type="number"
+                  min="0"
+                  max="50"
+                  value={profileData.yearsOfExperience}
+                  onChange={(e) => handleInputChange('yearsOfExperience', e.target.value ? parseInt(e.target.value) : '')}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-olive-medium focus:border-olive-medium transition-colors"
+                  placeholder="0"
+                />
+              ) : (
+                <div className="px-4 py-3 bg-gray-50 rounded-lg">
+                  <span className="text-gray-800">
+                    {profileData.yearsOfExperience ? `${profileData.yearsOfExperience} years` : 'Not specified'}
+                  </span>
+                </div>
+              )}
             </div>
           </div>
 
           {/* Fields of Experience */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
+              <BriefcaseIcon className="w-4 h-4 text-olive-medium" />
               Fields of Experience
+              <span className="text-xs text-gray-500 font-normal ml-2 italic">
+                (Add your areas of expertise. You can enter multiple fields separated by commas)
+              </span>
             </label>
-            <div className="space-y-3">
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={newField}
-                  onChange={(e) => setNewField(e.target.value)}
-                  onKeyPress={handleKeyPress}
-                  className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-olive-medium focus:border-olive-medium transition-colors"
-                  placeholder="Enter fields separated by commas (e.g., Marketing, Sales, Project Management)"
-                />
-                <button
-                  type="button"
-                  onClick={addField}
-                  className="px-4 py-3 bg-olive-medium hover:bg-olive-dark text-white rounded-lg transition-colors flex items-center gap-2"
-                >
-                  <PlusIcon className="w-4 h-4" />
-                  Add
-                </button>
-              </div>
-              
-              {profileData.fieldsOfExperience.length > 0 && (
-                <div className="flex flex-wrap gap-2">
-                  {profileData.fieldsOfExperience.map((field, index) => (
-                    <span
-                      key={index}
-                      className="inline-flex items-center gap-1 px-3 py-1 bg-olive-light text-olive-dark rounded-full text-sm border border-olive-medium/20"
-                    >
-                      {field}
-                      <button
-                        type="button"
-                        onClick={() => removeField(index)}
-                        className="text-olive-dark hover:text-red-600 transition-colors"
-                      >
-                        <XMarkIcon className="w-4 h-4" />
-                      </button>
-                    </span>
-                  ))}
+            {editMode ? (
+              <div className="space-y-3">
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={newField}
+                    onChange={(e) => setNewField(e.target.value)}
+                    onKeyPress={handleKeyPress}
+                    className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-olive-medium focus:border-olive-medium transition-colors"
+                    placeholder="Enter fields separated by commas (e.g., Marketing, Sales, Project Management)"
+                  />
+                  <button
+                    type="button"
+                    onClick={addField}
+                    className="px-4 py-3 bg-olive-medium hover:bg-olive-dark text-white rounded-lg transition-colors flex items-center gap-2"
+                  >
+                    <PlusIcon className="w-4 h-4" />
+                    Add
+                  </button>
                 </div>
-              )}
-            </div>
-            <p className="text-sm text-gray-500 mt-1">
-              Add your areas of expertise. You can enter multiple fields separated by commas.
-            </p>
+                
+                {profileData.fieldsOfExperience.length > 0 && (
+                  <div className="flex flex-wrap gap-2">
+                    {profileData.fieldsOfExperience.map((field, index) => (
+                      <span
+                        key={index}
+                        className="inline-flex items-center gap-1 px-3 py-1 bg-olive-light text-olive-dark rounded-full text-sm border border-olive-medium/20"
+                      >
+                        {field}
+                        <button
+                          type="button"
+                          onClick={() => removeField(index)}
+                          className="text-olive-dark hover:text-red-600 transition-colors"
+                        >
+                          <XMarkIcon className="w-4 h-4" />
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="px-4 py-3 bg-gray-50 rounded-lg">
+                {profileData.fieldsOfExperience.length > 0 ? (
+                  <div className="flex flex-wrap gap-2">
+                    {profileData.fieldsOfExperience.map((field, index) => (
+                      <span
+                        key={index}
+                        className="inline-flex items-center px-3 py-1 bg-olive-light text-olive-dark rounded-full text-sm"
+                      >
+                        {field}
+                      </span>
+                    ))}
+                  </div>
+                ) : (
+                  <span className="text-gray-500">No fields of experience specified</span>
+                )}
+              </div>
+            )}
           </div>
 
           {/* About Me */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
+              <DocumentTextIcon className="w-4 h-4 text-olive-medium" />
               About Me
-            </label>
-            <textarea
-              rows={6}
-              value={profileData.aboutMe}
-              onChange={(e) => handleInputChange('aboutMe', e.target.value)}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-olive-medium focus:border-olive-medium transition-colors resize-none"
-              placeholder="Tell employers about yourself, your experience, goals, and what makes you unique..."
-            />
-            <div className="flex justify-between items-center mt-1">
-              <p className="text-sm text-gray-500">
-                Write a compelling summary that highlights your strengths and career objectives.
-              </p>
-              <span className="text-sm text-gray-400">
-                {profileData.aboutMe.length}/1000
+              <span className="text-xs text-gray-500 font-normal ml-2 italic">
+                (Write a compelling summary that highlights your strengths and career objectives)
               </span>
-            </div>
+            </label>
+            {editMode ? (
+              <>
+                <textarea
+                  rows={6}
+                  value={profileData.aboutMe}
+                  onChange={(e) => handleInputChange('aboutMe', e.target.value)}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-olive-medium focus:border-olive-medium transition-colors resize-none"
+                  placeholder="Tell employers about yourself, your experience, goals, and what makes you unique..."
+                />
+                <div className="flex justify-between items-center mt-1">
+                  <span className="text-sm text-gray-400">
+                    {profileData.aboutMe.length}/1000
+                  </span>
+                </div>
+              </>
+            ) : (
+              <div className="px-4 py-3 bg-gray-50 rounded-lg">
+                <span className="text-gray-800 whitespace-pre-wrap">
+                  {profileData.aboutMe || 'No description provided'}
+                </span>
+              </div>
+            )}
           </div>
 
-          {/* Submit Button */}
-          <div className="flex justify-end pt-6 border-t border-gray-200">
-            <button
-              type="submit"
-              disabled={isLoading}
-              className="px-8 py-3 bg-olive-medium hover:bg-olive-dark disabled:bg-gray-400 text-white rounded-lg font-medium transition-colors flex items-center gap-2"
-            >
-              {isLoading ? (
-                <>
-                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                  Saving...
-                </>
-              ) : (
-                'Save Profile'
-              )}
-            </button>
-          </div>
-        </form>
+          {/* Submit Button - Only show in edit mode */}
+          {editMode && (
+            <div className="flex justify-end pt-6 border-t border-gray-200">
+              <button
+                type="submit"
+                onClick={handleSubmit}
+                disabled={isLoading}
+                className="px-8 py-3 bg-olive-medium hover:bg-olive-dark disabled:bg-gray-400 text-white rounded-lg font-medium transition-colors flex items-center gap-2"
+              >
+                {isLoading ? (
+                  <>
+                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    <CheckIcon className="w-4 h-4" />
+                    Save Profile
+                  </>
+                )}
+              </button>
+            </div>
+          )}
+        </div>
       </div>
     </>
   );
