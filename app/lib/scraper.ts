@@ -1,5 +1,6 @@
 import puppeteer, { Browser, Page } from 'puppeteer';
 import { JSDOM } from 'jsdom';
+import cheerio from 'cheerio';
 
 export interface JobData {
   title?: string;
