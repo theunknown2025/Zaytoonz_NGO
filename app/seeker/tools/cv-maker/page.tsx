@@ -33,9 +33,10 @@ import CertificatesSection from './components/CertificatesSection';
 import ProjectsSection from './components/ProjectsSection';
 import AdditionalSection from './components/AdditionalSection';
 import PlaceholderSection from './components/PlaceholderSection';
+import ExternalLinksSection from './components/ExternalLinksSection';
 
 // Import types
-import { CVData } from './types';
+import { CVData, ExternalLink } from './types';
 
 // Import Supabase service
 import { saveCV, getCVs, getCVById, deleteCV, updateCVName } from './supabaseService';
@@ -55,7 +56,8 @@ export default function CVMaker() {
     'volunteering',
     'publications',
     'references',
-    'additional'
+    'additional',
+    'externalLinks'
   ]);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isSectionModalOpen, setIsSectionModalOpen] = useState(false);
@@ -81,7 +83,7 @@ export default function CVMaker() {
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   // CV Data State
-  const [cvData, setCvData] = useState({
+  const [cvData, setCvData] = useState<CVData>({
     general: {
       firstName: '',
       lastName: '',
@@ -126,7 +128,7 @@ export default function CVMaker() {
       {
         id: 1,
         language: '',
-        proficiency: 'intermediate',
+        proficiency: 'intermediate'
       }
     ],
     summary: '',
@@ -136,7 +138,7 @@ export default function CVMaker() {
         name: '',
         issuer: '',
         date: '',
-        description: ''
+        description: '',
       }
     ],
     projects: [
@@ -147,13 +149,14 @@ export default function CVMaker() {
         startDate: '',
         endDate: '',
         description: '',
-        url: ''
+        url: '',
       }
     ],
     volunteering: [],
     publications: [],
     references: [],
     additional: '',
+    externalLinks: []
   });
 
   // Load saved CVs from database on component mount
@@ -340,7 +343,8 @@ export default function CVMaker() {
       volunteering: 'Volunteering Experience',
       publications: 'Publications',
       references: 'References',
-      additional: 'Additional Information'
+      additional: 'Additional Information',
+      externalLinks: 'External Links'
     };
     return titles[section] || section;
   };
@@ -479,6 +483,45 @@ export default function CVMaker() {
     setCvData({
       ...cvData,
       additional: value
+    });
+    setIsCVModified(true);
+  };
+
+  const handleExternalLinkChange = (index: number, field: string, value: string) => {
+    const updatedExternalLinks = [...cvData.externalLinks];
+    updatedExternalLinks[index] = {
+      ...updatedExternalLinks[index],
+      [field]: value
+    };
+    setCvData({
+      ...cvData,
+      externalLinks: updatedExternalLinks
+    });
+    setIsCVModified(true);
+  };
+
+  const addExternalLink = () => {
+    setCvData({
+      ...cvData,
+      externalLinks: [
+        ...cvData.externalLinks,
+        {
+          id: Date.now(),
+          platform: '',
+          url: '',
+          displayName: ''
+        }
+      ]
+    });
+    setIsCVModified(true);
+  };
+
+  const removeExternalLink = (index: number) => {
+    const updatedExternalLinks = [...cvData.externalLinks];
+    updatedExternalLinks.splice(index, 1);
+    setCvData({
+      ...cvData,
+      externalLinks: updatedExternalLinks
     });
     setIsCVModified(true);
   };
@@ -872,6 +915,30 @@ export default function CVMaker() {
             }
             break;
             
+          case 'externalLinks':
+            if (cvData.externalLinks && cvData.externalLinks.length > 0) {
+              let externalLinksContent = `
+                <div class="cv-export-section">
+                  <div class="cv-export-section-title">External Links</div>
+              `;
+              
+              cvData.externalLinks.forEach(link => {
+                const { displayName, url } = link;
+                externalLinksContent += `
+                  <div class="cv-export-item">
+                    <div class="cv-export-item-header">
+                      <div class="cv-export-item-title">${displayName}</div>
+                    </div>
+                    <div class="cv-export-item-description"><a href="${url}" target="_blank">${url}</a></div>
+                  </div>
+                `;
+              });
+              
+              externalLinksContent += `</div>`;
+              europassContent += externalLinksContent;
+            }
+            break;
+            
           // Other sections can be added as needed
           default:
             break;
@@ -1202,6 +1269,7 @@ export default function CVMaker() {
       publications: [],
       references: [],
       additional: '',
+      externalLinks: []
     });
     setAddedSections(['general', 'work', 'education']);
     setAvailableSections([
@@ -1213,7 +1281,8 @@ export default function CVMaker() {
       'volunteering',
       'publications',
       'references',
-      'additional'
+      'additional',
+      'externalLinks'
     ]);
     setCurrentCVId(null);
     setCvName('');
@@ -1584,6 +1653,13 @@ export default function CVMaker() {
           additionalInfo={cvData.additional} 
           onAdditionalChange={handleAdditionalChange} 
         />;
+      case 'externalLinks':
+        return <ExternalLinksSection 
+          externalLinks={cvData.externalLinks} 
+          onExternalLinkChange={handleExternalLinkChange}
+          onAddExternalLink={addExternalLink}
+          onRemoveExternalLink={removeExternalLink}
+        />;
       default:
         return <PlaceholderSection sectionTitle={getSectionTitle(section)} />;
     }
@@ -1794,6 +1870,10 @@ export default function CVMaker() {
                       'additional': {
                         icon: <DocumentTextIcon className="w-8 h-8 text-olive-medium" />,
                         description: 'Add any other information relevant to your professional profile.'
+                      },
+                      'externalLinks': {
+                        icon: <DocumentTextIcon className="w-8 h-8 text-olive-medium" />,
+                        description: 'Add links to your professional profiles on external platforms.'
                       }
                     };
                     

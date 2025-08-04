@@ -11,6 +11,7 @@ export interface CVData {
   publications: any[];
   references: any[];
   additional: string;
+  externalLinks: ExternalLink[];
 }
 
 export interface GeneralInfo {
@@ -73,6 +74,13 @@ export interface Project {
   endDate: string;
   description: string;
   url: string;
+}
+
+export interface ExternalLink {
+  id: number;
+  platform: string;
+  url: string;
+  displayName: string;
 }
 
 export interface SavedCV {

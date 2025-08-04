@@ -308,7 +308,8 @@ export async function getCVById(cvId: string): Promise<{ data: any | null; error
       volunteering: [],
       publications: [],
       references: [],
-      additional: cvResult.data.additional || ''
+      additional: cvResult.data.additional || '',
+      externalLinks: []
     };
 
     const fullCV = {
