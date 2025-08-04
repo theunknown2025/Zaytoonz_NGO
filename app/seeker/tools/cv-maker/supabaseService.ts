@@ -189,6 +189,25 @@ export async function saveCV(cvData: CVData, cvName: string, cvId?: string, sect
       savePromises.push(supabase.from('cv_projects').insert(projectsData));
     }
 
+    // Save external links
+    if (cvData.externalLinks && cvData.externalLinks.length > 0) {
+      const externalLinksData = cvData.externalLinks.map((link, index) => ({
+        cv_id: savedCvId,
+        platform: link.platform,
+        url: link.url,
+        display_name: link.displayName,
+        sort_order: index
+      }));
+
+      const externalLinksResult = await supabase
+        .from('cv_external_links')
+        .upsert(externalLinksData, { onConflict: 'cv_id,platform' });
+
+      if (externalLinksResult.error) {
+        throw externalLinksResult.error;
+      }
+    }
+
     // Execute all save operations
     await Promise.all(savePromises);
 
@@ -247,13 +266,14 @@ export async function getCVById(cvId: string): Promise<{ data: any | null; error
     }
 
     // Get all related data
-    const [workResult, eduResult, skillsResult, languagesResult, certsResult, projectsResult] = await Promise.all([
+    const [workResult, eduResult, skillsResult, languagesResult, certsResult, projectsResult, externalLinksResult] = await Promise.all([
       supabase.from('cv_work_experiences').select('*').eq('cv_id', cvId).order('sort_order'),
       supabase.from('cv_education').select('*').eq('cv_id', cvId).order('sort_order'),
       supabase.from('cv_skills').select('*').eq('cv_id', cvId).order('sort_order'),
       supabase.from('cv_languages').select('*').eq('cv_id', cvId).order('sort_order'),
       supabase.from('cv_certificates').select('*').eq('cv_id', cvId).order('sort_order'),
-      supabase.from('cv_projects').select('*').eq('cv_id', cvId).order('sort_order')
+      supabase.from('cv_projects').select('*').eq('cv_id', cvId).order('sort_order'),
+      supabase.from('cv_external_links').select('*').eq('cv_id', cvId).order('sort_order')
     ]);
 
     // Transform data back to CV format
@@ -309,7 +329,12 @@ export async function getCVById(cvId: string): Promise<{ data: any | null; error
       publications: [],
       references: [],
       additional: cvResult.data.additional || '',
-      externalLinks: []
+      externalLinks: externalLinksResult.data?.map((link: any) => ({
+        id: link.id,
+        platform: link.platform,
+        url: link.url,
+        displayName: link.display_name
+      })) || []
     };
 
     const fullCV = {

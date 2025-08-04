@@ -344,7 +344,7 @@ export default function CVMaker() {
       publications: 'Publications',
       references: 'References',
       additional: 'Additional Information',
-      externalLinks: 'External Links'
+      externalLinks: 'External Profiles'
     };
     return titles[section] || section;
   };
@@ -919,7 +919,7 @@ export default function CVMaker() {
             if (cvData.externalLinks && cvData.externalLinks.length > 0) {
               let externalLinksContent = `
                 <div class="cv-export-section">
-                  <div class="cv-export-section-title">External Links</div>
+                  <div class="cv-export-section-title">External Profiles</div>
               `;
               
               cvData.externalLinks.forEach(link => {
@@ -927,7 +927,7 @@ export default function CVMaker() {
                 externalLinksContent += `
                   <div class="cv-export-item">
                     <div class="cv-export-item-header">
-                      <div class="cv-export-item-title">${displayName}</div>
+                      <div class="cv-export-item-title">${displayName || link.platform}</div>
                     </div>
                     <div class="cv-export-item-description"><a href="${url}" target="_blank">${url}</a></div>
                   </div>

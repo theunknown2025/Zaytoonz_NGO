@@ -43,7 +43,7 @@ export default function ExternalLinksSection({
       <div className="flex items-center justify-between">
         <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
           <LinkIcon className="w-5 h-5 text-olive-medium" />
-          External Links
+          External Profiles
         </h3>
         <button
           type="button"
@@ -152,7 +152,7 @@ export default function ExternalLinksSection({
       </div>
 
       <div className="text-sm text-gray-600 bg-blue-50 p-4 rounded-lg">
-        <h4 className="font-medium text-blue-800 mb-2">💡 Tips for External Links:</h4>
+        <h4 className="font-medium text-blue-800 mb-2">💡 Tips for External Profiles:</h4>
         <ul className="space-y-1 text-blue-700">
           <li>• Add your LinkedIn profile to showcase your professional network</li>
           <li>• Include your GitHub if you're a developer</li>
