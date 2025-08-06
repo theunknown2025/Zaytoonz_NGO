@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Menu, 
   X, 
@@ -10,21 +10,12 @@ import {
   Globe, 
   Award,
   Shield, 
-  Clock, 
   Search, 
-  MessageSquare, 
   BarChart3, 
-  Zap,
-  Star,
   Briefcase,
-  GraduationCap,
+  UserPlus,
   Lightbulb,
   TrendingUp,
-  Heart,
-  CheckCircle,
-  UserPlus,
-  Handshake,
-  Quote,
   Mail,
   Phone,
   MapPin,
@@ -34,45 +25,26 @@ import RecentOpportunities from './components/RecentOpportunities';
 
 export default function LandingPage() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
-  const features = [
-    {
-      icon: <Search className="h-8 w-8" />,
-      title: "Smart Matching Algorithm",
-      description: "Our AI-powered system matches talents with NGOs based on skills, interests, location, and organizational culture fit.",
-      highlight: "99% accuracy rate"
-    },
-    {
-      icon: <Shield className="h-8 w-8" />,
-      title: "Verified Organizations", 
-      description: "All NGOs undergo thorough verification to ensure legitimacy, impact, and commitment to youth development.",
-      highlight: "100% verified partners"
-    },
-    {
-      icon: <MessageSquare className="h-8 w-8" />,
-      title: "Integrated Communication",
-      description: "Built-in messaging, video calls, and collaboration tools to streamline the connection process.",
-      highlight: "Real-time messaging"
-    },
-    {
-      icon: <BarChart3 className="h-8 w-8" />,
-      title: "Impact Tracking",
-      description: "Monitor your career growth and social impact with detailed analytics and progress reports.",
-      highlight: "Comprehensive analytics"
-    },
-    {
-      icon: <Clock className="h-8 w-8" />,
-      title: "Flexible Opportunities",
-      description: "From part-time volunteering to full-time careers, find opportunities that fit your schedule and goals.",
-      highlight: "All commitment levels"
-    },
-    {
-      icon: <Zap className="h-8 w-8" />,
-      title: "Instant Notifications",
-      description: "Get real-time alerts for new opportunities, application updates, and important messages.",
-      highlight: "Lightning fast updates"
-    }
+  const backgroundImages = [
+    '/Health.png',
+    '/Water.png', 
+    '/Green.png',
+    '/Education.png'
   ];
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentImageIndex((prevIndex) => 
+        (prevIndex + 1) % backgroundImages.length
+      );
+    }, 5000); // Change image every 5 seconds
+
+    return () => clearInterval(interval);
+  }, [backgroundImages.length]);
+
+
 
   return (
     <div className="min-h-screen">
@@ -152,8 +124,28 @@ export default function LandingPage() {
       </header>
 
       {/* Hero Section */}
-      <section id="home" className="pt-16 min-h-screen bg-olive-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
+      <section id="home" className="pt-16 min-h-screen relative overflow-hidden">
+        {/* Background Image Carousel */}
+        <div className="absolute inset-0 z-0">
+          {backgroundImages.map((image, index) => (
+            <div
+              key={index}
+              className={`absolute inset-0 transition-opacity duration-1000 ease-in-out ${
+                index === currentImageIndex ? 'opacity-70' : 'opacity-0'
+              }`}
+              style={{
+                backgroundImage: `url(${image})`,
+                backgroundSize: 'cover',
+                backgroundPosition: 'center',
+                backgroundRepeat: 'no-repeat'
+              }}
+            />
+          ))}
+          {/* Overlay for better text readability */}
+          <div className="absolute inset-0 bg-olive-50/80 z-10"></div>
+        </div>
+        
+        <div className="relative z-20 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
           <div className="text-center">
             <div className="mb-6">
               <span className="inline-block bg-olive-700 text-white px-6 py-2 rounded-full text-sm font-semibold mb-4">
@@ -162,15 +154,13 @@ export default function LandingPage() {
             </div>
             
             <h1 className="text-4xl md:text-6xl font-bold text-olive-800 mb-6 leading-tight">
-              Connecting <span className="text-olive-600">NGOs</span> with 
+              Fueling <span className="text-olive-600">Social Impact</span> with 
               <br />
-              <span className="text-olive-600">Youth Talents</span>
+              <span className="text-olive-600">Professional Expertise</span>
             </h1>
             
             <p className="text-xl text-olive-600 mb-8 max-w-4xl mx-auto leading-relaxed">
-              Zaytoonz is the premier platform bridging the gap between passionate young talents and impactful NGOs worldwide. 
-              We create opportunities for meaningful careers while driving positive change across communities, 
-              empowering the next generation of social impact leaders.
+            Zaytoonz is the leading platform connecting skilled professionals with mission-driven non-profit entities across the globe. We enable impactful careers that contribute to social change, strengthening the capacity of organizations while advancing sustainable development and community resilience.
             </p>
             
             <div className="flex flex-col sm:flex-row gap-4 justify-center mb-16">
@@ -178,14 +168,14 @@ export default function LandingPage() {
                   href="/seeker"
                   className="bg-olive-700 text-white px-8 py-4 rounded-full font-semibold text-lg hover:bg-olive-800 hover:shadow-xl transition-all duration-300 transform hover:scale-105 flex items-center justify-center"
                 >
-                Find Opportunities
+                Discover Opportunities
                 <ArrowRight className="ml-2 h-5 w-5" />
               </a>
               <a
                 href="/ngo"
                 className="border-2 border-olive-500 text-olive-700 px-8 py-4 rounded-full font-semibold text-lg hover:bg-olive-50 transition-all duration-300 flex items-center justify-center"
               >
-                Post a Position
+                Post Opportunities
                 <ArrowRight className="ml-2 h-5 w-5" />
               </a>
             </div>
@@ -224,234 +214,29 @@ export default function LandingPage() {
                 <p className="text-sm text-olive-500 mt-1">Successful placements</p>
               </div>
             </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Features Section */}
-      <section id="features" className="py-20 bg-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold text-olive-800 mb-4">
-              Powerful Features for Meaningful Connections
-            </h2>
-            <p className="text-xl text-olive-600 max-w-3xl mx-auto">
-              Our platform is designed with cutting-edge technology to ensure the best possible experience 
-              for both talents and NGOs seeking to create positive change.
-            </p>
-          </div>
-
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {features.map((feature, index) => (
-              <div key={index} className="bg-white rounded-2xl p-8 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 border border-olive-100">
-                <div className="bg-olive-600 w-16 h-16 rounded-xl flex items-center justify-center mb-6">
-                  {React.cloneElement(feature.icon, { className: "h-8 w-8 text-white" })}
-                </div>
-                <h3 className="text-xl font-bold text-olive-800 mb-3">{feature.title}</h3>
-                <p className="text-olive-600 mb-4 leading-relaxed">{feature.description}</p>
-                <div className="flex items-center text-olive-500">
-                  <Star className="h-4 w-4 mr-2 fill-current" />
-                  <span className="text-sm font-medium">{feature.highlight}</span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Platform Features Section */}
-      <section id="services" className="py-20 bg-olive-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold text-olive-800 mb-4">
-              Comprehensive Platform Features
-            </h2>
-            <p className="text-xl text-olive-600 max-w-4xl mx-auto">
-              Everything you need to find meaningful opportunities or discover passionate talent through our integrated platform.
-            </p>
-          </div>
-
-          <div className="grid lg:grid-cols-2 gap-16">
-            {/* For Job Seekers */}
-            <div className="bg-white rounded-3xl p-8 shadow-xl">
-              <div className="text-center mb-8">
-                <div className="bg-olive-700 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <Search className="h-10 w-10 text-white" />
-                </div>
-                <h3 className="text-3xl font-bold text-olive-800 mb-2">For Job Seekers</h3>
-                <p className="text-olive-600 text-lg">Discover opportunities that match your passion and skills</p>
-              </div>
-
-              <div className="space-y-6">
-                <div className="border border-olive-200 rounded-xl p-6 hover:shadow-lg transition-all duration-300 hover:border-olive-300">
-                  <div className="flex items-start space-x-4">
-                    <div className="bg-olive-600 w-12 h-12 rounded-lg flex items-center justify-center flex-shrink-0">
-                      <Search className="h-6 w-6 text-white" />
-                    </div>
-                    <div className="flex-1">
-                      <h4 className="text-xl font-semibold text-olive-800 mb-2">Smart Job Search & Navigation</h4>
-                      <p className="text-olive-600 mb-3">Browse and filter opportunities with advanced search features and personalized recommendations.</p>
-                      <div className="grid grid-cols-2 gap-2">
-                        <div className="flex items-center text-sm text-olive-500">
-                          <CheckCircle className="h-4 w-4 mr-2 text-olive-400" />
-                          Advanced filtering
-                        </div>
-                        <div className="flex items-center text-sm text-olive-500">
-                          <CheckCircle className="h-4 w-4 mr-2 text-olive-400" />
-                          Job alerts
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="border border-olive-200 rounded-xl p-6 hover:shadow-lg transition-all duration-300 hover:border-olive-300">
-                  <div className="flex items-start space-x-4">
-                    <div className="bg-olive-600 w-12 h-12 rounded-lg flex items-center justify-center flex-shrink-0">
-                      <Briefcase className="h-6 w-6 text-white" />
-                    </div>
-                    <div className="flex-1">
-                      <h4 className="text-xl font-semibold text-olive-800 mb-2">Application Management & CV Tools</h4>
-                      <p className="text-olive-600 mb-3">Track your applications and create professional CVs with our built-in CV maker and analyzer tools.</p>
-                      <div className="grid grid-cols-2 gap-2">
-                        <div className="flex items-center text-sm text-olive-500">
-                          <CheckCircle className="h-4 w-4 mr-2 text-olive-400" />
-                          CV maker & analyzer
-                        </div>
-                        <div className="flex items-center text-sm text-olive-500">
-                          <CheckCircle className="h-4 w-4 mr-2 text-olive-400" />
-                          Application tracking
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="border border-olive-200 rounded-xl p-6 hover:shadow-lg transition-all duration-300 hover:border-olive-300">
-                  <div className="flex items-start space-x-4">
-                    <div className="bg-olive-600 w-12 h-12 rounded-lg flex items-center justify-center flex-shrink-0">
-                      <Users className="h-6 w-6 text-white" />
-                    </div>
-                    <div className="flex-1">
-                      <h4 className="text-xl font-semibold text-olive-800 mb-2">Professional Profile & Services</h4>
-                      <p className="text-olive-600 mb-3">Build a comprehensive professional profile and access career services and resources.</p>
-                      <div className="grid grid-cols-2 gap-2">
-                        <div className="flex items-center text-sm text-olive-500">
-                          <CheckCircle className="h-4 w-4 mr-2 text-olive-400" />
-                          Profile management
-                        </div>
-                        <div className="flex items-center text-sm text-olive-500">
-                          <CheckCircle className="h-4 w-4 mr-2 text-olive-400" />
-                          Career resources
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="mt-8 text-center">
-                <a
-                  href="/seeker"
-                  className="bg-olive-700 text-white px-8 py-4 rounded-full font-semibold text-lg hover:bg-olive-800 hover:shadow-lg transition-all duration-300 transform hover:scale-105 flex items-center mx-auto w-fit"
-                >
-                  Start Job Search
-                  <ArrowRight className="ml-2 h-5 w-5" />
-                </a>
-              </div>
-            </div>
-
-            {/* For NGOs */}
-            <div className="bg-olive-800 rounded-3xl p-8 text-white shadow-xl">
-              <div className="text-center mb-8">
-                <div className="bg-white/20 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <Target className="h-10 w-10 text-white" />
-                </div>
-                <h3 className="text-3xl font-bold mb-2">For NGOs</h3>
-                <p className="text-olive-100 text-lg">Manage opportunities and find the right talent</p>
-              </div>
-
-              <div className="space-y-6">
-                <div className="bg-white/10 backdrop-blur-sm rounded-xl p-6 hover:bg-white/20 transition-all duration-300 border border-white/10">
-                  <div className="flex items-start space-x-4">
-                    <div className="bg-white/20 w-12 h-12 rounded-lg flex items-center justify-center flex-shrink-0">
-                      <Lightbulb className="h-6 w-6 text-white" />
-                    </div>
-                    <div className="flex-1">
-                      <h4 className="text-xl font-semibold mb-2">Opportunity Management System</h4>
-                      <p className="text-olive-100 mb-3">Create, publish, and manage volunteer and job opportunities with our comprehensive management tools.</p>
-                      <div className="grid grid-cols-2 gap-2">
-                        <div className="flex items-center text-sm text-olive-200">
-                          <CheckCircle className="h-4 w-4 mr-2 text-olive-300" />
-                          Create opportunities
-                        </div>
-                        <div className="flex items-center text-sm text-olive-200">
-                          <CheckCircle className="h-4 w-4 mr-2 text-olive-300" />
-                          Manage listings
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="bg-white/10 backdrop-blur-sm rounded-xl p-6 hover:bg-white/20 transition-all duration-300 border border-white/10">
-                  <div className="flex items-start space-x-4">
-                    <div className="bg-white/20 w-12 h-12 rounded-lg flex items-center justify-center flex-shrink-0">
-                      <BarChart3 className="h-6 w-6 text-white" />
-                    </div>
-                    <div className="flex-1">
-                      <h4 className="text-xl font-semibold mb-2">Application Tracking & Analytics</h4>
-                      <p className="text-olive-100 mb-3">Track applications, review candidates, and analyze your recruitment performance with detailed insights.</p>
-                      <div className="grid grid-cols-2 gap-2">
-                        <div className="flex items-center text-sm text-olive-200">
-                          <CheckCircle className="h-4 w-4 mr-2 text-olive-300" />
-                          Application review
-                        </div>
-                        <div className="flex items-center text-sm text-olive-200">
-                          <CheckCircle className="h-4 w-4 mr-2 text-olive-300" />
-                          Performance analytics
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="bg-white/10 backdrop-blur-sm rounded-xl p-6 hover:bg-white/20 transition-all duration-300 border border-white/10">
-                  <div className="flex items-start space-x-4">
-                    <div className="bg-white/20 w-12 h-12 rounded-lg flex items-center justify-center flex-shrink-0">
-                      <Shield className="h-6 w-6 text-white" />
-                    </div>
-                    <div className="flex-1">
-                      <h4 className="text-xl font-semibold mb-2">Organization Profile & Resources</h4>
-                      <p className="text-olive-100 mb-3">Build your organization's profile, manage resources, and access tools to streamline your operations.</p>
-                      <div className="grid grid-cols-2 gap-2">
-                        <div className="flex items-center text-sm text-olive-200">
-                          <CheckCircle className="h-4 w-4 mr-2 text-olive-300" />
-                          Profile management
-                        </div>
-                        <div className="flex items-center text-sm text-olive-200">
-                          <CheckCircle className="h-4 w-4 mr-2 text-olive-300" />
-                          Resource center
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="mt-8 text-center">
-                <a
-                  href="/ngo"
-                  className="bg-white text-olive-800 px-8 py-4 rounded-full font-semibold text-lg hover:shadow-lg transition-all duration-300 transform hover:scale-105 flex items-center mx-auto w-fit"
-                >
-                  Start Posting
-                  <ArrowRight className="ml-2 h-5 w-5" />
-                </a>
-              </div>
+            
+            {/* Image Carousel Indicators */}
+            <div className="flex justify-center space-x-2 mt-8">
+              {backgroundImages.map((_, index) => (
+                <button
+                  key={index}
+                  onClick={() => setCurrentImageIndex(index)}
+                  className={`w-3 h-3 rounded-full transition-all duration-300 ${
+                    index === currentImageIndex 
+                      ? 'bg-olive-700 shadow-lg' 
+                      : 'bg-olive-300 hover:bg-olive-500'
+                  }`}
+                  aria-label={`Switch to background image ${index + 1}`}
+                />
+              ))}
             </div>
           </div>
         </div>
       </section>
+
+
+
+
 
       {/* How It Works Section */}
       <section className="py-20 bg-white">
@@ -614,57 +399,11 @@ export default function LandingPage() {
             </div>
           </div>
 
-          <div className="mt-16 text-center">
-            <div className="bg-olive-100 rounded-2xl p-8 max-w-4xl mx-auto">
-              <CheckCircle className="h-16 w-16 text-olive-600 mx-auto mb-4" />
-              <h3 className="text-2xl font-bold text-olive-800 mb-4">Ready to Get Started?</h3>
-              <p className="text-olive-600 text-lg mb-6">
-                Join thousands of talents and NGOs who have already found their perfect match through Zaytoonz.
-              </p>
-              <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                <a
-                  href="/seeker"
-                  className="bg-olive-600 text-white px-8 py-3 rounded-full font-semibold hover:bg-olive-700 hover:shadow-lg transition-all duration-300 transform hover:scale-105"
-                >
-                  Join as Talent
-                </a>
-                <a
-                  href="/ngo"
-                  className="border-2 border-olive-500 text-olive-700 px-8 py-3 rounded-full font-semibold hover:bg-olive-50 transition-all duration-300"
-                >
-                  Register Your NGO
-                </a>
-              </div>
-            </div>
-          </div>
+
         </div>
       </section>
 
-      {/* Call to Action */}
-      <section className="py-20 bg-olive-700">
-        <div className="max-w-4xl mx-auto text-center px-4 sm:px-6 lg:px-8">
-          <h2 className="text-4xl font-bold text-white mb-6">
-            Ready to Make an Impact?
-          </h2>
-          <p className="text-xl text-olive-100 mb-8">
-            Join thousands of changemakers who are already using Zaytoonz to create positive change worldwide.
-          </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <a
-              href="/seeker/opportunities/navigate"
-              className="bg-white text-olive-700 px-8 py-4 rounded-full font-semibold text-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
-            >
-              Explore Opportunities
-            </a>
-            <a
-              href="/ngo/opportunities/new"
-              className="border-2 border-white text-white px-8 py-4 rounded-full font-semibold text-lg hover:bg-white hover:text-olive-700 transition-all duration-300"
-            >
-              Post an Opportunity
-            </a>
-          </div>
-        </div>
-      </section>
+
 
       {/* Recent Opportunities Section */}
       <section className="py-20 bg-olive-50">
@@ -683,112 +422,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Testimonials Section */}
-      <section className="py-20 bg-olive-100">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold text-olive-800 mb-4">
-              Stories of Impact and Growth
-            </h2>
-            <p className="text-xl text-olive-600 max-w-3xl mx-auto">
-              Hear from the talents and NGOs who have found their perfect match through Zaytoonz 
-              and are now creating meaningful change around the world.
-            </p>
-          </div>
 
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-            <div className="bg-white rounded-2xl p-8 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105">
-              <div className="flex items-center mb-6">
-                <div className="w-16 h-16 rounded-full bg-olive-100 flex items-center justify-center mr-4">
-                  <span className="text-olive-600 font-bold text-lg">AM</span>
-                </div>
-                <div>
-                  <h4 className="font-bold text-olive-800">Ahmed Mohamed</h4>
-                  <p className="text-olive-600 text-sm">Job Seeker</p>
-                  <p className="text-olive-500 text-xs">Egypt</p>
-                </div>
-              </div>
-              
-              <div className="flex items-center mb-4">
-                {[...Array(5)].map((_, i) => (
-                  <Star key={i} className="h-5 w-5 text-yellow-400 fill-current" />
-                ))}
-              </div>
-              
-              <div className="relative">
-                <Quote className="h-8 w-8 text-olive-300 absolute -top-2 -left-2" />
-                <p className="text-olive-700 italic leading-relaxed pl-6">
-                  The CV maker tool helped me create a professional resume that landed me my dream job. The platform's job navigation system made it easy to find opportunities that matched my skills.
-                </p>
-              </div>
-              
-              <div className="mt-4 pt-4 border-t border-olive-200">
-                <p className="text-olive-500 text-sm font-medium">Now working at Relief International</p>
-              </div>
-            </div>
-
-            <div className="bg-white rounded-2xl p-8 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105">
-              <div className="flex items-center mb-6">
-                <div className="w-16 h-16 rounded-full bg-olive-100 flex items-center justify-center mr-4">
-                  <span className="text-olive-600 font-bold text-lg">JW</span>
-                </div>
-                <div>
-                  <h4 className="font-bold text-olive-800">Jennifer Wilson</h4>
-                  <p className="text-olive-600 text-sm">NGO Director</p>
-                  <p className="text-olive-500 text-xs">Canada</p>
-                </div>
-              </div>
-              
-              <div className="flex items-center mb-4">
-                {[...Array(5)].map((_, i) => (
-                  <Star key={i} className="h-5 w-5 text-yellow-400 fill-current" />
-                ))}
-              </div>
-              
-              <div className="relative">
-                <Quote className="h-8 w-8 text-olive-300 absolute -top-2 -left-2" />
-                <p className="text-olive-700 italic leading-relaxed pl-6">
-                  The opportunity management system streamlined our recruitment process completely. We can now post positions, track applications, and manage candidates all in one place. Game changer!
-                </p>
-              </div>
-              
-              <div className="mt-4 pt-4 border-t border-olive-200">
-                <p className="text-olive-500 text-sm font-medium">Community Development Foundation</p>
-              </div>
-            </div>
-
-            <div className="bg-white rounded-2xl p-8 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105">
-              <div className="flex items-center mb-6">
-                <div className="w-16 h-16 rounded-full bg-olive-100 flex items-center justify-center mr-4">
-                  <span className="text-olive-600 font-bold text-lg">RS</span>
-                </div>
-                <div>
-                  <h4 className="font-bold text-olive-800">Raj Sharma</h4>
-                  <p className="text-olive-600 text-sm">Program Coordinator</p>
-                  <p className="text-olive-500 text-xs">India</p>
-                </div>
-              </div>
-              
-              <div className="flex items-center mb-4">
-                {[...Array(5)].map((_, i) => (
-                  <Star key={i} className="h-5 w-5 text-yellow-400 fill-current" />
-                ))}
-              </div>
-              
-              <div className="relative">
-                <Quote className="h-8 w-8 text-olive-300 absolute -top-2 -left-2" />
-                <p className="text-olive-700 italic leading-relaxed pl-6">
-                  I found my current role through Zaytoonz's job alerts feature. The application tracking system helped me stay organized and follow up on multiple opportunities simultaneously.
-                </p>
-              </div>
-              
-              <div className="mt-4 pt-4 border-t border-olive-200">
-                <p className="text-olive-500 text-sm font-medium">Save the Children India</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
 
       {/* About Section */}
       <section id="about" className="py-20 bg-olive-100">
