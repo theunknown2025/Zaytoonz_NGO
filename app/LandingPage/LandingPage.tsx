@@ -172,7 +172,7 @@ export default function LandingPage() {
                 <ArrowRight className="ml-2 h-5 w-5" />
               </a>
               <a
-                href="/ngo"
+                href="/"
                 className="border-2 border-olive-500 text-olive-700 px-8 py-4 rounded-full font-semibold text-lg hover:bg-olive-50 transition-all duration-300 flex items-center justify-center"
               >
                 Post Opportunities
@@ -194,7 +194,7 @@ export default function LandingPage() {
                   <Target className="h-8 w-8 text-white" />
                 </div>
                 <h3 className="text-3xl font-bold text-olive-800 mb-2">750+</h3>
-                <p className="text-olive-600 font-medium">Partner NGOs</p>
+                <p className="text-olive-600 font-medium">Partner Organizations</p>
                 <p className="text-sm text-olive-500 mt-1">Across 6 continents</p>
               </div>
               <div className="text-center">
@@ -234,9 +234,19 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* Recent Opportunities Section */}
+      <section className="py-20 bg-olive-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-16">
+            <h2 className="text-4xl font-bold text-olive-800 mb-4">
+              Latest Opportunities
+            </h2>
+            
+          </div>
 
-
-
+          <RecentOpportunities />
+        </div>
+      </section>
 
       {/* How It Works Section */}
       <section className="py-20 bg-white">
@@ -246,7 +256,7 @@ export default function LandingPage() {
               How Zaytoonz Works
             </h2>
             <p className="text-xl text-olive-600 max-w-3xl mx-auto">
-              Our streamlined process makes it easy for talents and NGOs to find their perfect match 
+              Our streamlined process makes it easy for talents and Organizations to find their perfect match 
               and start creating positive change together.
             </p>
           </div>
@@ -331,7 +341,7 @@ export default function LandingPage() {
                 <div className="bg-olive-600 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
                   <Target className="h-8 w-8 text-white" />
                 </div>
-                <h3 className="text-2xl font-bold text-olive-800 mb-2">For NGOs</h3>
+                <h3 className="text-2xl font-bold text-olive-800 mb-2">For Organizations</h3>
                 <p className="text-olive-600">From opportunity creation to talent acquisition</p>
               </div>
 
@@ -403,27 +413,6 @@ export default function LandingPage() {
         </div>
       </section>
 
-
-
-      {/* Recent Opportunities Section */}
-      <section className="py-20 bg-olive-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold text-olive-800 mb-4">
-              Latest Opportunities
-            </h2>
-            <p className="text-xl text-olive-600 max-w-3xl mx-auto">
-              Discover the most recent opportunities from our partner NGOs and external sources worldwide. 
-              Find jobs, funding, and training programs that match your interests and career goals.
-            </p>
-          </div>
-
-          <RecentOpportunities />
-        </div>
-      </section>
-
-
-
       {/* About Section */}
       <section id="about" className="py-20 bg-olive-100">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -433,7 +422,7 @@ export default function LandingPage() {
             </h2>
             <p className="text-xl text-olive-600 max-w-4xl mx-auto">
               We are dedicated to creating a world where young talents can build meaningful careers 
-              while contributing to positive social change through strategic NGO partnerships. 
+              while contributing to positive social change through strategic Organization partnerships. 
               Our mission is to democratize access to impactful career opportunities globally.
             </p>
           </div>
@@ -448,7 +437,7 @@ export default function LandingPage() {
                     <h4 className="text-xl font-bold text-olive-800">Mission</h4>
                   </div>
                   <p className="text-olive-600 leading-relaxed">
-                    To bridge the gap between passionate young professionals and impactful NGOs worldwide, 
+                    To bridge the gap between passionate young professionals and impactful Organizations worldwide, 
                     creating sustainable career pathways that drive positive social change and community development.
                   </p>
                 </div>
@@ -460,7 +449,7 @@ export default function LandingPage() {
                   </div>
                   <p className="text-olive-600 leading-relaxed">
                     A world where every young professional has access to meaningful career opportunities 
-                    that align with their values, and every NGO has the talented workforce needed to 
+                    that align with their values, and every Organization has the talented workforce needed to 
                     maximize their social impact.
                   </p>
                 </div>
@@ -473,7 +462,7 @@ export default function LandingPage() {
                   <img src="/image.png" alt="Zaytoonz" className="h-16 w-auto" />
                 </div>
                 <h4 className="text-3xl font-bold text-olive-800 mb-2">Since 2020</h4>
-                <p className="text-olive-600 text-lg mb-6">Connecting talents with NGOs worldwide</p>
+                <p className="text-olive-600 text-lg mb-6">Connecting talents with Organizations worldwide</p>
                 
                 <div className="grid grid-cols-2 gap-4 text-center">
                   <div className="bg-olive-50 rounded-lg p-4">
@@ -482,7 +471,7 @@ export default function LandingPage() {
                   </div>
                   <div className="bg-olive-50 rounded-lg p-4">
                     <h5 className="text-2xl font-bold text-olive-800">750+</h5>
-                    <p className="text-olive-600 text-sm">NGO Partners</p>
+                    <p className="text-olive-600 text-sm">Organization Partners</p>
                   </div>
                   <div className="bg-olive-50 rounded-lg p-4">
                     <h5 className="text-2xl font-bold text-olive-800">15K+</h5>
@@ -602,7 +591,7 @@ export default function LandingPage() {
                   <select className="w-full px-4 py-3 rounded-lg border border-olive-300 focus:ring-2 focus:ring-olive-500 focus:border-transparent transition-all">
                     <option>Select your role</option>
                     <option>Young Talent</option>
-                    <option>NGO Representative</option>
+                    <option>Organization Representative</option>
                     <option>Partner Organization</option>
                     <option>Other</option>
                   </select>
@@ -639,14 +628,13 @@ export default function LandingPage() {
             <div className="col-span-2">
               <img src="/image.png" alt="Zaytoonz" className="h-8 w-auto mb-4" />
               <p className="text-olive-600 mb-4 max-w-md">
-                Connecting passionate youth with impactful NGOs to create meaningful careers and drive positive change worldwide.
-              </p>
+              Zaytoonz offers a streamlined platform that connects skilled professionals with mission-driven non-profit entities, enabling impactful collaborations that drive meaningful social change.              </p>
             </div>
             <div>
               <h3 className="font-semibold text-olive-800 mb-4">Platform</h3>
               <ul className="space-y-2 text-olive-600">
                 <li><a href="/seeker" className="hover:text-olive-700">For Seekers</a></li>
-                <li><a href="/ngo" className="hover:text-olive-700">For NGOs</a></li>
+                <li><a href="/ngo" className="hover:text-olive-700">For Organizations</a></li>
                 <li><a href="#services" className="hover:text-olive-700">Services</a></li>
               </ul>
             </div>
@@ -660,7 +648,7 @@ export default function LandingPage() {
             </div>
           </div>
           <div className="border-t border-olive-200 mt-8 pt-8 text-center text-olive-600">
-            <p>&copy; 2025 Zaytoonz NGO. All rights reserved.</p>
+            <p>&copy; 2025 Zaytoonz Organization. All rights reserved.</p>
           </div>
         </div>
       </footer>
