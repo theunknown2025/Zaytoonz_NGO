@@ -19,7 +19,10 @@ import {
   Mail,
   Phone,
   MapPin,
-  Send
+  Send,
+  Facebook,
+  Instagram,
+  Youtube
 } from 'lucide-react';
 import RecentOpportunities from './components/RecentOpportunities';
 
@@ -256,9 +259,7 @@ export default function LandingPage() {
               How Zaytoonz Works
             </h2>
             <p className="text-xl text-olive-600 max-w-3xl mx-auto">
-              Our streamlined process makes it easy for talents and Organizations to find their perfect match 
-              and start creating positive change together.
-            </p>
+            Zaytoonz offers a streamlined platform that connects skilled professionals with mission-driven non-profit entities, enabling impactful collaborations that drive meaningful social change.            </p>
           </div>
 
           <div className="grid lg:grid-cols-2 gap-16">
@@ -427,61 +428,29 @@ export default function LandingPage() {
             </p>
           </div>
 
-          <div className="grid lg:grid-cols-2 gap-16 items-center mb-20">
-            <div>
-              <h3 className="text-3xl font-bold text-olive-800 mb-6">Our Mission & Vision</h3>
-              <div className="space-y-6">
-                <div className="bg-white rounded-xl p-6 shadow-lg">
-                  <div className="flex items-center mb-4">
-                    <Target className="h-8 w-8 text-olive-600 mr-3" />
-                    <h4 className="text-xl font-bold text-olive-800">Mission</h4>
-                  </div>
-                  <p className="text-olive-600 leading-relaxed">
-                    To bridge the gap between passionate young professionals and impactful Organizations worldwide, 
-                    creating sustainable career pathways that drive positive social change and community development.
-                  </p>
+          <div className="mb-20">
+            <h3 className="text-3xl font-bold text-olive-800 mb-6 text-center">Our Mission & Vision</h3>
+            <div className="grid lg:grid-cols-2 gap-8">
+              <div className="bg-white rounded-xl p-6 shadow-lg">
+                <div className="flex items-center mb-4">
+                  <Target className="h-8 w-8 text-olive-600 mr-3" />
+                  <h4 className="text-xl font-bold text-olive-800">Mission</h4>
                 </div>
-                
-                <div className="bg-white rounded-xl p-6 shadow-lg">
-                  <div className="flex items-center mb-4">
-                    <Award className="h-8 w-8 text-olive-600 mr-3" />
-                    <h4 className="text-xl font-bold text-olive-800">Vision</h4>
-                  </div>
-                  <p className="text-olive-600 leading-relaxed">
-                    A world where every young professional has access to meaningful career opportunities 
-                    that align with their values, and every Organization has the talented workforce needed to 
-                    maximize their social impact.
-                  </p>
-                </div>
+                <p className="text-olive-600 leading-relaxed">
+                To inspire and empower skilled professionals to collaborate with mission-driven non-profits worldwide, forging meaningful careers that spark lasting social change and strengthen communities globally.
+                </p>
               </div>
-            </div>
-            
-            <div className="bg-white rounded-2xl p-8 shadow-xl">
-              <div className="text-center">
-                <div className="bg-olive-600 w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-6">
-                  <img src="/image.png" alt="Zaytoonz" className="h-16 w-auto" />
+              
+              <div className="bg-white rounded-xl p-6 shadow-lg">
+                <div className="flex items-center mb-4">
+                  <Award className="h-8 w-8 text-olive-600 mr-3" />
+                  <h4 className="text-xl font-bold text-olive-800">Vision</h4>
                 </div>
-                <h4 className="text-3xl font-bold text-olive-800 mb-2">Since 2020</h4>
-                <p className="text-olive-600 text-lg mb-6">Connecting talents with Organizations worldwide</p>
-                
-                <div className="grid grid-cols-2 gap-4 text-center">
-                  <div className="bg-olive-50 rounded-lg p-4">
-                    <h5 className="text-2xl font-bold text-olive-800">85+</h5>
-                    <p className="text-olive-600 text-sm">Countries</p>
-                  </div>
-                  <div className="bg-olive-50 rounded-lg p-4">
-                    <h5 className="text-2xl font-bold text-olive-800">750+</h5>
-                    <p className="text-olive-600 text-sm">Organization Partners</p>
-                  </div>
-                  <div className="bg-olive-50 rounded-lg p-4">
-                    <h5 className="text-2xl font-bold text-olive-800">15K+</h5>
-                    <p className="text-olive-600 text-sm">Active Talents</p>
-                  </div>
-                  <div className="bg-olive-50 rounded-lg p-4">
-                    <h5 className="text-2xl font-bold text-olive-800">2.5M+</h5>
-                    <p className="text-olive-600 text-sm">Lives Impacted</p>
-                  </div>
-                </div>
+                <p className="text-olive-600 leading-relaxed">
+                  A world where every young professional has access to meaningful career opportunities 
+                  that align with their values, and every Organization has the talented workforce needed to 
+                  maximize their social impact.
+                </p>
               </div>
             </div>
           </div>
@@ -500,79 +469,43 @@ export default function LandingPage() {
             </p>
           </div>
 
-          <div className="grid lg:grid-cols-2 gap-16">
-            <div>
-              <h3 className="text-2xl font-bold text-olive-800 mb-6">Contact Information</h3>
-              
-              <div className="space-y-6">
-                <div className="flex items-center space-x-4">
-                  <div className="bg-olive-600 w-12 h-12 rounded-lg flex items-center justify-center">
-                    <Mail className="h-6 w-6 text-white" />
-                  </div>
-                  <div>
-                    <h4 className="font-semibold text-olive-800">Email</h4>
-                    <p className="text-olive-600">hello@zaytoonz.org</p>
-                  </div>
-                </div>
-                
-                <div className="flex items-center space-x-4">
-                  <div className="bg-olive-600 w-12 h-12 rounded-lg flex items-center justify-center">
-                    <Phone className="h-6 w-6 text-white" />
-                  </div>
-                  <div>
-                    <h4 className="font-semibold text-olive-800">Phone</h4>
-                    <p className="text-olive-600">+1 (555) 123-4567</p>
-                  </div>
-                </div>
-                
-                <div className="flex items-center space-x-4">
-                  <div className="bg-olive-600 w-12 h-12 rounded-lg flex items-center justify-center">
-                    <MapPin className="h-6 w-6 text-white" />
-                  </div>
-                  <div>
-                    <h4 className="font-semibold text-olive-800">Address</h4>
-                    <p className="text-olive-600">123 Impact Street, Global City, GC 12345</p>
-                  </div>
-                </div>
+          <div className="bg-olive-100 rounded-2xl p-8 max-w-4xl mx-auto">
+            <h3 className="text-2xl font-bold text-olive-800 mb-6 text-center">Send us a Message</h3>
+            
+            <form className="space-y-6">
+              <div>
+                <label className="block text-sm font-medium text-olive-700 mb-2">
+                  Send to
+                </label>
+                <input
+                  type="email"
+                  value="hello@zaytoonz.org"
+                  disabled
+                  className="w-full px-4 py-3 rounded-lg border border-olive-300 bg-olive-50 text-olive-600 cursor-not-allowed"
+                />
               </div>
-
-              <div className="mt-8 p-6 bg-olive-100 rounded-xl">
-                <h4 className="text-xl font-semibold text-olive-800 mb-3">Office Hours</h4>
-                <div className="space-y-2 text-olive-600">
-                  <p>Monday - Friday: 9:00 AM - 6:00 PM</p>
-                  <p>Saturday: 10:00 AM - 4:00 PM</p>
-                  <p>Sunday: Closed</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-olive-100 rounded-2xl p-8">
-              <h3 className="text-2xl font-bold text-olive-800 mb-6">Send us a Message</h3>
               
-              <form className="space-y-6">
-                <div className="grid md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-olive-700 mb-2">
-                      First Name
-                    </label>
-                    <input
-                      type="text"
-                      className="w-full px-4 py-3 rounded-lg border border-olive-300 focus:ring-2 focus:ring-olive-500 focus:border-transparent transition-all"
-                      placeholder="Your first name"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-olive-700 mb-2">
-                      Last Name
-                    </label>
-                    <input
-                      type="text"
-                      className="w-full px-4 py-3 rounded-lg border border-olive-300 focus:ring-2 focus:ring-olive-500 focus:border-transparent transition-all"
-                      placeholder="Your last name"
-                    />
-                  </div>
+              <div className="grid md:grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-olive-700 mb-2">
+                    First Name
+                  </label>
+                  <input
+                    type="text"
+                    className="w-full px-4 py-3 rounded-lg border border-olive-300 focus:ring-2 focus:ring-olive-500 focus:border-transparent transition-all"
+                    placeholder="Your first name"
+                  />
                 </div>
-                
+                <div>
+                  <label className="block text-sm font-medium text-olive-700 mb-2">
+                    Last Name
+                  </label>
+                  <input
+                    type="text"
+                    className="w-full px-4 py-3 rounded-lg border border-olive-300 focus:ring-2 focus:ring-olive-500 focus:border-transparent transition-all"
+                    placeholder="Your last name"
+                  />
+                </div>
                 <div>
                   <label className="block text-sm font-medium text-olive-700 mb-2">
                     Email
@@ -583,40 +516,40 @@ export default function LandingPage() {
                     placeholder="your.email@example.com"
                   />
                 </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-olive-700 mb-2">
-                    I am a...
-                  </label>
-                  <select className="w-full px-4 py-3 rounded-lg border border-olive-300 focus:ring-2 focus:ring-olive-500 focus:border-transparent transition-all">
-                    <option>Select your role</option>
-                    <option>Young Talent</option>
-                    <option>Organization Representative</option>
-                    <option>Partner Organization</option>
-                    <option>Other</option>
-                  </select>
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-olive-700 mb-2">
-                    Message
-                  </label>
-                  <textarea
-                    rows={4}
-                    className="w-full px-4 py-3 rounded-lg border border-olive-300 focus:ring-2 focus:ring-olive-500 focus:border-transparent transition-all"
-                    placeholder="Tell us how we can help you..."
-                  ></textarea>
-                </div>
-                
-                <button
-                  type="submit"
-                  className="w-full bg-olive-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-olive-700 hover:shadow-lg transition-all duration-300 transform hover:scale-105 flex items-center justify-center"
-                >
-                  Send Message
-                  <Send className="ml-2 h-5 w-5" />
-                </button>
-              </form>
-            </div>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-olive-700 mb-2">
+                  I am a...
+                </label>
+                <select className="w-full px-4 py-3 rounded-lg border border-olive-300 focus:ring-2 focus:ring-olive-500 focus:border-transparent transition-all">
+                  <option>Select your role</option>
+                  <option>Young Talent</option>
+                  <option>Organization Representative</option>
+                  <option>Partner Organization</option>
+                  <option>Other</option>
+                </select>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-olive-700 mb-2">
+                  Message
+                </label>
+                <textarea
+                  rows={4}
+                  className="w-full px-4 py-3 rounded-lg border border-olive-300 focus:ring-2 focus:ring-olive-500 focus:border-transparent transition-all"
+                  placeholder="Tell us how we can help you..."
+                ></textarea>
+              </div>
+              
+              <button
+                type="submit"
+                className="w-full bg-olive-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-olive-700 hover:shadow-lg transition-all duration-300 transform hover:scale-105 flex items-center justify-center"
+              >
+                Send Message
+                <Send className="ml-2 h-5 w-5" />
+              </button>
+            </form>
           </div>
         </div>
       </section>
@@ -624,7 +557,7 @@ export default function LandingPage() {
       {/* Footer */}
       <footer className="bg-white border-t border-olive-200 mt-0">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-          <div className="grid md:grid-cols-4 gap-8">
+          <div className="grid md:grid-cols-5 gap-8">
             <div className="col-span-2">
               <img src="/image.png" alt="Zaytoonz" className="h-8 w-auto mb-4" />
               <p className="text-olive-600 mb-4 max-w-md">
@@ -645,6 +578,28 @@ export default function LandingPage() {
                 <li><a href="#about" className="hover:text-olive-700">About</a></li>
                 <li><a href="/auth/signup" className="hover:text-olive-700">Get Started</a></li>
               </ul>
+            </div>
+            <div>
+              <h3 className="font-semibold text-olive-800 mb-4">Follow Us</h3>
+              <div className="flex space-x-4">
+                <a href="#" className="text-olive-600 hover:text-olive-700 transition-colors">
+                  <Facebook className="h-6 w-6" />
+                </a>
+                <a href="#" className="text-olive-600 hover:text-olive-700 transition-colors">
+                  <Instagram className="h-6 w-6" />
+                </a>
+                <a href="#" className="text-olive-600 hover:text-olive-700 transition-colors">
+                  <svg className="h-6 w-6" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 1.4-.54 2.79-1.35 3.94-1.31 1.92-3.58 3.17-5.91 3.21-1.43.08-2.86-.31-4.08-1.03-2.02-1.19-3.44-3.37-3.65-5.71-.02-.5-.03-1-.01-1.49.18-1.9 1.12-3.72 2.58-4.96 1.66-1.44 3.98-2.13 6.15-1.72.02 1.48-.04 2.96-.04 4.44-.99-.32-2.15-.23-3.02.37-.63.41-1.11 1.04-1.36 1.75-.21.51-.15 1.07-.14 1.61.24 1.64 1.82 3.02 3.5 2.87 1.12-.01 2.19-.66 2.77-1.61.19-.33.4-.67.41-1.06.1-1.79.06-3.57.07-5.36.01-4.03-.01-8.05.02-12.07z"/>
+                  </svg>
+                </a>
+                <a href="#" className="text-olive-600 hover:text-olive-700 transition-colors">
+                  <Mail className="h-6 w-6" />
+                </a>
+                <a href="#" className="text-olive-600 hover:text-olive-700 transition-colors">
+                  <Youtube className="h-6 w-6" />
+                </a>
+              </div>
             </div>
           </div>
           <div className="border-t border-olive-200 mt-8 pt-8 text-center text-olive-600">
