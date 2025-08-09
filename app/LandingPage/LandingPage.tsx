@@ -415,7 +415,7 @@ export default function LandingPage() {
       </section>
 
       {/* About Section */}
-      <section id="about" className="py-20 bg-olive-100">
+      <section id="about" className="py-12 bg-olive-100">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
             <h2 className="text-4xl font-bold text-olive-800 mb-4">
@@ -428,7 +428,7 @@ export default function LandingPage() {
             </p>
           </div>
 
-          <div className="mb-20">
+          <div className="mb-07">
             <h3 className="text-3xl font-bold text-olive-800 mb-6 text-center">Our Mission & Vision</h3>
             <div className="grid lg:grid-cols-2 gap-8">
               <div className="bg-white rounded-xl p-6 shadow-lg">
