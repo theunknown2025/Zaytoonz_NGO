@@ -1,5 +1,5 @@
 import { createContext, useContext } from 'react';
-import { signInUser, signUpUser, getUserProfile } from './supabase';
+import { signInUser, signUpUser, getUserProfile, signInWithGoogle, handleAuthCallback } from './supabase';
 
 // User type definition
 export type User = {
@@ -17,6 +17,30 @@ export const AuthService = {
   signIn: async (email: string, password: string): Promise<{ user: User | null; error: string | null }> => {
     // Call Supabase signin function
     const { user, error } = await signInUser(email, password);
+    
+    // Store user data in localStorage if login successful
+    if (user) {
+      localStorage.setItem('user', JSON.stringify(user));
+    }
+    
+    return { user, error };
+  },
+
+  signInWithGoogle: async (): Promise<{ user: User | null; error: string | null }> => {
+    // Call Supabase Google signin function
+    const { user, error } = await signInWithGoogle();
+    
+    // Store user data in localStorage if login successful
+    if (user) {
+      localStorage.setItem('user', JSON.stringify(user));
+    }
+    
+    return { user, error };
+  },
+
+  handleAuthCallback: async (): Promise<{ user: User | null; error: string | null }> => {
+    // Handle OAuth callback
+    const { user, error } = await handleAuthCallback();
     
     // Store user data in localStorage if login successful
     if (user) {
@@ -75,11 +99,15 @@ export const AuthService = {
 export const AuthContext = createContext<{
   user: User | null;
   signIn: (email: string, password: string) => Promise<{ user: User | null; error: string | null }>;
+  signInWithGoogle: () => Promise<{ user: User | null; error: string | null }>;
+  handleAuthCallback: () => Promise<{ user: User | null; error: string | null }>;
   signUp: (fullName: string, email: string, password: string, userType: 'Personne' | 'NGO' | 'Admin') => Promise<{ user: User | null; error: string | null }>;
   signOut: () => Promise<{ error: string | null }>;
 }>({
   user: null,
   signIn: async () => ({ user: null, error: null }),
+  signInWithGoogle: async () => ({ user: null, error: null }),
+  handleAuthCallback: async () => ({ user: null, error: null }),
   signUp: async () => ({ user: null, error: null }),
   signOut: async () => ({ error: null }),
 });

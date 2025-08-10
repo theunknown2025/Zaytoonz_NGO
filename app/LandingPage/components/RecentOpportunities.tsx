@@ -401,13 +401,13 @@ const RecentOpportunities: React.FC = () => {
   return (
     <div>
       {/* Tab Navigation */}
-      <div className="flex justify-center mb-12">
-        <div className="bg-white rounded-xl p-2 shadow-lg border border-olive-200 flex flex-row items-center gap-2">
-          {(['job', 'funding', 'training'] as const).map((type) => (
+      <div className="flex justify-center mb-12 w-full">
+        <div className="bg-white rounded-xl p-2 shadow-lg border border-olive-200 flex flex-row items-center gap-2 w-full">
+          {(['job', 'training', 'funding'] as const).map((type) => (
             <button
               key={type}
               onClick={() => setActiveTab(type)}
-              className={`flex items-center space-x-2 px-6 py-3 rounded-lg font-semibold transition-all duration-300 whitespace-nowrap ${
+              className={`flex items-center justify-center space-x-2 px-6 py-3 rounded-lg font-semibold transition-all duration-300 whitespace-nowrap flex-1 ${
                 activeTab === type
                   ? 'bg-olive-gradient text-white shadow-md'
                   : 'text-olive-600 hover:text-olive-700 hover:bg-olive-50'
@@ -577,23 +577,14 @@ const RecentOpportunities: React.FC = () => {
         </div>
       )}
 
-      {/* View All Links */}
+      {/* Explore All Opportunities Button */}
       {opportunities[activeTab].length > 0 && (
-        <div className="flex justify-center space-x-8 mt-12">
+        <div className="flex justify-center mt-12">
           <a
-            href={`/seeker/opportunities?type=${activeTab}`}
-            className="inline-flex items-center space-x-2 text-olive-600 hover:text-olive-700 font-semibold transition-colors"
+            href="/seeker/opportunities"
+            className="inline-flex items-center space-x-2 bg-gradient-to-r from-olive-500 to-olive-600 hover:from-olive-600 hover:to-olive-700 text-white px-8 py-3 rounded-lg font-semibold hover:shadow-lg transition-all duration-300 transform hover:scale-105"
           >
-            <Building className="h-4 w-4" />
-            <span>View all partner {activeTab}s</span>
-            <ChevronRight className="h-4 w-4" />
-          </a>
-          <a
-            href={`/seeker/opportunities/external/${activeTab}s`}
-            className="inline-flex items-center space-x-2 text-blue-600 hover:text-blue-700 font-semibold transition-colors"
-          >
-            <Globe className="h-4 w-4" />
-            <span>View all external {activeTab}s</span>
+            <span>Explore All Opportunities</span>
             <ChevronRight className="h-4 w-4" />
           </a>
         </div>

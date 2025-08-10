@@ -27,9 +27,18 @@ export async function isEmailRegistered(email: string): Promise<boolean> {
 export async function signUpUser(fullName: string, email: string, password: string, userType: 'Personne' | 'NGO' | 'Admin') {
   try {
     // Check if email already exists
-    const emailExists = await isEmailRegistered(email);
-    if (emailExists) {
-      return { user: null, error: 'Email already registered' };
+    const { data: existingUser, error: checkError } = await supabase
+      .from('users')
+      .select('email, auth_provider')
+      .eq('email', email)
+      .single();
+
+    if (existingUser) {
+      if (existingUser.auth_provider === 'google') {
+        return { user: null, error: 'This email is already registered with Google. Please sign in with Google instead.' };
+      } else {
+        return { user: null, error: 'Email already registered' };
+      }
     }
 
     // Insert the new user
@@ -39,7 +48,8 @@ export async function signUpUser(fullName: string, email: string, password: stri
         full_name: fullName,
         email,
         password_hash: password, // Will be hashed by the trigger
-        user_type: userType
+        user_type: userType,
+        auth_provider: 'email' // Regular email/password signup
       })
       .select()
       .single();
@@ -100,6 +110,11 @@ export async function signInUser(email: string, password: string) {
       return { user: null, error: 'Invalid email or password' };
     }
 
+    // Check if user is an OAuth user (no password)
+    if (userData.auth_provider === 'google' && userData.password_hash === null) {
+      return { user: null, error: 'This account was created with Google. Please sign in with Google instead.' };
+    }
+
     // In a real implementation, you would verify the password hash here
     // For this example, we'll do a simple check (this is NOT secure and just for demo)
     const hashedPassword = 'hashed_' + password;
@@ -123,6 +138,111 @@ export async function signInUser(email: string, password: string) {
     };
   } catch (error: any) {
     console.error('Error in signin process:', error);
+    return { user: null, error: error.message || 'An unexpected error occurred' };
+  }
+}
+
+// Function to sign in with Google
+export async function signInWithGoogle() {
+  try {
+    const { data, error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: `${window.location.origin}/auth/callback`
+      }
+    });
+
+    if (error) {
+      return { user: null, error: error.message };
+    }
+
+    // OAuth sign-in redirects to the callback URL, so we don't get a user object here
+    // The user will be available after the redirect in the callback function
+    return { user: null, error: null };
+  } catch (error: any) {
+    console.error('Error in Google signin:', error);
+    return { user: null, error: error.message || 'An unexpected error occurred' };
+  }
+}
+
+// Function to handle OAuth callback
+export async function handleAuthCallback() {
+  try {
+    const { data: { user }, error } = await supabase.auth.getUser();
+    
+    if (error) {
+      return { user: null, error: error.message };
+    }
+
+    if (user) {
+      // Check if user exists in our users table
+      const { data: existingUser, error: userError } = await supabase
+        .from('users')
+        .select('*')
+        .eq('email', user.email)
+        .single();
+
+      if (userError && userError.code !== 'PGRST116') {
+        return { user: null, error: userError.message };
+      }
+
+      if (!existingUser) {
+        // Create new user in our users table
+        const { data: newUser, error: createError } = await supabase
+          .from('users')
+          .insert({
+            full_name: user.user_metadata?.full_name || user.email?.split('@')[0] || 'User',
+            email: user.email,
+            user_type: 'Personne', // Default to Personne for Google sign-ins
+            auth_provider: 'google',
+            password_hash: null // OAuth users don't have passwords
+          })
+          .select()
+          .single();
+
+        if (createError) {
+          return { user: null, error: createError.message };
+        }
+
+        // Create personne details
+        const { error: detailsError } = await supabase
+          .from('personne_details')
+          .insert({ user_id: newUser.id });
+
+        if (detailsError) {
+          console.error('Error creating personne details:', detailsError);
+        }
+
+        return { 
+          user: {
+            id: newUser.id,
+            fullName: newUser.full_name,
+            email: newUser.email,
+            userType: newUser.user_type as 'Personne' | 'NGO' | 'Admin'
+          }, 
+          error: null 
+        };
+      } else {
+        // Check if existing user was created with email/password
+        if (existingUser.auth_provider === 'email' && existingUser.password_hash !== null) {
+          return { user: null, error: 'This email is already registered with email/password. Please sign in with your password instead.' };
+        }
+        
+        return { 
+          user: {
+            id: existingUser.id,
+            fullName: existingUser.full_name,
+            email: existingUser.email,
+            userType: existingUser.user_type as 'Personne' | 'NGO' | 'Admin'
+          }, 
+          error: null 
+        };
+      }
+    }
+
+    return { user: null, error: 'No user found' };
+  } catch (error: any) {
+    console.error('Error handling auth callback:', error);
     return { user: null, error: error.message || 'An unexpected error occurred' };
   }
 }

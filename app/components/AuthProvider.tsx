@@ -1,6 +1,6 @@
 'use client';
 
-import { ReactNode, useEffect, useState } from 'react';
+import { ReactNode, useEffect, useState, useCallback } from 'react';
 import { AuthContext, AuthService, User } from '../lib/auth';
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -18,23 +18,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     checkUser();
   }, []);
 
-  const signIn = async (email: string, password: string) => {
+  const signIn = useCallback(async (email: string, password: string) => {
     const { user, error } = await AuthService.signIn(email, password);
     if (user) setUser(user);
     return { user, error };
-  };
+  }, []);
 
-  const signUp = async (fullName: string, email: string, password: string, userType: 'Personne' | 'NGO' | 'Admin') => {
+  const signUp = useCallback(async (fullName: string, email: string, password: string, userType: 'Personne' | 'NGO' | 'Admin') => {
     const { user, error } = await AuthService.signUp(fullName, email, password, userType);
     if (user) setUser(user);
     return { user, error };
-  };
+  }, []);
 
-  const signOut = async () => {
+  const signInWithGoogle = useCallback(async () => {
+    const { user, error } = await AuthService.signInWithGoogle();
+    if (user) setUser(user);
+    return { user, error };
+  }, []);
+
+  const handleAuthCallback = useCallback(async () => {
+    const { user, error } = await AuthService.handleAuthCallback();
+    if (user) setUser(user);
+    return { user, error };
+  }, []);
+
+  const signOut = useCallback(async () => {
     const { error } = await AuthService.signOut();
     if (!error) setUser(null);
     return { error };
-  };
+  }, []);
 
   // Only render children after we've checked for a logged-in user
   if (loading) {
@@ -42,7 +54,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, signIn, signUp, signOut }}>
+    <AuthContext.Provider value={{ user, signIn, signInWithGoogle, handleAuthCallback, signUp, signOut }}>
       {children}
     </AuthContext.Provider>
   );
