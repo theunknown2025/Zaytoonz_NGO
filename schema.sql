@@ -3,7 +3,7 @@ CREATE TABLE profiles (
   id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
   full_name TEXT NOT NULL,
   email TEXT NOT NULL UNIQUE,
-  user_type TEXT NOT NULL CHECK (user_type IN ('Personne', 'NGO')),
+  user_type TEXT NOT NULL CHECK (user_type IN ('Personne', 'NGO', 'Admin')),
   created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );

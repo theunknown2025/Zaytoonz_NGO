@@ -55,6 +55,8 @@ export default function SignUp() {
       setTimeout(() => {
         if (user && user.userType === 'NGO') {
           router.push('/ngo/dashboard');
+        } else if (user && user.userType === 'Personne') {
+          router.push('/seeker');
         } else {
           router.push('/dashboard');
         }

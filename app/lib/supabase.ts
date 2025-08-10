@@ -181,8 +181,6 @@ export async function handleAuthCallback() {
     }
 
     if (user) {
-      console.log('Google OAuth user:', user.email);
-      
       // Check if user exists in our users table
       const { data: existingUser, error: userError } = await supabase
         .from('users')
@@ -200,15 +198,12 @@ export async function handleAuthCallback() {
         let userType: 'Personne' | 'NGO' | 'Admin' = 'Personne'; // Default
         if (typeof window !== 'undefined') {
           const storedUserType = sessionStorage.getItem('googleSignupUserType');
-          console.log('Stored user type from sessionStorage:', storedUserType);
           if (storedUserType && (storedUserType === 'Personne' || storedUserType === 'NGO' || storedUserType === 'Admin')) {
             userType = storedUserType as 'Personne' | 'NGO' | 'Admin';
           }
           // Clear the stored user type
           sessionStorage.removeItem('googleSignupUserType');
         }
-
-        console.log('Creating new user with type:', userType);
 
         // Create new user in our users table
         const { data: newUser, error: createError } = await supabase
@@ -227,8 +222,6 @@ export async function handleAuthCallback() {
           console.error('Error creating user:', createError);
           return { user: null, error: createError.message };
         }
-
-        console.log('Created new user:', newUser.id);
 
         // Create type-specific details based on user type
         if (userType === 'NGO') {
@@ -265,8 +258,6 @@ export async function handleAuthCallback() {
           error: null 
         };
       } else {
-        console.log('Existing user found:', existingUser.email, 'Type:', existingUser.user_type);
-        
         // Check if existing user was created with email/password
         if (existingUser.auth_provider === 'email' && existingUser.password_hash !== null) {
           return { user: null, error: 'This email is already registered with email/password. Please sign in with your password instead.' };
