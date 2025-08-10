@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { User } from "@/app/types";
 import { useAuth } from "@/app/lib/auth";
 import toast from "react-hot-toast";
@@ -16,11 +16,19 @@ import {
   ClipboardDocumentCheckIcon,
   WrenchScrewdriverIcon,
   BookOpenIcon,
-  ChevronDownIcon
+  ChevronDownIcon,
+  ClockIcon,
+  CheckCircleIcon,
+  XCircleIcon
 } from "@heroicons/react/24/outline";
 
 interface SidebarProps {
   user: User;
+}
+
+interface NGOApprovalStatus {
+  approval_status: 'pending' | 'approved' | 'rejected';
+  admin_notes?: string;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({ user }) => {
@@ -28,6 +36,27 @@ export const Sidebar: React.FC<SidebarProps> = ({ user }) => {
   const router = useRouter();
   const { signOut } = useAuth();
   const [showResourcesSubmenu, setShowResourcesSubmenu] = useState(false);
+  const [approvalStatus, setApprovalStatus] = useState<NGOApprovalStatus | null>(null);
+  const [loading, setLoading] = useState(true);
+  
+  // Fetch NGO approval status
+  useEffect(() => {
+    const fetchApprovalStatus = async () => {
+      try {
+        const response = await fetch('/api/ngo/approval-status');
+        if (response.ok) {
+          const data = await response.json();
+          setApprovalStatus(data);
+        }
+      } catch (error) {
+        console.error('Error fetching approval status:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchApprovalStatus();
+  }, []);
   
   // Handle logout function
   const handleLogout = async () => {
@@ -43,38 +72,94 @@ export const Sidebar: React.FC<SidebarProps> = ({ user }) => {
       toast.error(error.message || 'Error logging out');
     }
   };
+
+  // Get approval status display
+  const getApprovalStatusDisplay = () => {
+    if (loading) {
+      return (
+        <div className="flex items-center text-xs text-gray-500">
+          <div className="w-3 h-3 bg-gray-300 rounded-full animate-pulse mr-2"></div>
+          Checking status...
+        </div>
+      );
+    }
+
+    if (!approvalStatus) {
+      return (
+        <div className="flex items-center text-xs text-gray-500">
+          <ClockIcon className="w-3 h-3 mr-2" />
+          Status unknown
+        </div>
+      );
+    }
+
+    switch (approvalStatus.approval_status) {
+      case 'pending':
+        return (
+          <div className="flex items-center text-xs text-yellow-600">
+            <ClockIcon className="w-3 h-3 mr-2" />
+            Pending Approval
+          </div>
+        );
+      case 'approved':
+        return (
+          <div className="flex items-center text-xs text-green-600">
+            <CheckCircleIcon className="w-3 h-3 mr-2" />
+            Approved
+          </div>
+        );
+      case 'rejected':
+        return (
+          <div className="flex items-center text-xs text-red-600">
+            <XCircleIcon className="w-3 h-3 mr-2" />
+            Rejected
+          </div>
+        );
+      default:
+        return null;
+    }
+  };
+
+  // Check if NGO is approved
+  const isApproved = approvalStatus?.approval_status === 'approved';
   
   const menuItems = [
     { 
       name: "Dashboard", 
       href: "/ngo/dashboard", 
-      icon: HomeIcon 
+      icon: HomeIcon,
+      requiresApproval: true
     },
     { 
       name: "Profile", 
       href: "/ngo/profile", 
-      icon: UserCircleIcon 
+      icon: UserCircleIcon,
+      requiresApproval: false
     },
     { 
       name: "New Opportunity", 
       href: "/ngo/opportunities/new", 
-      icon: DocumentPlusIcon 
+      icon: DocumentPlusIcon,
+      requiresApproval: true
     },
     { 
       name: "Manage Opportunities", 
       href: "/ngo/opportunities", 
-      icon: ClipboardDocumentListIcon 
+      icon: ClipboardDocumentListIcon,
+      requiresApproval: true
     },
     { 
       name: "Manage Applications", 
       href: "/ngo/applications", 
-      icon: ClipboardDocumentCheckIcon 
+      icon: ClipboardDocumentCheckIcon,
+      requiresApproval: true
     },
     { 
       name: "Tools & Resources", 
       href: "#", 
       icon: DocumentTextIcon,
       hasSubmenu: true,
+      requiresApproval: true,
       submenuItems: [
         {
           name: "Tools",
@@ -104,7 +189,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ user }) => {
           </div>
         </div>
         <div className="mt-4 pt-4 border-t border-gray-200/50">
-          <div className="text-xs font-medium text-[#556B2F] uppercase tracking-wider">NGO Account</div>
+          <div className="text-xs font-medium text-[#556B2F] uppercase tracking-wider mb-2">NGO Account</div>
+          {getApprovalStatusDisplay()}
         </div>
       </div>
       
@@ -115,6 +201,11 @@ export const Sidebar: React.FC<SidebarProps> = ({ user }) => {
             const isActive = pathname === item.href;
             const isSubmenuActive = item.hasSubmenu && item.submenuItems?.some(subItem => pathname === subItem.href);
             const Icon = item.icon;
+            
+            // Skip items that require approval but NGO is not approved
+            if (item.requiresApproval && !isApproved) {
+              return null;
+            }
             
             return (
               <li key={item.name}>
@@ -180,6 +271,21 @@ export const Sidebar: React.FC<SidebarProps> = ({ user }) => {
             );
           })}
         </ul>
+        
+        {/* Show message if NGO is not approved */}
+        {!isApproved && !loading && (
+          <div className="mt-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+            <div className="flex items-center text-yellow-800">
+              <ClockIcon className="w-4 h-4 mr-2" />
+              <div className="text-sm">
+                <p className="font-medium">Account Pending Approval</p>
+                <p className="text-xs mt-1">
+                  Complete your profile and wait for admin approval to access all features.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
       </nav>
       
       {/* Logout */}

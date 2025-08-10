@@ -54,7 +54,7 @@ export default function SignUp() {
       // Redirect based on user type after successful sign-up
       setTimeout(() => {
         if (user && user.userType === 'NGO') {
-          router.push('/ngo/dashboard');
+          router.push('/ngo/profile');
         } else if (user && user.userType === 'Personne') {
           router.push('/seeker');
         } else {

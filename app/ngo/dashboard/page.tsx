@@ -3,6 +3,8 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { createClient } from '@supabase/supabase-js';
+import { useAuth } from '@/app/lib/auth';
+import { useRouter } from 'next/navigation';
 import { 
   UserCircleIcon, 
   DocumentPlusIcon, 
@@ -67,11 +69,18 @@ interface Activity {
   status: string;
 }
 
+interface NGOApprovalStatus {
+  approval_status: 'pending' | 'approved' | 'rejected';
+  admin_notes?: string;
+}
+
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 export default function NGODashboard() {
+  const { user } = useAuth();
+  const router = useRouter();
   const [applicationStats, setApplicationStats] = useState<ApplicationStats>({
     total: 0,
     pending: 0,
@@ -105,10 +114,44 @@ export default function NGODashboard() {
 
   const [recentActivities, setRecentActivities] = useState<Activity[]>([]);
   const [loading, setLoading] = useState(true);
+  const [approvalStatus, setApprovalStatus] = useState<NGOApprovalStatus | null>(null);
+  const [approvalLoading, setApprovalLoading] = useState(true);
 
   useEffect(() => {
-    fetchDashboardData();
-  }, []);
+    // Check if user is logged in
+    if (!user) {
+      router.push('/auth/signin');
+      return;
+    }
+
+    // Fetch approval status
+    fetchApprovalStatus();
+    
+    // Only fetch dashboard data if approved
+    if (approvalStatus?.approval_status === 'approved') {
+      fetchDashboardData();
+    }
+  }, [user, router, approvalStatus?.approval_status]);
+
+  const fetchApprovalStatus = async () => {
+    try {
+      setApprovalLoading(true);
+      const response = await fetch('/api/ngo/approval-status');
+      if (response.ok) {
+        const data = await response.json();
+        setApprovalStatus(data);
+        
+        // If not approved, redirect to profile
+        if (data.approval_status !== 'approved') {
+          router.push('/ngo/profile');
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching approval status:', error);
+    } finally {
+      setApprovalLoading(false);
+    }
+  };
 
   const fetchDashboardData = async () => {
     try {
@@ -328,6 +371,45 @@ export default function NGODashboard() {
     }
   };
 
+  // Show loading state while checking approval
+  if (approvalLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
+  // Show approval pending message
+  if (approvalStatus?.approval_status !== 'approved') {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="max-w-md mx-auto text-center">
+          <div className="bg-white rounded-lg shadow-lg p-8">
+            <ClockIcon className="w-16 h-16 text-yellow-500 mx-auto mb-4" />
+            <h2 className="text-2xl font-bold text-gray-900 mb-4">Account Pending Approval</h2>
+            <p className="text-gray-600 mb-6">
+              Your NGO account is currently under review. Please complete your profile and wait for admin approval to access the full dashboard.
+            </p>
+            {approvalStatus?.approval_status === 'rejected' && approvalStatus?.admin_notes && (
+              <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+                <p className="text-red-800 text-sm">
+                  <strong>Rejection Reason:</strong> {approvalStatus.admin_notes}
+                </p>
+              </div>
+            )}
+            <Link
+              href="/ngo/profile"
+              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-[#556B2F] hover:bg-[#6B8E23] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#6B8E23]"
+            >
+              Complete Profile
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -437,8 +519,8 @@ export default function NGODashboard() {
               <ChartPieIcon className="w-8 h-8 text-yellow-600" />
             </div>
           </div>
-                      </div>
-                    </div>
+        </div>
+      </div>
 
       {/* Application Status Breakdown */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

@@ -10,6 +10,9 @@ import {
   MagnifyingGlassIcon,
   EyeIcon,
   BuildingOfficeIcon,
+  CheckCircleIcon,
+  XCircleIcon,
+  ClockIcon,
 } from "@heroicons/react/24/outline";
 
 interface NGOProfile {
@@ -24,6 +27,11 @@ interface NGOProfile {
   profile_image_url?: string;
   created_at: string;
   updated_at: string;
+  // Approval fields
+  approval_status: 'pending' | 'approved' | 'rejected';
+  admin_notes?: string;
+  approved_at?: string;
+  approved_by?: string;
   // Statistics
   opportunities_count?: number;
   applications_count?: number;
@@ -34,6 +42,8 @@ export default function NGOManagementPage() {
   const [ngos, setNgos] = useState<NGOProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [approvingNGO, setApprovingNGO] = useState<string | null>(null);
 
   useEffect(() => {
     fetchNGOs();
@@ -58,11 +68,75 @@ export default function NGOManagementPage() {
     }
   };
 
-  const filteredNGOs = ngos.filter(ngo =>
-    ngo.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    ngo.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    ngo.legal_rep_name.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const handleApproval = async (ngoId: string, action: 'approve' | 'reject', notes?: string) => {
+    try {
+      setApprovingNGO(ngoId);
+      
+      const response = await fetch(`/api/admin/ngos/${ngoId}/approval`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action,
+          notes
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update approval status');
+      }
+
+      toast.success(`NGO ${action === 'approve' ? 'approved' : 'rejected'} successfully`);
+      fetchNGOs(); // Refresh the list
+    } catch (error: any) {
+      console.error('Error updating approval status:', error);
+      toast.error(error.message || 'Failed to update approval status');
+    } finally {
+      setApprovingNGO(null);
+    }
+  };
+
+  const filteredNGOs = ngos.filter(ngo => {
+    const matchesSearch = ngo.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         ngo.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         ngo.legal_rep_name.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    const matchesStatus = statusFilter === "all" || ngo.approval_status === statusFilter;
+    
+    return matchesSearch && matchesStatus;
+  });
+
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case 'pending':
+        return <ClockIcon className="w-4 h-4 text-yellow-500" />;
+      case 'approved':
+        return <CheckCircleIcon className="w-4 h-4 text-green-500" />;
+      case 'rejected':
+        return <XCircleIcon className="w-4 h-4 text-red-500" />;
+      default:
+        return null;
+    }
+  };
+
+  const getStatusBadge = (status: string) => {
+    const baseClasses = "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium";
+    switch (status) {
+      case 'pending':
+        return `${baseClasses} bg-yellow-100 text-yellow-800`;
+      case 'approved':
+        return `${baseClasses} bg-green-100 text-green-800`;
+      case 'rejected':
+        return `${baseClasses} bg-red-100 text-red-800`;
+      default:
+        return `${baseClasses} bg-gray-100 text-gray-800`;
+    }
+  };
+
+  const pendingCount = ngos.filter(ngo => ngo.approval_status === 'pending').length;
+  const approvedCount = ngos.filter(ngo => ngo.approval_status === 'approved').length;
+  const rejectedCount = ngos.filter(ngo => ngo.approval_status === 'rejected').length;
 
   return (
     <div className="min-h-screen bg-gray-50 p-6">
@@ -76,7 +150,7 @@ export default function NGOManagementPage() {
                 NGOs Management
               </h1>
               <p className="text-gray-600 mt-2">
-                Manage and monitor all registered NGOs and their activities
+                Manage and monitor all registered NGOs and their approval status
               </p>
             </div>
           </div>
@@ -99,13 +173,11 @@ export default function NGOManagementPage() {
           <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-200">
             <div className="flex items-center">
               <div className="flex-shrink-0">
-                <BriefcaseIcon className="h-8 w-8 text-green-600" />
+                <ClockIcon className="h-8 w-8 text-yellow-600" />
               </div>
               <div className="ml-4">
-                <p className="text-sm font-medium text-gray-500">Total Opportunities</p>
-                <p className="text-2xl font-semibold text-gray-900">
-                  {ngos.reduce((sum, ngo) => sum + (ngo.opportunities_count || 0), 0)}
-                </p>
+                <p className="text-sm font-medium text-gray-500">Pending Approval</p>
+                <p className="text-2xl font-semibold text-gray-900">{pendingCount}</p>
               </div>
             </div>
           </div>
@@ -113,13 +185,11 @@ export default function NGOManagementPage() {
           <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-200">
             <div className="flex items-center">
               <div className="flex-shrink-0">
-                <DocumentTextIcon className="h-8 w-8 text-purple-600" />
+                <CheckCircleIcon className="h-8 w-8 text-green-600" />
               </div>
               <div className="ml-4">
-                <p className="text-sm font-medium text-gray-500">Total Applications</p>
-                <p className="text-2xl font-semibold text-gray-900">
-                  {ngos.reduce((sum, ngo) => sum + (ngo.applications_count || 0), 0)}
-                </p>
+                <p className="text-sm font-medium text-gray-500">Approved</p>
+                <p className="text-2xl font-semibold text-gray-900">{approvedCount}</p>
               </div>
             </div>
           </div>
@@ -127,13 +197,11 @@ export default function NGOManagementPage() {
           <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-200">
             <div className="flex items-center">
               <div className="flex-shrink-0">
-                <CalendarDaysIcon className="h-8 w-8 text-orange-600" />
+                <XCircleIcon className="h-8 w-8 text-red-600" />
               </div>
               <div className="ml-4">
-                <p className="text-sm font-medium text-gray-500">Active Opportunities</p>
-                <p className="text-2xl font-semibold text-gray-900">
-                  {ngos.reduce((sum, ngo) => sum + (ngo.active_opportunities_count || 0), 0)}
-                </p>
+                <p className="text-sm font-medium text-gray-500">Rejected</p>
+                <p className="text-2xl font-semibold text-gray-900">{rejectedCount}</p>
               </div>
             </div>
           </div>
@@ -153,6 +221,18 @@ export default function NGOManagementPage() {
                   className="pl-10 pr-4 py-2 w-full border border-gray-300 rounded-lg focus:ring-[#556B2F] focus:border-[#556B2F]"
                 />
               </div>
+            </div>
+            <div className="sm:w-48">
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-[#556B2F] focus:border-[#556B2F]"
+              >
+                <option value="all">All Status</option>
+                <option value="pending">Pending</option>
+                <option value="approved">Approved</option>
+                <option value="rejected">Rejected</option>
+              </select>
             </div>
           </div>
         </div>
@@ -174,7 +254,7 @@ export default function NGOManagementPage() {
             <div className="p-8 text-center">
               <UserGroupIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
               <p className="text-gray-500">
-                {searchTerm ? 'No NGOs found matching your search.' : 'No NGOs registered yet.'}
+                {searchTerm || statusFilter !== "all" ? 'No NGOs found matching your criteria.' : 'No NGOs registered yet.'}
               </p>
             </div>
           ) : (
@@ -187,6 +267,9 @@ export default function NGOManagementPage() {
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Legal Representative
+                    </th>
+                    <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Status
                     </th>
                     <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Opportunities
@@ -233,6 +316,19 @@ export default function NGOManagementPage() {
                         <div className="text-xs text-gray-400">{ngo.legal_rep_phone}</div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-center">
+                        <div className="flex items-center justify-center">
+                          {getStatusIcon(ngo.approval_status)}
+                          <span className={`ml-2 ${getStatusBadge(ngo.approval_status)}`}>
+                            {ngo.approval_status}
+                          </span>
+                        </div>
+                        {ngo.approval_status === 'rejected' && ngo.admin_notes && (
+                          <div className="text-xs text-red-600 mt-1 max-w-xs truncate" title={ngo.admin_notes}>
+                            {ngo.admin_notes}
+                          </div>
+                        )}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-center">
                         <div className="flex flex-col items-center">
                           <span className="text-2xl font-bold text-blue-600">{ngo.opportunities_count || 0}</span>
                           <span className="text-xs text-gray-500">
@@ -244,16 +340,44 @@ export default function NGOManagementPage() {
                         <span className="text-2xl font-bold text-green-600">{ngo.applications_count || 0}</span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-center">
-                        <button
-                          onClick={() => {
-                            // TODO: Navigate to NGO details page
-                            toast.success('NGO details view coming soon');
-                          }}
-                          className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#556B2F]"
-                        >
-                          <EyeIcon className="h-4 w-4 mr-1" />
-                          View
-                        </button>
+                        <div className="flex flex-col space-y-2">
+                          <button
+                            onClick={() => {
+                              // TODO: Navigate to NGO details page
+                              toast.success('NGO details view coming soon');
+                            }}
+                            className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#556B2F]"
+                          >
+                            <EyeIcon className="h-4 w-4 mr-1" />
+                            View
+                          </button>
+                          
+                          {ngo.approval_status === 'pending' && (
+                            <div className="flex space-x-1">
+                              <button
+                                onClick={() => handleApproval(ngo.id, 'approve')}
+                                disabled={approvingNGO === ngo.id}
+                                className="inline-flex items-center px-2 py-1 border border-green-300 shadow-sm text-xs leading-4 font-medium rounded-md text-green-700 bg-green-50 hover:bg-green-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50"
+                              >
+                                <CheckCircleIcon className="h-3 w-3 mr-1" />
+                                Approve
+                              </button>
+                              <button
+                                onClick={() => {
+                                  const notes = prompt('Enter rejection reason (optional):');
+                                  if (notes !== null) {
+                                    handleApproval(ngo.id, 'reject', notes);
+                                  }
+                                }}
+                                disabled={approvingNGO === ngo.id}
+                                className="inline-flex items-center px-2 py-1 border border-red-300 shadow-sm text-xs leading-4 font-medium rounded-md text-red-700 bg-red-50 hover:bg-red-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50"
+                              >
+                                <XCircleIcon className="h-3 w-3 mr-1" />
+                                Reject
+                              </button>
+                            </div>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ))}

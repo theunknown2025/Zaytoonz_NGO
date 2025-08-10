@@ -18,7 +18,11 @@ export async function GET(request: NextRequest) {
         legal_rep_function,
         profile_image_url,
         created_at,
-        updated_at
+        updated_at,
+        approval_status,
+        admin_notes,
+        approved_at,
+        approved_by
       `)
       .order('created_at', { ascending: false });
 
@@ -100,6 +104,10 @@ export async function GET(request: NextRequest) {
             profile_image_url: ngo.profile_image_url,
             created_at: ngo.created_at,
             updated_at: ngo.updated_at,
+            approval_status: ngo.approval_status || 'pending',
+            admin_notes: ngo.admin_notes,
+            approved_at: ngo.approved_at,
+            approved_by: ngo.approved_by,
             opportunities_count: opportunitiesCount,
             applications_count: applicationsCount,
             active_opportunities_count: activeOpportunitiesCount,
@@ -119,6 +127,10 @@ export async function GET(request: NextRequest) {
             profile_image_url: ngo.profile_image_url,
             created_at: ngo.created_at,
             updated_at: ngo.updated_at,
+            approval_status: ngo.approval_status || 'pending',
+            admin_notes: ngo.admin_notes,
+            approved_at: ngo.approved_at,
+            approved_by: ngo.approved_by,
             opportunities_count: 0,
             applications_count: 0,
             active_opportunities_count: 0,
