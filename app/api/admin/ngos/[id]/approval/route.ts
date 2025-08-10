@@ -41,50 +41,23 @@ export async function PATCH(
     const approvalStatus = action === 'approve' ? 'approved' : 'rejected';
     const now = new Date().toISOString();
 
-    // Update ngo_profile table
-    const { error: profileError } = await supabase
-      .from('ngo_profile')
+    // Update ngo_details table (since the ID passed is the user_id)
+    const { error: detailsError } = await supabase
+      .from('ngo_details')
       .update({
         approval_status: approvalStatus,
         admin_notes: notes || null,
         approved_at: action === 'approve' ? now : null,
-        approved_by: action === 'approve' ? user.id : null,
-        updated_at: now
+        approved_by: action === 'approve' ? user.id : null
       })
-      .eq('id', id);
+      .eq('user_id', id);
 
-    if (profileError) {
-      console.error('Error updating ngo_profile:', profileError);
-      return NextResponse.json({ error: 'Failed to update NGO profile' }, { status: 500 });
+    if (detailsError) {
+      console.error('Error updating ngo_details:', detailsError);
+      return NextResponse.json({ error: 'Failed to update NGO details' }, { status: 500 });
     }
 
-    console.log('Successfully updated NGO profile approval status');
-
-    // Also update ngo_details table for consistency
-    const { data: ngoProfile } = await supabase
-      .from('ngo_profile')
-      .select('user_id')
-      .eq('id', id)
-      .single();
-
-    if (ngoProfile?.user_id) {
-      const { error: detailsError } = await supabase
-        .from('ngo_details')
-        .update({
-          approval_status: approvalStatus,
-          admin_notes: notes || null,
-          approved_at: action === 'approve' ? now : null,
-          approved_by: action === 'approve' ? user.id : null
-        })
-        .eq('user_id', ngoProfile.user_id);
-
-      if (detailsError) {
-        console.error('Error updating ngo_details:', detailsError);
-        // Don't return error here as the main update was successful
-      } else {
-        console.log('Successfully updated ngo_details approval status');
-      }
-    }
+    console.log('Successfully updated NGO details approval status');
 
     return NextResponse.json({ 
       success: true, 
