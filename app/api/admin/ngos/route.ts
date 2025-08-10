@@ -3,6 +3,28 @@ import { supabase } from '@/app/lib/supabase';
 
 export async function GET(request: NextRequest) {
   try {
+    // Get the current user from Supabase auth session
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    
+    if (authError || !user) {
+      console.error('Auth error:', authError);
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // Verify the user is an admin
+    const { data: adminUser, error: userError } = await supabase
+      .from('users')
+      .select('user_type')
+      .eq('id', user.id)
+      .single();
+
+    if (userError || adminUser?.user_type !== 'Admin') {
+      console.error('User not admin:', userError, adminUser);
+      return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
+    }
+
+    console.log('Admin user authenticated:', user.email);
+
     // Fetch all NGO profiles
     const { data: ngoProfiles, error: ngoError } = await supabase
       .from('ngo_profile')
@@ -30,6 +52,8 @@ export async function GET(request: NextRequest) {
       console.error('Error fetching NGO profiles:', ngoError);
       return NextResponse.json({ error: 'Failed to fetch NGO profiles' }, { status: 500 });
     }
+
+    console.log('Found NGO profiles:', ngoProfiles?.length || 0);
 
     // Get statistics for each NGO
     const ngosWithStats = await Promise.all(
@@ -138,6 +162,8 @@ export async function GET(request: NextRequest) {
         }
       })
     );
+
+    console.log('Processed NGOs with stats:', ngosWithStats.length);
 
     return NextResponse.json({ 
       ngos: ngosWithStats,

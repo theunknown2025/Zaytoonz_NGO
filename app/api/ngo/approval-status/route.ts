@@ -3,19 +3,15 @@ import { supabase } from '@/app/lib/supabase';
 
 export async function GET(request: NextRequest) {
   try {
-    // Get the current user from the request
-    const authHeader = request.headers.get('authorization');
-    if (!authHeader) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    // For now, we'll get the user from the session
-    // In a real implementation, you'd verify the JWT token
+    // Get the current user from Supabase auth session
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     
     if (authError || !user) {
+      console.error('Auth error:', authError);
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    console.log('Current user:', user.email);
 
     // Fetch NGO approval status from ngo_profile table
     const { data: ngoProfile, error: profileError } = await supabase
@@ -27,6 +23,7 @@ export async function GET(request: NextRequest) {
     if (profileError) {
       if (profileError.code === 'PGRST116') {
         // No profile found, return pending status
+        console.log('No NGO profile found for user:', user.id);
         return NextResponse.json({
           approval_status: 'pending',
           admin_notes: null,
@@ -38,12 +35,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to fetch approval status' }, { status: 500 });
     }
 
-    // Also check ngo_details table for consistency
-    const { data: ngoDetails, error: detailsError } = await supabase
-      .from('ngo_details')
-      .select('approval_status, admin_notes, approved_at, approved_by')
-      .eq('user_id', user.id)
-      .single();
+    console.log('NGO profile found:', ngoProfile);
 
     // Return the approval status from ngo_profile (primary source)
     return NextResponse.json({
