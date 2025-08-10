@@ -34,7 +34,8 @@ This guide will help you set up Google OAuth authentication for your Zaytoonz NG
 3. Choose "Web application"
 4. Set the name: "Zaytoonz NGO Web Client"
 5. Add authorized redirect URIs:
-   - `https://your-project-ref.supabase.co/auth/v1/callback`
+   - `https://uroirdudxkfppocqcorm.supabase.co/auth/v1/callback`
+   - `https://zaytoonz-ong.netlify.app/auth/callback` (for production)
    - `http://localhost:3000/auth/callback` (for development)
 6. Copy the **Client ID** and **Client Secret**
 
@@ -49,8 +50,9 @@ This guide will help you set up Google OAuth authentication for your Zaytoonz NG
 
 ### 2.2 Configure Site URL
 1. In Supabase dashboard, go to "Authentication" > "Settings"
-2. Set the Site URL to your domain (e.g., `https://yourdomain.com`)
+2. Set the Site URL to: `https://zaytoonz-ong.netlify.app`
 3. Add additional redirect URLs if needed:
+   - `https://zaytoonz-ong.netlify.app/auth/callback` (for production)
    - `http://localhost:3000/auth/callback` (for development)
 
 ## Step 3: Update Environment Variables
@@ -58,8 +60,8 @@ This guide will help you set up Google OAuth authentication for your Zaytoonz NG
 Add the following to your `.env.local` file:
 
 ```env
-NEXT_PUBLIC_SUPABASE_URL=https://your-project-ref.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+NEXT_PUBLIC_SUPABASE_URL=https://uroirdudxkfppocqcorm.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVyb2lyZHVkeGtmcHBvY3Fjb3JtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDU3MDA4MzMsImV4cCI6MjA2MTI3NjgzM30.6sFQhGrngaFTnsDS7EqjUI2F86iKefTfCn_M1BitcPM
 ```
 
 ## Step 4: Database Schema Updates

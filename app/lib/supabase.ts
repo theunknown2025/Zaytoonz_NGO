@@ -145,10 +145,15 @@ export async function signInUser(email: string, password: string) {
 // Function to sign in with Google
 export async function signInWithGoogle() {
   try {
+    // Use production URL for OAuth redirect
+    const redirectUrl = process.env.NODE_ENV === 'production' 
+      ? 'https://zaytoonz-ong.netlify.app/auth/callback'
+      : `${window.location.origin}/auth/callback`;
+
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: `${window.location.origin}/auth/callback`
+        redirectTo: redirectUrl
       }
     });
 
