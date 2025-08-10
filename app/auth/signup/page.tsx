@@ -69,6 +69,9 @@ export default function SignUp() {
   const handleGoogleSignUp = async () => {
     setGoogleLoading(true);
     try {
+      // Store the selected user type in sessionStorage before Google OAuth
+      sessionStorage.setItem('googleSignupUserType', userType);
+      
       const { user, error } = await signInWithGoogle();
 
       if (error) {
@@ -282,7 +285,9 @@ export default function SignUp() {
               ) : (
                 <>
                   <GoogleIcon />
-                  <span className="ml-2">Sign up with Google</span>
+                  <span className="ml-2">
+                    {userType === 'NGO' ? 'Sign up as NGO with Google' : 'Sign up with Google'}
+                  </span>
                 </>
               )}
             </button>

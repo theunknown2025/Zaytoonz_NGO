@@ -176,10 +176,13 @@ export async function handleAuthCallback() {
     const { data: { user }, error } = await supabase.auth.getUser();
     
     if (error) {
+      console.error('Error getting user from Supabase auth:', error);
       return { user: null, error: error.message };
     }
 
     if (user) {
+      console.log('Google OAuth user:', user.email);
+      
       // Check if user exists in our users table
       const { data: existingUser, error: userError } = await supabase
         .from('users')
@@ -188,17 +191,32 @@ export async function handleAuthCallback() {
         .single();
 
       if (userError && userError.code !== 'PGRST116') {
+        console.error('Error checking existing user:', userError);
         return { user: null, error: userError.message };
       }
 
       if (!existingUser) {
+        // Get the user type from sessionStorage (for Google signup)
+        let userType: 'Personne' | 'NGO' | 'Admin' = 'Personne'; // Default
+        if (typeof window !== 'undefined') {
+          const storedUserType = sessionStorage.getItem('googleSignupUserType');
+          console.log('Stored user type from sessionStorage:', storedUserType);
+          if (storedUserType && (storedUserType === 'Personne' || storedUserType === 'NGO' || storedUserType === 'Admin')) {
+            userType = storedUserType as 'Personne' | 'NGO' | 'Admin';
+          }
+          // Clear the stored user type
+          sessionStorage.removeItem('googleSignupUserType');
+        }
+
+        console.log('Creating new user with type:', userType);
+
         // Create new user in our users table
         const { data: newUser, error: createError } = await supabase
           .from('users')
           .insert({
             full_name: user.user_metadata?.full_name || user.email?.split('@')[0] || 'User',
             email: user.email,
-            user_type: 'Personne', // Default to Personne for Google sign-ins
+            user_type: userType,
             auth_provider: 'google',
             password_hash: null // OAuth users don't have passwords
           })
@@ -206,16 +224,35 @@ export async function handleAuthCallback() {
           .single();
 
         if (createError) {
+          console.error('Error creating user:', createError);
           return { user: null, error: createError.message };
         }
 
-        // Create personne details
-        const { error: detailsError } = await supabase
-          .from('personne_details')
-          .insert({ user_id: newUser.id });
+        console.log('Created new user:', newUser.id);
 
-        if (detailsError) {
-          console.error('Error creating personne details:', detailsError);
+        // Create type-specific details based on user type
+        if (userType === 'NGO') {
+          const { error: detailsError } = await supabase
+            .from('ngo_details')
+            .insert({ user_id: newUser.id });
+
+          if (detailsError) {
+            console.error('Error creating NGO details:', detailsError);
+            // Don't return error here as the user was created successfully
+          } else {
+            console.log('Created NGO details for user:', newUser.id);
+          }
+        } else if (userType === 'Personne') {
+          const { error: detailsError } = await supabase
+            .from('personne_details')
+            .insert({ user_id: newUser.id });
+
+          if (detailsError) {
+            console.error('Error creating personne details:', detailsError);
+            // Don't return error here as the user was created successfully
+          } else {
+            console.log('Created personne details for user:', newUser.id);
+          }
         }
 
         return { 
@@ -228,6 +265,8 @@ export async function handleAuthCallback() {
           error: null 
         };
       } else {
+        console.log('Existing user found:', existingUser.email, 'Type:', existingUser.user_type);
+        
         // Check if existing user was created with email/password
         if (existingUser.auth_provider === 'email' && existingUser.password_hash !== null) {
           return { user: null, error: 'This email is already registered with email/password. Please sign in with your password instead.' };
