@@ -3,166 +3,102 @@ import { supabase } from '@/app/lib/supabase';
 
 export async function GET(request: NextRequest) {
   try {
-    // Get the current user from Supabase auth session
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    
-    if (authError || !user) {
-      console.error('Auth error:', authError);
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    console.log('Fetching NGO profiles from ngo_profile table');
 
-    // Verify the user is an admin
-    const { data: adminUser, error: userError } = await supabase
-      .from('users')
-      .select('user_type')
-      .eq('id', user.id)
-      .single();
-
-    if (userError || adminUser?.user_type !== 'Admin') {
-      console.error('User not admin:', userError, adminUser);
-      return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
-    }
-
-    console.log('Admin user authenticated:', user.email);
-
-    // Fetch all NGO users with their details
-    const { data: ngoUsers, error: ngoError } = await supabase
-      .from('users')
+    // Fetch all NGO profiles with user information
+    const { data: ngoProfiles, error: ngoError } = await supabase
+      .from('ngo_profile')
       .select(`
-        id,
-        full_name,
-        email,
-        created_at,
-        updated_at,
-        auth_provider,
-        ngo_details (
-          id,
-          year_created,
-          legal_rep_name,
-          legal_rep_email,
-          legal_rep_phone,
-          legal_rep_function,
-          profile_image_url,
-          approval_status,
-          admin_notes,
-          approved_at,
-          approved_by
-        )
+        *,
+        user:users!user_id(full_name, email, user_type)
       `)
-      .eq('user_type', 'NGO')
       .order('created_at', { ascending: false });
 
     if (ngoError) {
-      console.error('Error fetching NGO users:', ngoError);
-      return NextResponse.json({ error: 'Failed to fetch NGO users' }, { status: 500 });
+      console.error('Error fetching NGO profiles:', ngoError);
+      return NextResponse.json({ error: 'Failed to fetch NGO profiles' }, { status: 500 });
     }
 
-    console.log('Found NGO users:', ngoUsers?.length || 0);
+    console.log('Found NGO profiles:', ngoProfiles?.length || 0);
 
     // Get statistics for each NGO
     const ngosWithStats = await Promise.all(
-      (ngoUsers || []).map(async (ngoUser) => {
-        const ngoDetails = ngoUser.ngo_details?.[0]; // Get the first NGO details record
+      (ngoProfiles || []).map(async (ngoProfile) => {
         try {
-          // Method 1: Get opportunities directly created by this NGO user
-          const { data: directOpportunities, error: oppError1 } = await supabase
+          // Get opportunities created by this NGO user
+          const { data: opportunities, error: oppError } = await supabase
             .from('opportunity_description')
             .select('id, opportunity_id, status, title')
-            .eq('user_id', ngoUser.id);
+            .eq('user_id', ngoProfile.user_id);
 
-          // Method 2: Also look for opportunities that might be related by email domain or name similarity
-          // Get the user's email domain
-          const emailDomain = ngoUser.email.split('@')[1];
-          
-          // Look for other users with similar email domain who might have created opportunities
-          const { data: relatedUsers, error: userError } = await supabase
-            .from('users')
-            .select('id, email, full_name')
-            .like('email', `%${emailDomain}%`);
-
-          let relatedOpportunities: any[] = [];
-          if (relatedUsers && relatedUsers.length > 0) {
-            const relatedUserIds = relatedUsers.map(u => u.id);
-            const { data: relatedOpps, error: oppError2 } = await supabase
-              .from('opportunity_description')
-              .select('id, opportunity_id, status, title, user_id')
-              .in('user_id', relatedUserIds);
-            
-            relatedOpportunities = relatedOpps || [];
+          if (oppError) {
+            console.error('Error fetching opportunities:', oppError);
           }
 
-          // Combine direct and related opportunities
-          const allOpportunities = [
-            ...(directOpportunities || []),
-            ...relatedOpportunities.filter(ro => 
-              !directOpportunities?.some(do_ => do_.id === ro.id)
-            )
-          ];
-
-          // Get unique opportunity IDs
-          const opportunityIds = allOpportunities.map(o => o.opportunity_id).filter(Boolean);
-          const uniqueOpportunityIds = Array.from(new Set(opportunityIds));
-          const opportunitiesCount = uniqueOpportunityIds.length;
-
-          // Count active opportunities (status = 'published' or 'active')
-          const activeOpportunitiesCount = allOpportunities.filter(o => 
+          const opportunitiesCount = opportunities?.length || 0;
+          const activeOpportunitiesCount = opportunities?.filter(o => 
             o.status === 'published' || o.status === 'active'
           ).length || 0;
 
-          // Get applications count for all related opportunities
+          // Get applications count
           let applicationsCount = 0;
-          if (uniqueOpportunityIds.length > 0) {
+          if (opportunities && opportunities.length > 0) {
+            const opportunityIds = opportunities.map(o => o.opportunity_id).filter(Boolean);
             const { data: applications, error: appError } = await supabase
               .from('opportunity_applications')
               .select('id')
-              .in('opportunity_id', uniqueOpportunityIds);
+              .in('opportunity_id', opportunityIds);
             
-            applicationsCount = applications?.length || 0;
+            if (!appError) {
+              applicationsCount = applications?.length || 0;
+            }
           }
 
           return {
-            id: ngoUser.id,
-            user_id: ngoUser.id,
-            name: ngoUser.full_name || 'NGO Organization',
-            email: ngoUser.email,
-            year_created: ngoDetails?.year_created || 'N/A',
-            legal_rep_name: ngoDetails?.legal_rep_name || 'N/A',
-            legal_rep_email: ngoDetails?.legal_rep_email || 'N/A',
-            legal_rep_phone: ngoDetails?.legal_rep_phone || 'N/A',
-            legal_rep_function: ngoDetails?.legal_rep_function || 'N/A',
-            profile_image_url: ngoDetails?.profile_image_url,
-            created_at: ngoUser.created_at,
-            updated_at: ngoUser.updated_at,
-            approval_status: ngoDetails?.approval_status || 'pending',
-            admin_notes: ngoDetails?.admin_notes,
-            approved_at: ngoDetails?.approved_at,
-            approved_by: ngoDetails?.approved_by,
+            id: ngoProfile.id,
+            user_id: ngoProfile.user_id,
+            name: ngoProfile.name,
+            email: ngoProfile.email,
+            year_created: ngoProfile.year_created,
+            legal_rep_name: ngoProfile.legal_rep_name,
+            legal_rep_email: ngoProfile.legal_rep_email,
+            legal_rep_phone: ngoProfile.legal_rep_phone,
+            legal_rep_function: ngoProfile.legal_rep_function,
+            profile_image_url: ngoProfile.profile_image_url,
+            created_at: ngoProfile.created_at,
+            updated_at: ngoProfile.updated_at,
+            approval_status: ngoProfile.approval_status || 'pending',
+            admin_notes: ngoProfile.admin_notes,
+            approved_at: ngoProfile.approved_at,
+            approved_by: ngoProfile.approved_by,
             opportunities_count: opportunitiesCount,
             applications_count: applicationsCount,
             active_opportunities_count: activeOpportunitiesCount,
+            user: ngoProfile.user
           };
         } catch (statError) {
-          console.error(`Error fetching stats for NGO ${ngoUser.id}:`, statError);
+          console.error(`Error fetching stats for NGO ${ngoProfile.id}:`, statError);
           return {
-            id: ngoUser.id,
-            user_id: ngoUser.id,
-            name: ngoUser.full_name || 'NGO Organization',
-            email: ngoUser.email,
-            year_created: ngoDetails?.year_created || 'N/A',
-            legal_rep_name: ngoDetails?.legal_rep_name || 'N/A',
-            legal_rep_email: ngoDetails?.legal_rep_email || 'N/A',
-            legal_rep_phone: ngoDetails?.legal_rep_phone || 'N/A',
-            legal_rep_function: ngoDetails?.legal_rep_function || 'N/A',
-            profile_image_url: ngoDetails?.profile_image_url,
-            created_at: ngoUser.created_at,
-            updated_at: ngoUser.updated_at,
-            approval_status: ngoDetails?.approval_status || 'pending',
-            admin_notes: ngoDetails?.admin_notes,
-            approved_at: ngoDetails?.approved_at,
-            approved_by: ngoDetails?.approved_by,
+            id: ngoProfile.id,
+            user_id: ngoProfile.user_id,
+            name: ngoProfile.name,
+            email: ngoProfile.email,
+            year_created: ngoProfile.year_created,
+            legal_rep_name: ngoProfile.legal_rep_name,
+            legal_rep_email: ngoProfile.legal_rep_email,
+            legal_rep_phone: ngoProfile.legal_rep_phone,
+            legal_rep_function: ngoProfile.legal_rep_function,
+            profile_image_url: ngoProfile.profile_image_url,
+            created_at: ngoProfile.created_at,
+            updated_at: ngoProfile.updated_at,
+            approval_status: ngoProfile.approval_status || 'pending',
+            admin_notes: ngoProfile.admin_notes,
+            approved_at: ngoProfile.approved_at,
+            approved_by: ngoProfile.approved_by,
             opportunities_count: 0,
             applications_count: 0,
             active_opportunities_count: 0,
+            user: ngoProfile.user
           };
         }
       })

@@ -16,48 +16,26 @@ export async function PATCH(
       return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
     }
 
-    // Get the current admin user
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    
-    if (authError || !user) {
-      console.error('Auth error:', authError);
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    // Verify the user is an admin
-    const { data: adminUser, error: userError } = await supabase
-      .from('users')
-      .select('user_type')
-      .eq('id', user.id)
-      .single();
-
-    if (userError || adminUser?.user_type !== 'Admin') {
-      console.error('User not admin:', userError, adminUser);
-      return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
-    }
-
-    console.log('Admin user authenticated:', user.email);
-
     const approvalStatus = action === 'approve' ? 'approved' : 'rejected';
     const now = new Date().toISOString();
 
-    // Update ngo_details table (since the ID passed is the user_id)
-    const { error: detailsError } = await supabase
-      .from('ngo_details')
+    // Update ngo_profile table
+    const { error: profileError } = await supabase
+      .from('ngo_profile')
       .update({
         approval_status: approvalStatus,
         admin_notes: notes || null,
         approved_at: action === 'approve' ? now : null,
-        approved_by: action === 'approve' ? user.id : null
+        updated_at: now
       })
-      .eq('user_id', id);
+      .eq('id', id);
 
-    if (detailsError) {
-      console.error('Error updating ngo_details:', detailsError);
-      return NextResponse.json({ error: 'Failed to update NGO details' }, { status: 500 });
+    if (profileError) {
+      console.error('Error updating ngo_profile:', profileError);
+      return NextResponse.json({ error: 'Failed to update NGO profile' }, { status: 500 });
     }
 
-    console.log('Successfully updated NGO details approval status');
+    console.log('Successfully updated NGO profile approval status');
 
     return NextResponse.json({ 
       success: true, 
