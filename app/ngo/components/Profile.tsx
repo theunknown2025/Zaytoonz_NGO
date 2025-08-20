@@ -615,6 +615,8 @@ const Profile: React.FC<ProfileProps> = ({ currentUser }) => {
                     <UploadButton
                       label="Select Document"
                       onUpload={(url: string) => setNewDocument({ ...newDocument, url })}
+                      bucket="ngo-documents"
+                      path="uploads"
                     />
                     <button
                       onClick={handleAddDocument}

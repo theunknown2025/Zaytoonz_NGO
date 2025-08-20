@@ -9,8 +9,18 @@ import {
   ClockIcon,
   MagnifyingGlassIcon,
   EyeIcon,
+  XMarkIcon,
+  DocumentIcon,
+  LinkIcon,
+  CalendarIcon,
+  PhoneIcon,
+  EnvelopeIcon,
+  LockClosedIcon,
+  PlayIcon,
+  PauseIcon,
+  TrashIcon,
 } from "@heroicons/react/24/outline";
-import { type NGOProfile } from "./supabaseService";
+import { type NGOProfile, type NGOProfileWithDetails } from "./supabaseService";
 import toast from "react-hot-toast";
 
 interface DisplayNGOsProps {
@@ -45,6 +55,8 @@ export default function DisplayNGOs({
   setSearchTerm
 }: DisplayNGOsProps) {
   const [localSearchTerm, setLocalSearchTerm] = useState(searchTerm);
+  const [selectedNGO, setSelectedNGO] = useState<NGOProfileWithDetails | null>(null);
+  const [isViewModalOpen, setIsViewModalOpen] = useState(false);
 
   const handleSearch = () => {
     if (localSearchTerm.trim()) {
@@ -59,6 +71,45 @@ export default function DisplayNGOs({
     if (e.key === 'Enter') {
       handleSearch();
     }
+  };
+
+  const handleViewNGO = async (ngo: NGOProfile) => {
+    try {
+      // Fetch additional details for the NGO
+      const response = await fetch(`/api/admin/ngos/${ngo.id}/details`);
+      if (response.ok) {
+        const ngoDetails = await response.json();
+        setSelectedNGO(ngoDetails);
+        setIsViewModalOpen(true);
+      } else {
+        toast.error('Failed to fetch NGO details');
+      }
+    } catch (error) {
+      console.error('Error fetching NGO details:', error);
+      toast.error('Failed to fetch NGO details');
+    }
+  };
+
+  const handleViewOrganization = async (ngo: NGOProfile) => {
+    try {
+      // Fetch additional details for the NGO
+      const response = await fetch(`/api/admin/ngos/${ngo.id}/details`);
+      if (response.ok) {
+        const ngoDetails = await response.json();
+        setSelectedNGO(ngoDetails);
+        setIsViewModalOpen(true);
+      } else {
+        toast.error('Failed to fetch NGO details');
+      }
+    } catch (error) {
+      console.error('Error fetching NGO details:', error);
+      toast.error('Failed to fetch NGO details');
+    }
+  };
+
+  const closeViewModal = () => {
+    setIsViewModalOpen(false);
+    setSelectedNGO(null);
   };
 
   const getStatusIcon = (status: string) => {
@@ -277,17 +328,41 @@ export default function DisplayNGOs({
                         <div className="text-xs text-gray-400">{ngo.legal_rep_phone}</div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-center">
-                        <div className="flex items-center justify-center">
-                          {getStatusIcon(ngo.approval_status)}
-                          <span className={`ml-2 ${getStatusBadge(ngo.approval_status)}`}>
-                            {ngo.approval_status}
-                          </span>
-                        </div>
-                        {ngo.approval_status === 'rejected' && ngo.admin_notes && (
-                          <div className="text-xs text-red-600 mt-1 max-w-xs truncate" title={ngo.admin_notes}>
-                            {ngo.admin_notes}
+                        <div className="flex flex-col items-center space-y-2">
+                          {/* Main approval status */}
+                          <div className="flex items-center justify-center">
+                            {getStatusIcon(ngo.approval_status)}
+                            <span className={`ml-2 ${getStatusBadge(ngo.approval_status)}`}>
+                              {ngo.approval_status}
+                            </span>
                           </div>
-                        )}
+                          
+                          {/* Additional status indicators */}
+                          <div className="flex items-center space-x-2">
+                            {/* Lock status */}
+                            {ngo.is_locked && (
+                              <div className="flex items-center text-xs text-yellow-600">
+                                <LockClosedIcon className="w-3 h-3 mr-1" />
+                                <span>Locked</span>
+                              </div>
+                            )}
+                            
+                            {/* Pause status */}
+                            {ngo.is_paused && (
+                              <div className="flex items-center text-xs text-purple-600">
+                                <PauseIcon className="w-3 h-3 mr-1" />
+                                <span>Paused</span>
+                              </div>
+                            )}
+                          </div>
+                          
+                          {/* Admin notes for rejected NGOs */}
+                          {ngo.approval_status === 'rejected' && ngo.admin_notes && (
+                            <div className="text-xs text-red-600 mt-1 max-w-xs truncate" title={ngo.admin_notes}>
+                              {ngo.admin_notes}
+                            </div>
+                          )}
+                        </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-center">
                         <div className="flex flex-col items-center">
@@ -302,17 +377,7 @@ export default function DisplayNGOs({
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-center">
                         <div className="flex flex-col space-y-2">
-                          <button
-                            onClick={() => {
-                              // TODO: Navigate to NGO details page
-                              toast.success('NGO details view coming soon');
-                            }}
-                            className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#556B2F]"
-                          >
-                            <EyeIcon className="h-4 w-4 mr-1" />
-                            View
-                          </button>
-                          
+                          {/* Approval buttons - only for pending NGOs */}
                           {ngo.approval_status === 'pending' && (
                             <div className="flex space-x-1">
                               <button
@@ -320,7 +385,7 @@ export default function DisplayNGOs({
                                 disabled={approvingNGO === ngo.id}
                                 className="inline-flex items-center px-2 py-1 border border-green-300 shadow-sm text-xs leading-4 font-medium rounded-md text-green-700 bg-green-50 hover:bg-green-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50"
                               >
-                                <CheckCircleIcon className="h-3 w-3 mr-1" />
+                                <CheckCircleIcon className="h-3 h-3 mr-1" />
                                 Approve
                               </button>
                               <button
@@ -333,8 +398,76 @@ export default function DisplayNGOs({
                                 disabled={approvingNGO === ngo.id}
                                 className="inline-flex items-center px-2 py-1 border border-red-300 shadow-sm text-xs leading-4 font-medium rounded-md text-red-700 bg-red-50 hover:bg-red-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50"
                               >
-                                <XCircleIcon className="h-3 w-3 mr-1" />
+                                <XCircleIcon className="h-3 h-3 mr-1" />
                                 Reject
+                              </button>
+                            </div>
+                          )}
+                          
+                          {/* Action icons for approved/rejected NGOs */}
+                          {(ngo.approval_status === 'approved' || ngo.approval_status === 'rejected') && (
+                            <div className="flex justify-center space-x-2 pt-2">
+                              {/* View Icon */}
+                              <button
+                                onClick={() => handleViewOrganization(ngo)}
+                                className="p-2 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-lg transition-colors duration-200"
+                                title="View NGO Details"
+                              >
+                                <EyeIcon className="h-5 w-5" />
+                              </button>
+                              
+                              {/* Lock Icon */}
+                              <button
+                                onClick={() => {
+                                  // TODO: Implement lock functionality
+                                  const action = ngo.is_locked ? 'unlock' : 'lock';
+                                  const message = ngo.is_locked ? 'Unlock NGO Account' : 'Lock NGO Account';
+                                  toast.success(`${message} functionality coming soon`);
+                                }}
+                                className={`p-2 rounded-lg transition-colors duration-200 ${
+                                  ngo.is_locked 
+                                    ? 'text-green-600 hover:text-green-800 hover:bg-green-50' 
+                                    : 'text-yellow-600 hover:text-yellow-800 hover:bg-yellow-50'
+                                }`}
+                                title={ngo.is_locked ? 'Unlock NGO Account' : 'Lock NGO Account'}
+                              >
+                                <LockClosedIcon className={`h-5 w-5 ${ngo.is_locked ? 'text-green-600' : 'text-yellow-600'}`} />
+                              </button>
+                              
+                              {/* Pause/Play Icon */}
+                              <button
+                                onClick={() => {
+                                  // TODO: Implement pause/play functionality
+                                  const action = ngo.is_paused ? 'resume' : 'pause';
+                                  const message = ngo.is_paused ? 'Resume NGO Account' : 'Pause NGO Account';
+                                  toast.success(`${message} functionality coming soon`);
+                                }}
+                                className={`p-2 rounded-lg transition-colors duration-200 ${
+                                  ngo.is_paused 
+                                    ? 'text-green-600 hover:text-green-800 hover:bg-green-50' 
+                                    : 'text-purple-600 hover:text-purple-800 hover:bg-purple-50'
+                                }`}
+                                title={ngo.is_paused ? 'Resume NGO Account' : 'Pause NGO Account'}
+                              >
+                                {ngo.is_paused ? (
+                                  <PlayIcon className="h-5 w-5 text-green-600" />
+                                ) : (
+                                  <PauseIcon className="h-5 w-5 text-purple-600" />
+                                )}
+                              </button>
+                              
+                              {/* Delete Icon */}
+                              <button
+                                onClick={() => {
+                                  // TODO: Implement delete functionality
+                                  if (confirm('Are you sure you want to delete this NGO? This action cannot be undone.')) {
+                                    toast.success('Delete functionality coming soon');
+                                  }
+                                }}
+                                className="p-2 text-red-600 hover:text-red-800 hover:bg-red-50 rounded-lg transition-colors duration-200"
+                                title="Delete NGO Account"
+                              >
+                                <TrashIcon className="h-5 w-5" />
                               </button>
                             </div>
                           )}
@@ -369,6 +502,287 @@ export default function DisplayNGOs({
               >
                 Next
               </button>
+            </div>
+          </div>
+        )}
+
+        {/* NGO View Modal */}
+        {isViewModalOpen && selectedNGO && (
+          <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+            <div className="relative top-20 mx-auto p-5 border w-11/12 max-w-4xl shadow-lg rounded-md bg-white">
+              <div className="flex justify-between items-center mb-6">
+                <h3 className="text-2xl font-bold text-gray-900">NGO Profile Details</h3>
+                <button
+                  onClick={closeViewModal}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <XMarkIcon className="h-6 w-6" />
+                </button>
+              </div>
+
+              <div className="space-y-6">
+                {/* Basic Information */}
+                <div className="bg-gray-50 p-6 rounded-lg">
+                  <h4 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                    <BuildingOfficeIcon className="h-5 w-5 mr-2" />
+                    Basic Information
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">Organization Name</label>
+                      <p className="mt-1 text-sm text-gray-900">{selectedNGO.name}</p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">Year Created</label>
+                      <p className="mt-1 text-sm text-gray-900">{selectedNGO.year_created}</p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">Email</label>
+                      <p className="mt-1 text-sm text-gray-900 flex items-center">
+                        <EnvelopeIcon className="h-4 w-4 mr-1" />
+                        {selectedNGO.email}
+                      </p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">Profile Image</label>
+                      <div className="mt-1">
+                        {selectedNGO.profile_image_url ? (
+                          <img 
+                            src={selectedNGO.profile_image_url} 
+                            alt="Profile" 
+                            className="h-20 w-20 rounded-lg object-cover"
+                          />
+                        ) : (
+                          <div className="h-20 w-20 bg-gray-200 rounded-lg flex items-center justify-center">
+                            <BuildingOfficeIcon className="h-10 w-10 text-gray-400" />
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Legal Representative Information */}
+                <div className="bg-gray-50 p-6 rounded-lg">
+                  <h4 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                    <UserGroupIcon className="h-5 w-5 mr-2" />
+                    Legal Representative
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">Name</label>
+                      <p className="mt-1 text-sm text-gray-900">{selectedNGO.legal_rep_name || 'Not provided'}</p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">Function</label>
+                      <p className="mt-1 text-sm text-gray-900">{selectedNGO.legal_rep_function || 'Not provided'}</p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">Email</label>
+                      <p className="mt-1 text-sm text-gray-900 flex items-center">
+                        <EnvelopeIcon className="h-4 w-4 mr-1" />
+                        {selectedNGO.legal_rep_email || 'Not provided'}
+                      </p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">Phone</label>
+                      <p className="mt-1 text-sm text-gray-900 flex items-center">
+                        <PhoneIcon className="h-4 w-4 mr-1" />
+                        {selectedNGO.legal_rep_phone || 'Not provided'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Statistics */}
+                <div className="bg-gray-50 p-6 rounded-lg">
+                  <h4 className="text-lg font-semibold text-gray-900 mb-4">Activity Statistics</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-blue-600">{selectedNGO.opportunities_count || 0}</div>
+                      <div className="text-sm text-gray-500">Total Opportunities</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-green-600">{selectedNGO.applications_count || 0}</div>
+                      <div className="text-sm text-gray-500">Total Applications</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-purple-600">{selectedNGO.active_opportunities_count || 0}</div>
+                      <div className="text-sm text-gray-500">Active Opportunities</div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Documents */}
+                <div className="bg-gray-50 p-6 rounded-lg">
+                  <h4 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                    <DocumentIcon className="h-5 w-5 mr-2" />
+                    Uploaded Documents {selectedNGO.documents && Array.isArray(selectedNGO.documents) && selectedNGO.documents.length > 0 && `(${selectedNGO.documents.length})`}
+                  </h4>
+                  
+                  {/* Info note about documents */}
+                  <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                    <div className="flex items-start">
+                      <svg className="h-5 w-5 text-blue-400 mt-0.5 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      <div className="text-sm text-blue-700">
+                        <p className="font-medium">Document Access</p>
+                        <p className="mt-1">
+                          {selectedNGO.documents && Array.isArray(selectedNGO.documents) && selectedNGO.documents.length > 0 && 
+                           selectedNGO.documents.some(doc => doc.url && doc.url.includes('example.com')) 
+                            ? 'Some documents may be stored externally and will open in new tabs. You can also download them directly.'
+                            : 'Documents are stored securely and can be viewed or downloaded directly.'
+                          }
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {selectedNGO.documents && Array.isArray(selectedNGO.documents) && selectedNGO.documents.length > 0 ? (
+                    <div className="space-y-3">
+                      {selectedNGO.documents.map((doc) => {
+                        const isExternalUrl = doc.url && (doc.url.includes('example.com') || doc.url.startsWith('http'));
+                        const isSupabaseUrl = doc.url && doc.url.includes('supabase.co');
+                        
+                        return (
+                          <div key={doc.id} className="flex items-center justify-between p-3 bg-white rounded-lg border">
+                            <div className="flex-1">
+                              <h5 className="font-medium text-gray-900">{doc.name || 'Untitled Document'}</h5>
+                              {doc.description && (
+                                <p className="text-sm text-gray-600">{doc.description}</p>
+                              )}
+                              <p className="text-xs text-gray-500">
+                                Uploaded: {doc.created_at ? new Date(doc.created_at).toLocaleDateString() : 'Unknown date'}
+                              </p>
+                              {doc.url && (
+                                <div className="mt-2">
+                                  <p className="text-xs text-gray-500 break-all">
+                                    URL: {doc.url}
+                                  </p>
+                                  {isExternalUrl && (
+                                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 mt-1">
+                                      External Storage
+                                    </span>
+                                  )}
+                                  {isSupabaseUrl && (
+                                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 mt-1">
+                                      Secure Storage
+                                    </span>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                            <div className="ml-4 flex space-x-2">
+                              {doc.url && (
+                                <>
+                                  <a
+                                    href={doc.url}
+                                    target={isExternalUrl ? "_blank" : "_self"}
+                                    rel={isExternalUrl ? "noopener noreferrer" : ""}
+                                    className={`inline-flex items-center px-3 py-2 border shadow-sm text-sm leading-4 font-medium rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 ${
+                                      isExternalUrl 
+                                        ? "border-blue-300 text-blue-700 bg-blue-50 hover:bg-blue-100 focus:ring-blue-500"
+                                        : "border-[#556B2F] text-[#556B2F] bg-white hover:bg-gray-50 focus:ring-[#556B2F]"
+                                    }`}
+                                    title={isExternalUrl ? "Open document in new tab" : "View document"}
+                                  >
+                                    <DocumentIcon className="h-4 w-4 mr-1" />
+                                    {isExternalUrl ? "Open" : "View"}
+                                  </a>
+                                  <a
+                                    href={doc.url}
+                                    download={doc.name || 'document'}
+                                    className="inline-flex items-center px-3 py-2 border border-green-300 shadow-sm text-sm leading-4 font-medium rounded-md text-green-700 bg-green-50 hover:bg-green-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+                                    title="Download document"
+                                  >
+                                    <svg className="h-4 w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                    </svg>
+                                    Download
+                                  </a>
+                                </>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div className="text-center py-8">
+                      <DocumentIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                      <p className="text-gray-500">No documents uploaded yet.</p>
+                      <p className="text-xs text-gray-400 mt-2">
+                        Documents will appear here once uploaded by the NGO
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Additional Information */}
+                {selectedNGO.additionalInfo && selectedNGO.additionalInfo.length > 0 && (
+                  <div className="bg-gray-50 p-6 rounded-lg">
+                    <h4 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                      <LinkIcon className="h-5 w-5 mr-2" />
+                      Additional Information ({selectedNGO.additionalInfo.length})
+                    </h4>
+                    <div className="space-y-3">
+                      {selectedNGO.additionalInfo.map((info) => (
+                        <div key={info.id} className="flex items-center justify-between p-3 bg-white rounded-lg border">
+                          <div className="flex-1">
+                            <h5 className="font-medium text-gray-900">{info.title}</h5>
+                            <p className="text-sm text-gray-600">{info.content}</p>
+                            <p className="text-xs text-gray-500">
+                              Type: {info.type} • Added: {new Date(info.created_at).toLocaleDateString()}
+                            </p>
+                          </div>
+                          {info.type === 'link' && (
+                            <a
+                              href={info.content}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="ml-4 inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#556B2F]"
+                            >
+                              <LinkIcon className="h-4 w-4 mr-1" />
+                              Visit
+                            </a>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* User Account Information */}
+                {selectedNGO.user && (
+                  <div className="bg-gray-50 p-6 rounded-lg">
+                    <h4 className="text-lg font-semibold text-gray-900 mb-4">User Account</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700">Full Name</label>
+                        <p className="mt-1 text-sm text-gray-900">{selectedNGO.user.full_name}</p>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700">Email</label>
+                        <p className="mt-1 text-sm text-gray-900">{selectedNGO.user.email}</p>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700">User Type</label>
+                        <p className="mt-1 text-sm text-gray-900">{selectedNGO.user.user_type}</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="mt-6 flex justify-end">
+                <button
+                  onClick={closeViewModal}
+                  className="px-4 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
+                >
+                  Close
+                </button>
+              </div>
             </div>
           </div>
         )}

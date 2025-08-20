@@ -2,37 +2,68 @@
 
 import { useState } from "react";
 import { CloudArrowUpIcon } from "@heroicons/react/24/outline";
+import { supabase } from "@/app/lib/supabase";
 
 interface UploadButtonProps {
   label: string;
   onUpload: (url: string) => void;
+  bucket?: string;
+  path?: string;
 }
 
 export const UploadButton: React.FC<UploadButtonProps> = ({
   label,
-  onUpload
+  onUpload,
+  bucket = "documents",
+  path = "uploads"
 }) => {
   const [isUploading, setIsUploading] = useState(false);
 
-  // In a real app, this would upload to a storage service (S3, etc.)
-  // For demo purposes, we'll simulate an upload with a timeout
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
     setIsUploading(true);
     
-    // Simulate upload delay
-    setTimeout(() => {
-      // Generate a fake URL for the demo
-      const fakeUrl = `https://example.com/uploads/${Date.now()}-${file.name}`;
-      
+    try {
+      // Generate unique filename with timestamp
+      const timestamp = Date.now();
+      const fileExtension = file.name.split('.').pop();
+      const fileName = `${timestamp}-${file.name}`;
+      const filePath = `${path}/${fileName}`;
+
+      // Upload file to Supabase storage
+      const { data, error } = await supabase.storage
+        .from(bucket)
+        .upload(filePath, file, {
+          cacheControl: '3600',
+          upsert: true
+        });
+
+      if (error) {
+        console.error('Error uploading file:', error);
+        throw new Error(`Upload failed: ${error.message}`);
+      }
+
+      // Get the public URL
+      const { data: publicURLData } = supabase.storage
+        .from(bucket)
+        .getPublicUrl(data.path);
+
       setIsUploading(false);
-      onUpload(fakeUrl);
+      onUpload(publicURLData.publicUrl);
       
       // Reset the input
       event.target.value = "";
-    }, 1500);
+      
+    } catch (error) {
+      console.error('Upload error:', error);
+      setIsUploading(false);
+      alert(`Upload failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      
+      // Reset the input
+      event.target.value = "";
+    }
   };
 
   return (
@@ -53,7 +84,7 @@ export const UploadButton: React.FC<UploadButtonProps> = ({
             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
           </svg>
         ) : (
-          <CloudArrowUpIcon className="w-4 h-4 mr-2" />
+          <CloudArrowUpIcon className="w-4 w-4 mr-2" />
         )}
         {isUploading ? "Uploading..." : label}
       </label>
@@ -63,6 +94,7 @@ export const UploadButton: React.FC<UploadButtonProps> = ({
         className="absolute w-0 h-0 opacity-0 overflow-hidden"
         onChange={handleFileChange}
         disabled={isUploading}
+        accept=".pdf,.doc,.docx,.txt,.jpg,.jpeg,.png,.gif"
       />
     </div>
   );

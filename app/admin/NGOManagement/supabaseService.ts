@@ -27,6 +27,15 @@ export interface NGOProfile {
   admin_notes?: string;
   approved_at?: string;
   approved_by?: string;
+  // New management status fields
+  is_locked?: boolean;
+  is_paused?: boolean;
+  locked_at?: string;
+  paused_at?: string;
+  locked_by?: string;
+  paused_by?: string;
+  lock_reason?: string;
+  pause_reason?: string;
   // Statistics
   opportunities_count?: number;
   applications_count?: number;
@@ -36,6 +45,23 @@ export interface NGOProfile {
     email: string;
     user_type: string;
   };
+}
+
+export interface NGOProfileWithDetails extends NGOProfile {
+  documents?: Array<{
+    id: string;
+    name: string;
+    description: string;
+    url: string;
+    created_at: string;
+  }>;
+  additionalInfo?: Array<{
+    id: string;
+    title: string;
+    content: string;
+    type: string;
+    created_at: string;
+  }>;
 }
 
 // Get paginated NGO profiles with user information

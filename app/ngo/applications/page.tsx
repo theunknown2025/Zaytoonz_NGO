@@ -24,7 +24,7 @@ import {
 import DataExtractor from './components/DataExtractor';
 import ApplicationEvaluation from './components/ApplicationEvaluation';
 import CVDisplay from './components/CVDisplay';
-// import { AuthService } from '@/app/lib/auth'; // Removed Supabase auth dependency
+import { useAuth } from '@/app/lib/auth';
 
 interface SeekerProfile {
   id: string;
@@ -78,37 +78,33 @@ export default function ApplicationsPage() {
   const [filter, setFilter] = useState('all');
   const [expandedOpportunities, setExpandedOpportunities] = useState<Set<string>>(new Set());
   const [expandedApplications, setExpandedApplications] = useState<Set<string>>(new Set());
-  const [user, setUser] = useState<any>(null);
   const [extractorOpen, setExtractorOpen] = useState(false);
   const [selectedOpportunityForExtract, setSelectedOpportunityForExtract] = useState<OpportunityWithApplications | null>(null);
+  
+  const { user: authUser } = useAuth();
 
   useEffect(() => {
     const initializeData = async () => {
-      // Hardcoded NGO user ID for testing (since we're not using Supabase auth)
-      const hardcodedNgoUserId = 'dd5af954-5c94-4dca-b3ce-072e767fe9c6';
-      
-      // Set a mock user object
-      const mockUser = {
-        id: hardcodedNgoUserId,
-        full_name: 'Test NGO User',
-        email: 'ngo@test.com',
-        user_type: 'ngo'
-      };
-      
-
-      setUser(mockUser);
-
-      // Fetch applications for NGO's opportunities
-      await fetchApplications(hardcodedNgoUserId);
+      if (authUser?.id) {
+        // Fetch applications for the authenticated NGO user
+        await fetchApplications();
+      } else {
+        setLoading(false);
+        setError('User not authenticated');
+      }
     };
 
     initializeData();
-  }, []);
+  }, [authUser?.id]);
 
-  const fetchApplications = async (ngoUserId: string) => {
+  const fetchApplications = async () => {
     try {
+      if (!authUser?.id) {
+        throw new Error('User not authenticated');
+      }
+
       setLoading(true);
-      const response = await fetch(`/api/ngo/applications?ngoUserId=${ngoUserId}`);
+      const response = await fetch(`/api/ngo/applications?userId=${authUser.id}`);
       const data = await response.json();
 
       if (!response.ok) {
@@ -152,8 +148,8 @@ export default function ApplicationsPage() {
 
       if (response.ok) {
         // Refresh the data
-        if (user) {
-          await fetchApplications(user.id);
+        if (authUser) {
+          await fetchApplications();
         }
       } else {
         throw new Error('Failed to update application status');

@@ -43,10 +43,19 @@ export const Sidebar: React.FC<SidebarProps> = ({ user }) => {
   useEffect(() => {
     const fetchApprovalStatus = async () => {
       try {
-        const response = await fetch('/api/ngo/approval-status');
+        console.log('Fetching approval status for user:', user.id);
+        // Pass the user ID as a query parameter since we're using custom auth
+        const response = await fetch(`/api/ngo/approval-status?userId=${user.id}`);
+        console.log('Approval status response:', response.status, response.statusText);
+        
         if (response.ok) {
           const data = await response.json();
+          console.log('Approval status data:', data);
           setApprovalStatus(data);
+        } else {
+          console.error('Failed to fetch approval status:', response.status);
+          const errorData = await response.json().catch(() => ({}));
+          console.error('Error details:', errorData);
         }
       } catch (error) {
         console.error('Error fetching approval status:', error);
@@ -55,8 +64,12 @@ export const Sidebar: React.FC<SidebarProps> = ({ user }) => {
       }
     };
 
-    fetchApprovalStatus();
-  }, []);
+    if (user.id) {
+      fetchApprovalStatus();
+    } else {
+      setLoading(false);
+    }
+  }, [user.id]);
   
   // Handle logout function
   const handleLogout = async () => {
@@ -122,6 +135,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ user }) => {
 
   // Check if NGO is approved
   const isApproved = approvalStatus?.approval_status === 'approved';
+  const isPending = approvalStatus?.approval_status === 'pending';
+  const isRejected = approvalStatus?.approval_status === 'rejected';
   
   const menuItems = [
     { 
@@ -191,6 +206,30 @@ export const Sidebar: React.FC<SidebarProps> = ({ user }) => {
         <div className="mt-4 pt-4 border-t border-gray-200/50">
           <div className="text-xs font-medium text-[#556B2F] uppercase tracking-wider mb-2">NGO Account</div>
           {getApprovalStatusDisplay()}
+          
+          {/* Simple status indicator */}
+          {!loading && (
+            <div className="mt-2 text-xs">
+              {isApproved && (
+                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                  <CheckCircleIcon className="w-3 h-3 mr-1" />
+                  Approved
+                </span>
+              )}
+              {isPending && (
+                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                  <ClockIcon className="w-3 h-3 mr-1" />
+                  Pending
+                </span>
+              )}
+              {isRejected && (
+                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                  <XCircleIcon className="w-3 h-3 mr-1" />
+                  Rejected
+                </span>
+              )}
+            </div>
+          )}
         </div>
       </div>
       
@@ -272,20 +311,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ user }) => {
           })}
         </ul>
         
-        {/* Show message if NGO is not approved */}
-        {!isApproved && !loading && (
-          <div className="mt-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-            <div className="flex items-center text-yellow-800">
-              <ClockIcon className="w-4 h-4 mr-2" />
-              <div className="text-sm">
-                <p className="font-medium">Account Pending Approval</p>
-                <p className="text-xs mt-1">
-                  Complete your profile and wait for admin approval to access all features.
-                </p>
-              </div>
-            </div>
-          </div>
-        )}
+
       </nav>
       
       {/* Logout */}
@@ -297,6 +323,63 @@ export const Sidebar: React.FC<SidebarProps> = ({ user }) => {
           <ArrowLeftOnRectangleIcon className="mr-3 h-5 w-5 flex-shrink-0 text-gray-400 group-hover:text-red-500" />
           Logout
         </button>
+        
+        {/* Debug section - only show in development */}
+        {process.env.NODE_ENV === 'development' && (
+          <div className="mt-3 pt-3 border-t border-gray-200">
+            <div className="text-xs text-gray-500 mb-2">Debug Tools:</div>
+            <div className="flex space-x-1">
+              <button
+                onClick={async () => {
+                  try {
+                    const response = await fetch(`/api/ngo/debug-profile?userId=${user.id}`);
+                    const data = await response.json();
+                    console.log('Debug profile data:', data);
+                    alert('Check console for debug info');
+                  } catch (error) {
+                    console.error('Debug error:', error);
+                  }
+                }}
+                className="px-2 py-1 bg-blue-500 text-white text-xs rounded hover:bg-blue-600"
+              >
+                Debug
+              </button>
+              <button
+                onClick={async () => {
+                  try {
+                    const response = await fetch(`/api/ngo/fix-profile?userId=${user.id}`, {
+                      method: 'POST'
+                    });
+                    const data = await response.json();
+                    console.log('Fix profile result:', data);
+                    if (data.success) {
+                      alert('Profile fixed! Please refresh the page.');
+                      window.location.reload();
+                    } else {
+                      alert('Failed to fix profile: ' + data.error);
+                    }
+                  } catch (error) {
+                    console.error('Fix profile error:', error);
+                    alert('Error fixing profile');
+                  }
+                }}
+                className="px-2 py-1 bg-green-500 text-white text-xs rounded hover:bg-green-600"
+              >
+                Fix
+              </button>
+              <button
+                onClick={() => {
+                  localStorage.removeItem(`success_shown_${user.id}`);
+                  alert('Success message reset. Refresh the page to see it again.');
+                }}
+                className="px-2 py-1 bg-purple-500 text-white text-xs rounded hover:bg-purple-600"
+                title="Reset success message state"
+              >
+                Reset
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

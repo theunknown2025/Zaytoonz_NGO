@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { getUserId } from '@/app/lib/auth-utils';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -9,17 +10,17 @@ const supabase = createClient(
 // GET - Retrieve all applications for NGO's published opportunities
 export async function GET(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url);
-    const ngoUserId = searchParams.get('ngoUserId');
+    // Get the authenticated user ID
+    const ngoUserId = await getUserId(request);
 
     if (!ngoUserId) {
-      // If no user ID provided, use the default NGO user for testing
-      const defaultNgoUserId = 'dd5af954-5c94-4dca-b3ce-072e767fe9c6';
-      
-      const modifiedUrl = new URL(request.url);
-      modifiedUrl.searchParams.set('ngoUserId', defaultNgoUserId);
-      return GET(new NextRequest(modifiedUrl.toString()));
+      return NextResponse.json(
+        { error: 'Unauthorized - No user ID provided' },
+        { status: 401 }
+      );
     }
+
+    console.log('Fetching applications for NGO user:', ngoUserId);
 
     // Use a simpler approach - first get opportunity descriptions, then join with opportunities
     const { data: opportunityDescriptions, error: descError } = await supabase
