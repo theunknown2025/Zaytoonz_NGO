@@ -20,7 +20,8 @@ import {
   StarIcon,
   GlobeAltIcon,
   DocumentTextIcon,
-  RssIcon
+  RssIcon,
+  HomeIcon
 } from "@heroicons/react/24/outline";
 import { useState } from "react";
 
@@ -76,6 +77,12 @@ export function Sidebar({ user }: SidebarProps) {
       {/* Navigation */}
       <nav className="flex-1 overflow-y-auto py-6 px-3">
         <ul className="space-y-2">
+          <li>
+            <Link href="/" className="flex items-center px-4 py-3 text-sm rounded-xl group transition-all duration-200 text-gray-700 hover:bg-[#556B2F]/10 bg-gradient-to-r from-[#556B2F]/5 to-transparent border border-[#556B2F]/20">
+              <HomeIcon className="mr-3 h-5 w-5 flex-shrink-0 text-[#556B2F]" />
+              <span className="font-medium text-[#556B2F]">Zaytoonz</span>
+            </Link>
+          </li>
           <li>
             <Link href="#" className="flex items-center px-4 py-3 text-sm rounded-xl group transition-all duration-200 text-gray-700 hover:bg-[#556B2F]/10">
               <UserCircleIcon className="mr-3 h-5 w-5 flex-shrink-0 text-[#556B2F]" />
