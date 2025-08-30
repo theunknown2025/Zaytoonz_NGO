@@ -158,7 +158,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ user }) => {
       requiresApproval: true
     },
     { 
-      name: "Manage Opportunities", 
+      name: "My Opportunities", 
       href: "/ngo/opportunities", 
       icon: ClipboardDocumentListIcon,
       requiresApproval: true

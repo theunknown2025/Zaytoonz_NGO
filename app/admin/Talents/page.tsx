@@ -11,13 +11,19 @@ import {
   EyeIcon,
   ChartBarIcon,
   ChevronLeftIcon,
-  ChevronRightIcon
+  ChevronRightIcon,
+  FunnelIcon,
+  XMarkIcon,
+  AdjustmentsHorizontalIcon
 } from '@heroicons/react/24/outline';
 import { 
   getPaginatedSeekerProfiles, 
   searchSeekerProfiles, 
   getSeekerProfileStats,
-  SeekerProfile 
+  filterSeekerProfiles,
+  getFilterOptions,
+  SeekerProfile,
+  SeekerProfileFilters
 } from './supabaseService';
 import Charts from './charts';
 
@@ -37,20 +43,61 @@ export default function Talents() {
   // Chart visibility state
   const [showCharts, setShowCharts] = useState(false);
 
+  // Filter states
+  const [showFilters, setShowFilters] = useState(false);
+  const [showAdvancedSearch, setShowAdvancedSearch] = useState(false);
+  const [filters, setFilters] = useState<SeekerProfileFilters>({});
+  const [filterOptions, setFilterOptions] = useState<{
+    nationalities: string[];
+    fieldsOfExpertise: string[];
+  }>({ nationalities: [], fieldsOfExpertise: [] });
+  const [hasActiveFilters, setHasActiveFilters] = useState(false);
+
+  // Autocomplete states
+  const [nationalityInput, setNationalityInput] = useState('');
+  const [fieldInput, setFieldInput] = useState('');
+  const [showNationalityDropdown, setShowNationalityDropdown] = useState(false);
+  const [showFieldDropdown, setShowFieldDropdown] = useState(false);
+
 
 
   useEffect(() => {
-    loadProfiles();
+    loadFilterOptions();
     loadStats();
-  }, [currentPage, itemsPerPage]);
+  }, []);
 
   useEffect(() => {
-    if (searchTerm.trim()) {
-      handleSearch();
-    } else {
-      loadProfiles();
-    }
-  }, [searchTerm, currentPage, itemsPerPage]);
+    // Add a small delay to debounce rapid filter changes
+    const timeoutId = setTimeout(() => {
+      applyFiltersAndSearch();
+    }, 300);
+
+    return () => clearTimeout(timeoutId);
+  }, [currentPage, itemsPerPage, filters, searchTerm]);
+
+  useEffect(() => {
+    // Check if there are active filters
+    const hasFilters = Object.values(filters).some(value => 
+      value !== undefined && value !== '' && value !== null
+    ) || searchTerm.trim() !== '';
+    setHasActiveFilters(hasFilters);
+  }, [filters, searchTerm]);
+
+  // Click outside handler to close dropdowns
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Element;
+      if (!target.closest('.nationality-autocomplete')) {
+        setShowNationalityDropdown(false);
+      }
+      if (!target.closest('.field-autocomplete')) {
+        setShowFieldDropdown(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const loadProfiles = async () => {
     try {
@@ -73,25 +120,132 @@ export default function Talents() {
     }
   };
 
-  const handleSearch = async () => {
+  const loadFilterOptions = async () => {
     try {
-      setIsLoading(true);
-      const { data, error, totalCount: count } = await searchSeekerProfiles(searchTerm, currentPage, itemsPerPage);
-      
-      if (error) {
-        console.error('Error searching profiles:', error);
-        return;
-      }
-
-      if (data) {
-        setProfiles(data);
-        setTotalCount(count);
+      const { nationalities, fieldsOfExpertise, error } = await getFilterOptions();
+      if (!error) {
+        setFilterOptions({ nationalities, fieldsOfExpertise });
       }
     } catch (error) {
-      console.error('Error searching profiles:', error);
+      console.error('Error loading filter options:', error);
+    }
+  };
+
+  const applyFiltersAndSearch = async () => {
+    try {
+      setIsLoading(true);
+      
+      // Calculate if we have active filters directly
+      const hasFiltersOrSearch = Object.values(filters).some(value => 
+        value !== undefined && value !== '' && value !== null
+      ) || searchTerm.trim() !== '';
+      
+      // If we have filters or search term, use filtering
+      if (hasFiltersOrSearch) {
+        const filterParams = { ...filters };
+        
+        // Handle the case where searchTerm is used but no other filters
+        if (searchTerm.trim() && !filters.name) {
+          filterParams.name = searchTerm;
+        }
+        
+        const { data, error, totalCount: count } = await filterSeekerProfiles(
+          filterParams, 
+          currentPage, 
+          itemsPerPage
+        );
+        
+        if (error) {
+          console.error('Error filtering profiles:', error);
+          return;
+        }
+
+        if (data) {
+          setProfiles(data);
+          setTotalCount(count);
+        }
+      } else {
+        // No filters, load all profiles
+        await loadProfiles();
+      }
+    } catch (error) {
+      console.error('Error applying filters:', error);
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleFilterChange = (newFilters: Partial<SeekerProfileFilters>) => {
+    setFilters(prev => {
+      const updated = { ...prev, ...newFilters };
+      
+      // Clean up the filters - remove empty values
+      Object.keys(updated).forEach(key => {
+        const value = updated[key as keyof SeekerProfileFilters];
+        if (value === '' || value === null || 
+            (Array.isArray(value) && value.length === 0)) {
+          delete updated[key as keyof SeekerProfileFilters];
+        }
+      });
+      
+      return updated;
+    });
+    setCurrentPage(1); // Reset to first page when filters change
+  };
+
+  const clearAllFilters = () => {
+    setFilters({});
+    setSearchTerm('');
+    setCurrentPage(1);
+    setNationalityInput('');
+    setFieldInput('');
+  };
+
+  // Autocomplete helper functions
+  const getFilteredNationalities = (input: string) => {
+    if (!input.trim()) return filterOptions.nationalities.slice(0, 10);
+    return filterOptions.nationalities.filter(nationality =>
+      nationality.toLowerCase().includes(input.toLowerCase())
+    ).slice(0, 10);
+  };
+
+  const getFilteredFields = (input: string) => {
+    if (!input.trim()) return filterOptions.fieldsOfExpertise.slice(0, 10);
+    return filterOptions.fieldsOfExpertise.filter(field =>
+      field.toLowerCase().includes(input.toLowerCase())
+    ).slice(0, 10);
+  };
+
+  const addNationality = (nationality: string) => {
+    const currentNationalities = filters.nationality || [];
+    if (!currentNationalities.includes(nationality)) {
+      const newNationalities = [...currentNationalities, nationality];
+      handleFilterChange({ nationality: newNationalities });
+    }
+    setNationalityInput('');
+    setShowNationalityDropdown(false);
+  };
+
+  const addField = (field: string) => {
+    const currentFields = filters.fieldOfExpertise || [];
+    if (!currentFields.includes(field)) {
+      const newFields = [...currentFields, field];
+      handleFilterChange({ fieldOfExpertise: newFields });
+    }
+    setFieldInput('');
+    setShowFieldDropdown(false);
+  };
+
+  const removeNationality = (nationality: string) => {
+    const currentNationalities = filters.nationality || [];
+    const newNationalities = currentNationalities.filter(n => n !== nationality);
+    handleFilterChange({ nationality: newNationalities.length > 0 ? newNationalities : undefined });
+  };
+
+  const removeField = (field: string) => {
+    const currentFields = filters.fieldOfExpertise || [];
+    const newFields = currentFields.filter(f => f !== field);
+    handleFilterChange({ fieldOfExpertise: newFields.length > 0 ? newFields : undefined });
   };
 
   const loadStats = async () => {
@@ -218,34 +372,361 @@ export default function Talents() {
         <Charts showCharts={showCharts} />
 
         {/* Search and Filters */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-          <div className="flex flex-col sm:flex-row gap-4 items-center justify-between">
-            <div className="flex-1">
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 space-y-4">
+          {/* Top Row: Search and Controls */}
+          <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center justify-between">
+            {/* Search Bar */}
+            <div className="flex-1 min-w-0">
               <div className="relative">
                 <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
                 <input
                   type="text"
-                  placeholder="Search talents by name, nationality, or skills..."
+                  placeholder="Quick search by name..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#556B2F] focus:border-[#556B2F]"
                 />
               </div>
             </div>
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-gray-600">Show:</span>
-              <select
-                value={itemsPerPage}
-                onChange={(e) => handleItemsPerPageChange(Number(e.target.value))}
-                className="border border-gray-300 rounded-md px-3 py-1 text-sm focus:ring-2 focus:ring-[#556B2F] focus:border-[#556B2F]"
+
+            {/* Filter Controls */}
+            <div className="flex items-center gap-3 flex-wrap">
+              <button
+                onClick={() => setShowFilters(!showFilters)}
+                className={`px-4 py-2 rounded-lg border border-gray-300 hover:bg-gray-50 transition-colors flex items-center gap-2 ${
+                  showFilters ? 'bg-gray-50 text-[#556B2F]' : 'bg-white text-gray-700'
+                }`}
               >
-                <option value={5}>5</option>
-                <option value={10}>10</option>
-                <option value={15}>15</option>
-              </select>
-              <span className="text-sm text-gray-600">per page</span>
+                <FunnelIcon className="h-4 w-4" />
+                Basic Filters
+                {hasActiveFilters && (
+                  <span className="bg-red-500 text-white text-xs rounded-full h-2 w-2"></span>
+                )}
+              </button>
+
+              <button
+                onClick={() => setShowAdvancedSearch(!showAdvancedSearch)}
+                className={`px-4 py-2 rounded-lg border border-gray-300 hover:bg-gray-50 transition-colors flex items-center gap-2 ${
+                  showAdvancedSearch ? 'bg-gray-50 text-[#556B2F]' : 'bg-white text-gray-700'
+                }`}
+              >
+                <AdjustmentsHorizontalIcon className="h-4 w-4" />
+                Advanced Search
+              </button>
+
+              {hasActiveFilters && (
+                <button
+                  onClick={clearAllFilters}
+                  className="px-4 py-2 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition-colors flex items-center gap-2"
+                >
+                  <XMarkIcon className="h-4 w-4" />
+                  Clear All
+                </button>
+              )}
+
+              <div className="flex items-center gap-2 border-l border-gray-300 pl-3">
+                <span className="text-sm text-gray-600">Show:</span>
+                <select
+                  value={itemsPerPage}
+                  onChange={(e) => handleItemsPerPageChange(Number(e.target.value))}
+                  className="border border-gray-300 rounded-md px-3 py-1 text-sm focus:ring-2 focus:ring-[#556B2F] focus:border-[#556B2F]"
+                >
+                  <option value={5}>5</option>
+                  <option value={10}>10</option>
+                  <option value={15}>15</option>
+                  <option value={20}>20</option>
+                </select>
+                <span className="text-sm text-gray-600">per page</span>
+              </div>
             </div>
           </div>
+
+          {/* Basic Filters Panel */}
+          {showFilters && (
+            <div className="border-t border-gray-200 pt-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                {/* Name Filter */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
+                  <input
+                    type="text"
+                    placeholder="Filter by name..."
+                    value={filters.name || ''}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      handleFilterChange({ name: value === '' ? undefined : value });
+                    }}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#556B2F] focus:border-[#556B2F] text-sm"
+                  />
+                </div>
+
+                {/* Years of Experience Filter */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Experience (Years)</label>
+                  <div className="flex gap-2">
+                    <input
+                      type="number"
+                      placeholder="Min"
+                      min="0"
+                      value={filters.minExperience !== undefined ? filters.minExperience : ''}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        handleFilterChange({ 
+                          minExperience: value === '' || value === null ? undefined : Number(value) 
+                        });
+                      }}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#556B2F] focus:border-[#556B2F] text-sm"
+                    />
+                    <input
+                      type="number"
+                      placeholder="Max"
+                      min="0"
+                      value={filters.maxExperience !== undefined ? filters.maxExperience : ''}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        handleFilterChange({ 
+                          maxExperience: value === '' || value === null ? undefined : Number(value) 
+                        });
+                      }}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#556B2F] focus:border-[#556B2F] text-sm"
+                    />
+                  </div>
+                </div>
+
+                {/* Nationality Filter */}
+                <div className="relative nationality-autocomplete">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Nationality</label>
+                  
+                  {/* Input Field */}
+                  <input
+                    type="text"
+                    placeholder="Type to search nationalities..."
+                    value={nationalityInput}
+                    onChange={(e) => {
+                      setNationalityInput(e.target.value);
+                      setShowNationalityDropdown(true);
+                    }}
+                    onFocus={() => setShowNationalityDropdown(true)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Escape') {
+                        setShowNationalityDropdown(false);
+                        setNationalityInput('');
+                      }
+                    }}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#556B2F] focus:border-[#556B2F] text-sm"
+                  />
+
+                  {/* Dropdown */}
+                  {showNationalityDropdown && (
+                    <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-40 overflow-y-auto">
+                      {(() => {
+                        const filteredNationalities = getFilteredNationalities(nationalityInput);
+                        if (filteredNationalities.length === 0) {
+                          return (
+                            <div className="px-3 py-2 text-sm text-red-600">
+                              The required nationality is not available
+                            </div>
+                          );
+                        }
+                        return filteredNationalities.map((nationality) => (
+                          <button
+                            key={nationality}
+                            onClick={() => addNationality(nationality)}
+                            className="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 focus:bg-gray-100"
+                            disabled={(filters.nationality || []).includes(nationality)}
+                          >
+                            <span className={(filters.nationality || []).includes(nationality) ? 'text-gray-400' : 'text-gray-900'}>
+                              {nationality}
+                              {(filters.nationality || []).includes(nationality) && ' ✓'}
+                            </span>
+                          </button>
+                        ));
+                      })()}
+                    </div>
+                  )}
+                </div>
+
+                {/* Field of Expertise Filter */}
+                <div className="relative field-autocomplete">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Field of Expertise</label>
+                  
+                  {/* Input Field */}
+                  <input
+                    type="text"
+                    placeholder="Type to search fields of expertise..."
+                    value={fieldInput}
+                    onChange={(e) => {
+                      setFieldInput(e.target.value);
+                      setShowFieldDropdown(true);
+                    }}
+                    onFocus={() => setShowFieldDropdown(true)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Escape') {
+                        setShowFieldDropdown(false);
+                        setFieldInput('');
+                      }
+                    }}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#556B2F] focus:border-[#556B2F] text-sm"
+                  />
+
+                  {/* Dropdown */}
+                  {showFieldDropdown && (
+                    <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-40 overflow-y-auto">
+                      {(() => {
+                        const filteredFields = getFilteredFields(fieldInput);
+                        if (filteredFields.length === 0) {
+                          return (
+                            <div className="px-3 py-2 text-sm text-red-600">
+                              The required field is not available
+                            </div>
+                          );
+                        }
+                        return filteredFields.map((field) => (
+                          <button
+                            key={field}
+                            onClick={() => addField(field)}
+                            className="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 focus:bg-gray-100"
+                            disabled={(filters.fieldOfExpertise || []).includes(field)}
+                          >
+                            <span className={(filters.fieldOfExpertise || []).includes(field) ? 'text-gray-400' : 'text-gray-900'}>
+                              {field}
+                              {(filters.fieldOfExpertise || []).includes(field) && ' ✓'}
+                            </span>
+                          </button>
+                        ));
+                      })()}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Advanced Search Panel */}
+          {showAdvancedSearch && (
+            <div className="border-t border-gray-200 pt-4">
+              <h4 className="text-sm font-medium text-gray-900 mb-3">Advanced Search</h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Advanced Name Search */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Full Name Search</label>
+                  <input
+                    type="text"
+                    placeholder="Search by full name..."
+                    value={filters.name || ''}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      handleFilterChange({ name: value === '' ? undefined : value });
+                    }}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#556B2F] focus:border-[#556B2F] text-sm"
+                  />
+                </div>
+
+                {/* Email Search */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                  <input
+                    type="email"
+                    placeholder="Search by email..."
+                    value={filters.email || ''}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      handleFilterChange({ email: value === '' ? undefined : value });
+                    }}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#556B2F] focus:border-[#556B2F] text-sm"
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Active Filters Display */}
+          {hasActiveFilters && (
+            <div className="border-t border-gray-200 pt-4">
+              <div className="flex items-center justify-between">
+                <div className="flex flex-wrap gap-2">
+                  <span className="text-sm font-medium text-gray-700">Active filters:</span>
+                  {searchTerm && (
+                    <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                      Search: "{searchTerm}"
+                      <button
+                        onClick={() => setSearchTerm('')}
+                        className="ml-1 text-blue-600 hover:text-blue-800"
+                      >
+                        <XMarkIcon className="h-3 w-3" />
+                      </button>
+                    </span>
+                  )}
+                  {filters.name && filters.name !== searchTerm && (
+                    <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                      Name: "{filters.name}"
+                      <button
+                        onClick={() => handleFilterChange({ name: undefined })}
+                        className="ml-1 text-green-600 hover:text-green-800"
+                      >
+                        <XMarkIcon className="h-3 w-3" />
+                      </button>
+                    </span>
+                  )}
+                  {(filters.minExperience !== undefined || filters.maxExperience !== undefined) && (
+                    <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                      Experience: {filters.minExperience || 0}-{filters.maxExperience || '∞'} years
+                      <button
+                        onClick={() => handleFilterChange({ minExperience: undefined, maxExperience: undefined })}
+                        className="ml-1 text-purple-600 hover:text-purple-800"
+                      >
+                        <XMarkIcon className="h-3 w-3" />
+                      </button>
+                    </span>
+                  )}
+                  {filters.nationality && filters.nationality.length > 0 && (
+                    <>
+                      {filters.nationality.map((nationality) => (
+                        <span key={`nationality-${nationality}`} className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                          Nationality: {nationality}
+                          <button
+                            onClick={() => removeNationality(nationality)}
+                            className="ml-1 text-yellow-600 hover:text-yellow-800"
+                          >
+                            <XMarkIcon className="h-3 w-3" />
+                          </button>
+                        </span>
+                      ))}
+                    </>
+                  )}
+                  {filters.fieldOfExpertise && filters.fieldOfExpertise.length > 0 && (
+                    <>
+                      {filters.fieldOfExpertise.map((field) => (
+                        <span key={`field-${field}`} className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800">
+                          Field: {field}
+                          <button
+                            onClick={() => removeField(field)}
+                            className="ml-1 text-indigo-600 hover:text-indigo-800"
+                          >
+                            <XMarkIcon className="h-3 w-3" />
+                          </button>
+                        </span>
+                      ))}
+                    </>
+                  )}
+                  {filters.email && (
+                    <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                      Email: "{filters.email}"
+                      <button
+                        onClick={() => handleFilterChange({ email: undefined })}
+                        className="ml-1 text-red-600 hover:text-red-800"
+                      >
+                        <XMarkIcon className="h-3 w-3" />
+                      </button>
+                    </span>
+                  )}
+                </div>
+                <span className="text-sm text-gray-500">
+                  {totalCount} result{totalCount !== 1 ? 's' : ''} found
+                </span>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Talents Table */}

@@ -46,13 +46,15 @@ export default function NGOLayout({
         const response = await fetch(`/api/ngo/approval-status?userId=${authUser.id}`);
         if (response.ok) {
           const data = await response.json();
+          console.log('Approval status API response:', data);
           setApprovalStatus(data);
           
           // Show success message only if newly approved and not already shown
-          if (data.approval_status === 'approved' && !localStorage.getItem(`success_shown_${authUser.id}`)) {
+          if (data.approval_status === 'approved') {
+            console.log('Setting showSuccessMessage to true');
             setShowSuccessMessage(true);
-            // Mark as shown for this user
-            localStorage.setItem(`success_shown_${authUser.id}`, 'true');
+          } else {
+            console.log('Not showing success message. Status:', data.approval_status);
           }
         }
       } catch (error) {
@@ -70,9 +72,31 @@ export default function NGOLayout({
   const isPending = approvalStatus?.approval_status === 'pending';
   const isRejected = approvalStatus?.approval_status === 'rejected';
   
+  // Debug logging
+  console.log('Layout state:', {
+    approvalStatus: approvalStatus?.approval_status,
+    isApproved,
+    isPending,
+    isRejected,
+    showSuccessMessage,
+    localStorageFlag: authUser?.id ? localStorage.getItem(`success_shown_${authUser.id}`) : 'no user id'
+  });
+  
   // Handle dismissing the success message
   const handleDismissSuccess = () => {
     setShowSuccessMessage(false);
+    // Mark as shown for this user only after they dismiss it
+    if (authUser?.id) {
+      localStorage.setItem(`success_shown_${authUser.id}`, 'true');
+    }
+  };
+  
+  // Temporary function to reset localStorage flag for testing
+  const resetSuccessFlag = () => {
+    if (authUser?.id) {
+      localStorage.removeItem(`success_shown_${authUser.id}`);
+      setShowSuccessMessage(true);
+    }
   };
   
   return (
@@ -187,6 +211,14 @@ export default function NGOLayout({
                     className="inline-flex items-center px-6 py-3 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 transition-colors duration-200"
                   >
                     Get Started
+                  </button>
+                  
+                  {/* Temporary reset button for testing */}
+                  <button
+                    onClick={resetSuccessFlag}
+                    className="ml-4 inline-flex items-center px-4 py-3 bg-gray-500 text-white font-semibold rounded-lg hover:bg-gray-600 transition-colors duration-200"
+                  >
+                    Reset (Test)
                   </button>
                 </div>
               </div>

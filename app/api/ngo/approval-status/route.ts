@@ -56,7 +56,7 @@ export async function GET(request: NextRequest) {
           .from('ngo_profile')
           .insert({
             user_id: userId,
-            name: userData.full_name || 'NGO Organization',
+            name: 'NGO Organization',
             email: userData.email,
             year_created: new Date().getFullYear().toString(),
             legal_rep_name: 'Not specified',

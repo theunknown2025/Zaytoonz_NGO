@@ -355,4 +355,190 @@ export async function searchSeekerProfiles(
     console.error('Error in searchSeekerProfiles:', error);
     return { data: null, error, totalCount: 0 };
   }
+}
+
+// Filter interface for seeker profiles
+export interface SeekerProfileFilters {
+  name?: string;
+  minExperience?: number;
+  maxExperience?: number;
+  nationality?: string[];
+  fieldOfExpertise?: string[];
+  email?: string;
+  phone?: string;
+}
+
+// Advanced filter seeker profiles with multiple criteria
+export async function filterSeekerProfiles(
+  filters: SeekerProfileFilters,
+  page: number = 1,
+  limit: number = 5
+): Promise<{ data: SeekerProfile[] | null; error: any; totalCount: number }> {
+  try {
+    const offset = (page - 1) * limit;
+    
+
+
+    // Helper function to check if a filter value is meaningful
+    const hasValue = (value: any): boolean => {
+      if (Array.isArray(value)) {
+        return value.length > 0;
+      }
+      return value !== undefined && value !== null && value !== '';
+    };
+
+    // Check if we have any meaningful filters
+    const hasAnyFilter = hasValue(filters.name) ||
+                        hasValue(filters.minExperience) ||
+                        hasValue(filters.maxExperience) ||
+                        hasValue(filters.nationality) ||
+                        hasValue(filters.fieldOfExpertise) ||
+                        hasValue(filters.email);
+
+    if (!hasAnyFilter) {
+      return await getPaginatedSeekerProfiles(page, limit);
+    }
+
+    // For complex filtering (especially with email/phone), use in-memory filtering
+    // This is more reliable than trying to do complex joins in Supabase
+    const { data: allData, error: allError } = await supabase
+      .from('seeker_profiles')
+      .select(`
+        *,
+        user:users(full_name, email, user_type)
+      `)
+      .order('created_at', { ascending: false });
+
+    if (allError) {
+      console.error('Error getting all profiles:', allError);
+      return { data: null, error: allError, totalCount: 0 };
+    }
+
+    if (!allData) {
+      return { data: [], error: null, totalCount: 0 };
+    }
+
+    // Filter in memory
+    let filteredData = allData as SeekerProfile[];
+
+    // Apply name filter
+    if (hasValue(filters.name)) {
+      const nameFilter = filters.name!.toLowerCase().trim();
+      filteredData = filteredData.filter(profile => {
+        const firstName = (profile.first_name || '').toLowerCase();
+        const lastName = (profile.last_name || '').toLowerCase();
+        const fullName = `${firstName} ${lastName}`.trim();
+        
+        return firstName.includes(nameFilter) ||
+               lastName.includes(nameFilter) ||
+               fullName.includes(nameFilter);
+      });
+    }
+
+    // Apply experience filters
+    if (hasValue(filters.minExperience)) {
+      filteredData = filteredData.filter(profile => 
+        (profile.years_of_experience || 0) >= filters.minExperience!
+      );
+    }
+
+    if (hasValue(filters.maxExperience)) {
+      filteredData = filteredData.filter(profile => 
+        (profile.years_of_experience || 0) <= filters.maxExperience!
+      );
+    }
+
+    // Apply nationality filter (multiple selections)
+    if (hasValue(filters.nationality)) {
+      filteredData = filteredData.filter(profile => {
+        if (!profile.nationality) return false;
+        const profileNationality = profile.nationality.toLowerCase();
+        return filters.nationality!.some(nationality => 
+          profileNationality.includes(nationality.toLowerCase())
+        );
+      });
+    }
+
+    // Apply field of expertise filter (multiple selections)
+    if (hasValue(filters.fieldOfExpertise)) {
+      filteredData = filteredData.filter(profile => {
+        if (!profile.fields_of_experience || profile.fields_of_experience.length === 0) return false;
+        return filters.fieldOfExpertise!.some(field => 
+          profile.fields_of_experience!.includes(field)
+        );
+      });
+    }
+
+    // Apply email filter
+    if (hasValue(filters.email)) {
+      const emailFilter = filters.email!.toLowerCase().trim();
+      filteredData = filteredData.filter(profile => 
+        (profile.user?.email || '').toLowerCase().includes(emailFilter)
+      );
+    }
+
+    // Note: Phone filtering is not available as the phone column doesn't exist in the users table
+
+    // Apply pagination to filtered results
+    const totalCount = filteredData.length;
+    const paginatedData = filteredData.slice(offset, offset + limit);
+
+    return { data: paginatedData, error: null, totalCount };
+
+  } catch (error) {
+    console.error('Error in filterSeekerProfiles:', error);
+    return { data: null, error, totalCount: 0 };
+  }
+}
+
+// Get unique values for filter dropdowns
+export async function getFilterOptions(): Promise<{
+  nationalities: string[];
+  fieldsOfExpertise: string[];
+  error: any;
+}> {
+  try {
+    // Get unique nationalities
+    const { data: nationalityData, error: nationalityError } = await supabase
+      .from('seeker_profiles')
+      .select('nationality')
+      .not('nationality', 'is', null)
+      .order('nationality');
+
+    // Get unique fields of experience
+    const { data: fieldsData, error: fieldsError } = await supabase
+      .from('seeker_profiles')
+      .select('fields_of_experience')
+      .not('fields_of_experience', 'is', null);
+
+    if (nationalityError || fieldsError) {
+      return {
+        nationalities: [],
+        fieldsOfExpertise: [],
+        error: nationalityError || fieldsError
+      };
+    }
+
+    // Process nationalities
+    const nationalities = Array.from(
+      new Set(nationalityData?.map(item => item.nationality).filter(Boolean))
+    ).sort();
+
+    // Process fields of experience
+    const allFields = fieldsData?.flatMap(item => item.fields_of_experience || []) || [];
+    const fieldsOfExpertise = Array.from(new Set(allFields)).sort();
+
+    return {
+      nationalities,
+      fieldsOfExpertise,
+      error: null
+    };
+  } catch (error) {
+    console.error('Error getting filter options:', error);
+    return {
+      nationalities: [],
+      fieldsOfExpertise: [],
+      error
+    };
+  }
 } 
