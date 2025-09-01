@@ -22,8 +22,11 @@ import {
   ChevronRightIcon,
   PhoneIcon,
   EnvelopeIcon,
-  IdentificationIcon
+  IdentificationIcon,
+  LinkIcon,
+  DocumentArrowDownIcon
 } from '@heroicons/react/24/outline';
+import DataExtractor, { opportunityColumns, defaultOpportunityColumns } from '../../components/DataExtractor';
 
 interface Opportunity {
   id: string;
@@ -40,6 +43,8 @@ interface Opportunity {
   applicants?: number;
   metadata?: Record<string, any>;
   ngoProfileId?: string;
+  isScraped?: boolean;
+  sourceUrl?: string;
 }
 
 interface NGOProfile {
@@ -79,16 +84,28 @@ export default function Trainings() {
   const [ngoProfile, setNgoProfile] = useState<NGOProfile | null>(null);
   const [isNgoProfileExpanded, setIsNgoProfileExpanded] = useState(false);
   const [loadingProfile, setLoadingProfile] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [rowsPerPage, setRowsPerPage] = useState(5);
+  const [totalOpportunities, setTotalOpportunities] = useState(0);
+  
+  // Selection and export state
+  const [selectedOpportunities, setSelectedOpportunities] = useState<Set<string>>(new Set());
+  const [isExtractModalOpen, setIsExtractModalOpen] = useState(false);
 
   useEffect(() => {
     const fetchTrainingOpportunities = async () => {
       try {
+        console.log('Fetching training opportunities...');
         const response = await fetch('/api/opportunities?type=training');
         if (response.ok) {
           const data = await response.json();
-          setOpportunities(data);
+          console.log('Training opportunities received:', data);
+          setOpportunities(data || []);
+          setTotalOpportunities(data?.length || 0);
         } else {
-          console.error('Failed to fetch training opportunities');
+          console.error('Failed to fetch training opportunities, status:', response.status);
+          const errorText = await response.text();
+          console.error('Error details:', errorText);
           setOpportunities([]);
         }
       } catch (error) {
@@ -362,6 +379,52 @@ export default function Trainings() {
     }
   };
 
+  // Selection handlers for export
+  const handleSelectOpportunity = (opportunityId: string) => {
+    const newSelected = new Set(selectedOpportunities);
+    if (newSelected.has(opportunityId)) {
+      newSelected.delete(opportunityId);
+    } else {
+      newSelected.add(opportunityId);
+    }
+    setSelectedOpportunities(newSelected);
+  };
+
+  const handleSelectAll = () => {
+    if (selectedOpportunities.size === currentOpportunities.length) {
+      setSelectedOpportunities(new Set());
+    } else {
+      setSelectedOpportunities(new Set(currentOpportunities.map(opp => opp.id)));
+    }
+  };
+
+  const handleRowClickForSelection = (opportunityId: string, event: React.MouseEvent) => {
+    // Only toggle selection if not clicking on action buttons
+    if ((event.target as HTMLElement).closest('button') || 
+        (event.target as HTMLElement).closest('a')) {
+      return;
+    }
+    // Don't interfere with row selection for viewing details
+    return;
+  };
+
+  // Pagination logic
+  const totalPages = Math.ceil(totalOpportunities / rowsPerPage);
+  const startIndex = (currentPage - 1) * rowsPerPage;
+  const endIndex = startIndex + rowsPerPage;
+  const currentOpportunities = opportunities.slice(startIndex, endIndex);
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+    setSelected(null); // Clear selection when changing pages
+  };
+
+  const handleRowsPerPageChange = (rows: number) => {
+    setRowsPerPage(rows);
+    setCurrentPage(1); // Reset to first page
+    setSelected(null); // Clear selection
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
@@ -386,42 +449,71 @@ export default function Trainings() {
         <div className="space-y-8">
           {/* Opportunities Table */}
           <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-            <div className="px-6 py-4 border-b border-gray-200">
-              <h2 className="text-lg font-semibold text-gray-900">Available Opportunities ({opportunities.length})</h2>
+            <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+              <h2 className="text-lg font-semibold text-gray-900">Available Opportunities ({totalOpportunities})</h2>
+              <div className="flex items-center gap-4">
+                {selectedOpportunities.size > 0 && (
+                  <button
+                    onClick={() => setIsExtractModalOpen(true)}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 flex items-center gap-2"
+                  >
+                    <DocumentArrowDownIcon className="h-5 w-5" />
+                    Extract ({selectedOpportunities.size})
+                  </button>
+                )}
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-gray-600">Show:</span>
+                  <select
+                    value={rowsPerPage}
+                    onChange={(e) => handleRowsPerPageChange(Number(e.target.value))}
+                    className="border border-gray-300 rounded-md px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-[#556B2F] focus:border-transparent"
+                  >
+                    <option value={5}>5</option>
+                    <option value={15}>15</option>
+                    <option value={50}>50</option>
+                  </select>
+                  <span className="text-sm text-gray-600">per page</span>
+                </div>
+              </div>
             </div>
             
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
+            <div>
+              <table className="w-full divide-y divide-gray-200 table-fixed">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider w-16">
+                      <div className="flex items-center justify-center">
+                        <input
+                          type="checkbox"
+                          checked={selectedOpportunities.size === currentOpportunities.length && currentOpportunities.length > 0}
+                          onChange={handleSelectAll}
+                          className="h-4 w-4 text-[#556B2F] focus:ring-[#556B2F] border-gray-300 rounded"
+                          title="Select All"
+                        />
+                      </div>
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-[25%]">
                       Opportunity
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Category
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-[20%]">
                       Location
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-[15%]">
                       Duration
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-[15%]">
                       Deadline
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-[10%]">
                       Status
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Applicants
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-[15%]">
                       Actions
                     </th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {opportunities.map((opportunity) => {
+                  {currentOpportunities.map((opportunity) => {
                     const deadlineStatus = getDeadlineStatus(opportunity.deadline);
                     const isSelected = selected?.id === opportunity.id;
                     
@@ -430,103 +522,187 @@ export default function Trainings() {
                         key={opportunity.id}
                         className={`hover:bg-gray-50 cursor-pointer transition-colors ${
                           isSelected ? 'bg-blue-50 border-l-4 border-l-[#556B2F]' : ''
-                        }`}
+                        } ${selectedOpportunities.has(opportunity.id) ? 'bg-blue-50' : ''}`}
                         onClick={() => handleRowSelect(opportunity)}
                       >
-                        <td className="px-6 py-4 whitespace-nowrap">
+                        <td className="px-6 py-4 text-center w-16">
+                          <div className="flex items-center justify-center">
+                            <input
+                              type="checkbox"
+                              checked={selectedOpportunities.has(opportunity.id)}
+                              onChange={() => handleSelectOpportunity(opportunity.id)}
+                              className="h-4 w-4 text-[#556B2F] focus:ring-[#556B2F] border-gray-300 rounded"
+                              onClick={(e) => e.stopPropagation()}
+                            />
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 w-[25%]">
                           <div className="flex items-center">
-                            <div>
-                              <div className="text-sm font-medium text-gray-900">
+                            <div className="min-w-0 flex-1">
+                              <div className="text-sm font-medium text-gray-900 truncate">
                                 {opportunity.title}
                               </div>
-                              <div className="text-sm text-gray-500">
+                              <div className="text-sm text-gray-500 truncate">
                                 {opportunity.type} • Posted {opportunity.posted}
                               </div>
                             </div>
                           </div>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium border ${getCategoryColor(opportunity.category || 'training')}`}>
-                            {getCategoryIcon(opportunity.category || 'training')}
-                            <span className="capitalize">{opportunity.category || 'training'}</span>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
+                        <td className="px-6 py-4 w-[20%]">
                           <div className="flex items-center gap-1 text-sm text-gray-900">
-                            <MapPinIcon className="w-4 h-4 text-gray-400" />
-                            {opportunity.location}
+                            <MapPinIcon className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                            <span className="truncate">{opportunity.location}</span>
                           </div>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {opportunity.compensation}
+                        <td className="px-6 py-4 w-[15%] text-sm text-gray-900">
+                          <div className="truncate">{opportunity.compensation}</div>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm text-gray-900">
+                        <td className="px-6 py-4 w-[15%]">
+                          <div className="text-sm text-gray-900 truncate">
                             {opportunity.deadline}
                           </div>
                           {deadlineStatus && (
-                            <div className={`text-xs ${deadlineStatus.color} font-medium`}>
+                            <div className={`text-xs ${deadlineStatus.color} font-medium truncate`}>
                               {deadlineStatus.text}
                             </div>
                           )}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${getStatusColor(opportunity.status || 'active')}`}>
+                        <td className="px-6 py-4 w-[10%]">
+                          <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border ${getStatusColor(opportunity.status || 'active')}`}>
                             {opportunity.status === 'active' && <span className="w-2 h-2 bg-green-400 rounded-full mr-1"></span>}
                             {opportunity.status === 'suspended' && <span className="w-2 h-2 bg-yellow-400 rounded-full mr-1"></span>}
                             {opportunity.status === 'expired' && <span className="w-2 h-2 bg-red-400 rounded-full mr-1"></span>}
-                            {opportunity.status || 'active'}
+                            <span className="truncate">{opportunity.status || 'active'}</span>
                           </span>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="flex items-center gap-1 text-sm text-gray-900">
-                            <UserIcon className="w-4 h-4 text-gray-400" />
-                            {opportunity.applicants || 0}
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                          <div className="flex items-center gap-2">
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleSuspend(opportunity.id);
-                              }}
-                              className={`inline-flex items-center gap-1 px-3 py-1 rounded text-xs font-medium transition-colors ${
-                                opportunity.status === 'suspended'
-                                  ? 'bg-green-100 text-green-700 hover:bg-green-200'
-                                  : 'bg-yellow-100 text-yellow-700 hover:bg-yellow-200'
-                              }`}
-                            >
-                              {opportunity.status === 'suspended' ? (
-                                <>
-                                  <PlayIcon className="w-3 h-3" />
-                                  Activate
-                                </>
-                              ) : (
-                                <>
-                                  <PauseIcon className="w-3 h-3" />
-                                  Suspend
-                                </>
-                              )}
-                            </button>
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleAnalyse(opportunity.id);
-                              }}
-                              className="inline-flex items-center gap-1 px-3 py-1 rounded text-xs font-medium bg-blue-100 text-blue-700 hover:bg-blue-200 transition-colors"
-                            >
-                              <ChartBarIcon className="w-3 h-3" />
-                              Analyse
-                            </button>
-                          </div>
-                        </td>
+                                                 <td className="px-6 py-4 w-[15%] text-sm font-medium">
+                           <div className="flex items-center gap-1 flex-wrap">
+                             {opportunity.isScraped && opportunity.sourceUrl && (
+                               <a
+                                 href={opportunity.sourceUrl}
+                                 target="_blank"
+                                 rel="noopener noreferrer"
+                                 onClick={(e) => e.stopPropagation()}
+                                 className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium bg-emerald-100 text-emerald-700 hover:bg-emerald-200 transition-colors flex-shrink-0"
+                                 title="View original source"
+                               >
+                                 <LinkIcon className="w-3 h-3" />
+                                 <span className="hidden sm:inline">Source</span>
+                               </a>
+                             )}
+                             <button
+                               onClick={(e) => {
+                                 e.stopPropagation();
+                                 handleSuspend(opportunity.id);
+                               }}
+                               className={`inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium transition-colors flex-shrink-0 ${
+                                 opportunity.status === 'suspended'
+                                   ? 'bg-green-100 text-green-700 hover:bg-green-200'
+                                   : 'bg-yellow-100 text-yellow-700 hover:bg-yellow-200'
+                               }`}
+                             >
+                               {opportunity.status === 'suspended' ? (
+                                 <>
+                                   <PlayIcon className="w-3 h-3" />
+                                   <span className="hidden sm:inline">Activate</span>
+                                 </>
+                               ) : (
+                                 <>
+                                   <PauseIcon className="w-3 h-3" />
+                                   <span className="hidden sm:inline">Suspend</span>
+                                 </>
+                               )}
+                             </button>
+                             <button
+                               onClick={(e) => {
+                                 e.stopPropagation();
+                                 handleAnalyse(opportunity.id);
+                               }}
+                               className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium bg-blue-100 text-blue-700 hover:bg-blue-200 transition-colors flex-shrink-0"
+                             >
+                               <ChartBarIcon className="w-3 h-3" />
+                               <span className="hidden sm:inline">Analyse</span>
+                             </button>
+                           </div>
+                         </td>
                       </tr>
                     );
                   })}
                 </tbody>
               </table>
             </div>
+
+            {/* Pagination Controls */}
+            {totalOpportunities > 0 && (
+              <div className="px-6 py-4 border-t border-gray-200">
+                <div className="flex items-center justify-between">
+                  <div className="text-sm text-gray-600">
+                    Showing {Math.min(startIndex + 1, totalOpportunities)} to {Math.min(endIndex, totalOpportunities)} of {totalOpportunities} opportunities
+                  </div>
+                  
+                  {/* Only show pagination controls if there's more than one page */}
+                  {totalPages > 1 && (
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => handlePageChange(currentPage - 1)}
+                        disabled={currentPage === 1}
+                        className="px-3 py-1 text-sm border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        Previous
+                      </button>
+                      
+                      <div className="flex items-center gap-1">
+                        {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => {
+                          // Show first page, last page, current page, and pages around current
+                          if (
+                            page === 1 ||
+                            page === totalPages ||
+                            (page >= currentPage - 1 && page <= currentPage + 1)
+                          ) {
+                            return (
+                              <button
+                                key={page}
+                                onClick={() => handlePageChange(page)}
+                                className={`px-3 py-1 text-sm border rounded-md min-w-[32px] ${
+                                  currentPage === page
+                                    ? 'bg-[#556B2F] text-white border-[#556B2F]'
+                                    : 'border-gray-300 hover:bg-gray-50 text-gray-700'
+                                }`}
+                              >
+                                {page}
+                              </button>
+                            );
+                          } else if (
+                            page === currentPage - 2 ||
+                            page === currentPage + 2
+                          ) {
+                            return (
+                              <span key={page} className="px-2 text-gray-400">
+                                ...
+                              </span>
+                            );
+                          }
+                          return null;
+                        })}
+                      </div>
+
+                      <button
+                        onClick={() => handlePageChange(currentPage + 1)}
+                        disabled={currentPage === totalPages}
+                        className="px-3 py-1 text-sm border border-gray-300 rounded-md min-w-[32px] hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        Next
+                      </button>
+                    </div>
+                  )}
+                </div>
+                
+                {/* Debug info - remove this after testing */}
+                <div className="mt-2 text-xs text-gray-400">
+                  Debug: Total: {totalOpportunities}, Pages: {totalPages}, Current: {currentPage}, Per Page: {rowsPerPage}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Selected Opportunity Details */}
@@ -616,6 +792,19 @@ export default function Trainings() {
           )}
         </div>
       </div>
+
+      {/* Data Extractor Modal */}
+      <DataExtractor
+        data={opportunities}
+        selectedItems={selectedOpportunities}
+        isOpen={isExtractModalOpen}
+        onClose={() => setIsExtractModalOpen(false)}
+        availableColumns={opportunityColumns}
+        defaultSelectedColumns={defaultOpportunityColumns}
+        filename="Training_Opportunities_Export"
+        title="Export Training Opportunities"
+        itemType="opportunities"
+      />
     </div>
   );
 }

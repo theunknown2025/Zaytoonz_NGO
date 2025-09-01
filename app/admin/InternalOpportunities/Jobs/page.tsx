@@ -22,8 +22,11 @@ import {
   ChevronRightIcon,
   PhoneIcon,
   EnvelopeIcon,
-  IdentificationIcon
+  IdentificationIcon,
+  LinkIcon,
+  DocumentArrowDownIcon
 } from '@heroicons/react/24/outline';
+import DataExtractor, { opportunityColumns, defaultOpportunityColumns } from '../../components/DataExtractor';
 
 interface Opportunity {
   id: string;
@@ -40,6 +43,8 @@ interface Opportunity {
   applicants?: number;
   metadata?: Record<string, any>;
   ngoProfileId?: string;
+  isScraped?: boolean;
+  sourceUrl?: string;
 }
 
 interface NGOProfile {
@@ -79,16 +84,28 @@ export default function Jobs() {
   const [ngoProfile, setNgoProfile] = useState<NGOProfile | null>(null);
   const [isNgoProfileExpanded, setIsNgoProfileExpanded] = useState(false);
   const [loadingProfile, setLoadingProfile] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [rowsPerPage, setRowsPerPage] = useState(5);
+  const [totalOpportunities, setTotalOpportunities] = useState(0);
+  
+  // Selection and export state
+  const [selectedOpportunities, setSelectedOpportunities] = useState<Set<string>>(new Set());
+  const [isExtractModalOpen, setIsExtractModalOpen] = useState(false);
 
   useEffect(() => {
     const fetchJobOpportunities = async () => {
       try {
+        console.log('Fetching job opportunities...');
         const response = await fetch('/api/opportunities?type=job');
         if (response.ok) {
           const data = await response.json();
-          setOpportunities(data);
+          console.log('Job opportunities received:', data);
+          setOpportunities(data || []);
+          setTotalOpportunities(data?.length || 0);
         } else {
-          console.error('Failed to fetch job opportunities');
+          console.error('Failed to fetch job opportunities, status:', response.status);
+          const errorText = await response.text();
+          console.error('Error details:', errorText);
           setOpportunities([]);
         }
       } catch (error) {
@@ -386,6 +403,52 @@ export default function Jobs() {
     }
   };
 
+  // Selection handlers for export
+  const handleSelectOpportunity = (opportunityId: string) => {
+    const newSelected = new Set(selectedOpportunities);
+    if (newSelected.has(opportunityId)) {
+      newSelected.delete(opportunityId);
+    } else {
+      newSelected.add(opportunityId);
+    }
+    setSelectedOpportunities(newSelected);
+  };
+
+  const handleSelectAll = () => {
+    if (selectedOpportunities.size === currentOpportunities.length) {
+      setSelectedOpportunities(new Set());
+    } else {
+      setSelectedOpportunities(new Set(currentOpportunities.map(opp => opp.id)));
+    }
+  };
+
+  const handleRowClickForSelection = (opportunityId: string, event: React.MouseEvent) => {
+    // Only toggle selection if not clicking on action buttons
+    if ((event.target as HTMLElement).closest('button') || 
+        (event.target as HTMLElement).closest('a')) {
+      return;
+    }
+    // Don't interfere with row selection for viewing details
+    return;
+  };
+
+  // Pagination logic
+  const totalPages = Math.ceil(totalOpportunities / rowsPerPage);
+  const startIndex = (currentPage - 1) * rowsPerPage;
+  const endIndex = startIndex + rowsPerPage;
+  const currentOpportunities = opportunities.slice(startIndex, endIndex);
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+    setSelected(null); // Clear selection when changing pages
+  };
+
+  const handleRowsPerPageChange = (rows: number) => {
+    setRowsPerPage(rows);
+    setCurrentPage(1); // Reset to first page
+    setSelected(null); // Clear selection
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
@@ -410,42 +473,71 @@ export default function Jobs() {
         <div className="space-y-8">
           {/* Opportunities Table */}
           <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-            <div className="px-6 py-4 border-b border-gray-200">
-              <h2 className="text-lg font-semibold text-gray-900">Available Opportunities ({opportunities.length})</h2>
+            <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+              <h2 className="text-lg font-semibold text-gray-900">Available Opportunities ({totalOpportunities})</h2>
+              <div className="flex items-center gap-4">
+                {selectedOpportunities.size > 0 && (
+                  <button
+                    onClick={() => setIsExtractModalOpen(true)}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 flex items-center gap-2"
+                  >
+                    <DocumentArrowDownIcon className="h-5 w-5" />
+                    Extract ({selectedOpportunities.size})
+                  </button>
+                )}
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-gray-600">Show:</span>
+                  <select
+                    value={rowsPerPage}
+                    onChange={(e) => handleRowsPerPageChange(Number(e.target.value))}
+                    className="border border-gray-300 rounded-md px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-[#556B2F] focus:border-transparent"
+                  >
+                    <option value={5}>5</option>
+                    <option value={15}>15</option>
+                    <option value={50}>50</option>
+                  </select>
+                  <span className="text-sm text-gray-600">per page</span>
+                </div>
+              </div>
             </div>
             
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
+            <div>
+              <table className="w-full divide-y divide-gray-200 table-fixed">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider w-16">
+                      <div className="flex items-center justify-center">
+                        <input
+                          type="checkbox"
+                          checked={selectedOpportunities.size === currentOpportunities.length && currentOpportunities.length > 0}
+                          onChange={handleSelectAll}
+                          className="h-4 w-4 text-[#556B2F] focus:ring-[#556B2F] border-gray-300 rounded"
+                          title="Select All"
+                        />
+                      </div>
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-[25%]">
                       Opportunity
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Category
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-[20%]">
                       Location
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Compensation
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-[15%]">
+                      Amount
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-[15%]">
                       Deadline
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-[10%]">
                       Status
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Applicants
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-[15%]">
                       Actions
                     </th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {opportunities.map((opportunity) => {
+                  {currentOpportunities.map((opportunity) => {
                     const deadlineStatus = getDeadlineStatus(opportunity.deadline);
                     const isSelected = selected?.id === opportunity.id;
                     
@@ -454,463 +546,291 @@ export default function Jobs() {
                         key={opportunity.id}
                         className={`hover:bg-gray-50 cursor-pointer transition-colors ${
                           isSelected ? 'bg-blue-50 border-l-4 border-l-[#556B2F]' : ''
-                        }`}
-                                                 onClick={() => handleRowSelect(opportunity)}
+                        } ${selectedOpportunities.has(opportunity.id) ? 'bg-blue-50' : ''}`}
+                        onClick={() => handleRowSelect(opportunity)}
                       >
-                        <td className="px-6 py-4 whitespace-nowrap">
+                        <td className="px-6 py-4 text-center w-16">
+                          <div className="flex items-center justify-center">
+                            <input
+                              type="checkbox"
+                              checked={selectedOpportunities.has(opportunity.id)}
+                              onChange={() => handleSelectOpportunity(opportunity.id)}
+                              className="h-4 w-4 text-[#556B2F] focus:ring-[#556B2F] border-gray-300 rounded"
+                              onClick={(e) => e.stopPropagation()}
+                            />
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 w-[25%]">
                           <div className="flex items-center">
-                            <div>
-                              <div className="text-sm font-medium text-gray-900">
+                            <div className="min-w-0 flex-1">
+                              <div className="text-sm font-medium text-gray-900 truncate">
                                 {opportunity.title}
                               </div>
-                              <div className="text-sm text-gray-500">
+                              <div className="text-sm text-gray-500 truncate">
                                 {opportunity.type} • Posted {opportunity.posted}
                               </div>
                             </div>
                           </div>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium border ${getCategoryColor(opportunity.category || 'job')}`}>
-                            {getCategoryIcon(opportunity.category || 'job')}
-                            <span className="capitalize">{opportunity.category || 'job'}</span>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
+                        <td className="px-6 py-4 w-[20%]">
                           <div className="flex items-center gap-1 text-sm text-gray-900">
-                            <MapPinIcon className="w-4 h-4 text-gray-400" />
-                            {opportunity.location}
+                            <MapPinIcon className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                            <span className="truncate">{opportunity.location}</span>
                           </div>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {opportunity.compensation}
+                        <td className="px-6 py-4 w-[15%] text-sm text-gray-900">
+                          <div className="truncate">{opportunity.compensation}</div>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm text-gray-900">
+                        <td className="px-6 py-4 w-[15%]">
+                          <div className="text-sm text-gray-900 truncate">
                             {opportunity.deadline}
                           </div>
                           {deadlineStatus && (
-                            <div className={`text-xs ${deadlineStatus.color} font-medium`}>
+                            <div className={`text-xs ${deadlineStatus.color} font-medium truncate`}>
                               {deadlineStatus.text}
                             </div>
                           )}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${getStatusColor(opportunity.status || 'active')}`}>
+                        <td className="px-6 py-4 w-[10%]">
+                          <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border ${getStatusColor(opportunity.status || 'active')}`}>
                             {opportunity.status === 'active' && <span className="w-2 h-2 bg-green-400 rounded-full mr-1"></span>}
                             {opportunity.status === 'suspended' && <span className="w-2 h-2 bg-yellow-400 rounded-full mr-1"></span>}
                             {opportunity.status === 'expired' && <span className="w-2 h-2 bg-red-400 rounded-full mr-1"></span>}
-                            {opportunity.status || 'active'}
+                            <span className="truncate">{opportunity.status || 'active'}</span>
                           </span>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="flex items-center gap-1 text-sm text-gray-900">
-                            <UserIcon className="w-4 h-4 text-gray-400" />
-                            {opportunity.applicants || 0}
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                          <div className="flex items-center gap-2">
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleSuspend(opportunity.id);
-                              }}
-                              className={`inline-flex items-center gap-1 px-3 py-1 rounded text-xs font-medium transition-colors ${
-                                opportunity.status === 'suspended'
-                                  ? 'bg-green-100 text-green-700 hover:bg-green-200'
-                                  : 'bg-yellow-100 text-yellow-700 hover:bg-yellow-200'
-                              }`}
-                            >
-                              {opportunity.status === 'suspended' ? (
-                                <>
-                                  <PlayIcon className="w-3 h-3" />
-                                  Activate
-                                </>
-                              ) : (
-                                <>
-                                  <PauseIcon className="w-3 h-3" />
-                                  Suspend
-                                </>
-                              )}
-                            </button>
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleAnalyse(opportunity.id);
-                              }}
-                              className="inline-flex items-center gap-1 px-3 py-1 rounded text-xs font-medium bg-blue-100 text-blue-700 hover:bg-blue-200 transition-colors"
-                            >
-                              <ChartBarIcon className="w-3 h-3" />
-                              Analyse
-                            </button>
-                          </div>
-                        </td>
+                                                 <td className="px-6 py-4 w-[15%] text-sm font-medium">
+                           <div className="flex items-center gap-1 flex-wrap">
+                             {opportunity.isScraped && opportunity.sourceUrl && (
+                               <a
+                                 href={opportunity.sourceUrl}
+                                 target="_blank"
+                                 rel="noopener noreferrer"
+                                 onClick={(e) => e.stopPropagation()}
+                                 className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium bg-emerald-100 text-emerald-700 hover:bg-emerald-200 transition-colors flex-shrink-0"
+                                 title="View original source"
+                               >
+                                 <LinkIcon className="w-3 h-3" />
+                                 <span className="hidden sm:inline">Source</span>
+                               </a>
+                             )}
+                             <button
+                               onClick={(e) => {
+                                 e.stopPropagation();
+                                 handleSuspend(opportunity.id);
+                               }}
+                               className={`inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium transition-colors flex-shrink-0 ${
+                                 opportunity.status === 'suspended'
+                                   ? 'bg-green-100 text-green-700 hover:bg-green-200'
+                                   : 'bg-yellow-100 text-yellow-700 hover:bg-yellow-200'
+                               }`}
+                             >
+                               {opportunity.status === 'suspended' ? (
+                                 <>
+                                   <PlayIcon className="w-3 h-3" />
+                                   <span className="hidden sm:inline">Activate</span>
+                                 </>
+                               ) : (
+                                 <>
+                                   <PauseIcon className="w-3 h-3" />
+                                   <span className="hidden sm:inline">Suspend</span>
+                                 </>
+                               )}
+                             </button>
+                             <button
+                               onClick={(e) => {
+                                 e.stopPropagation();
+                                 handleAnalyse(opportunity.id);
+                               }}
+                               className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium bg-blue-100 text-blue-700 hover:bg-blue-200 transition-colors flex-shrink-0"
+                             >
+                               <ChartBarIcon className="w-3 h-3" />
+                               <span className="hidden sm:inline">Analyse</span>
+                             </button>
+                           </div>
+                         </td>
                       </tr>
                     );
                   })}
                 </tbody>
               </table>
             </div>
-          </div>
 
-          {/* NGO Profile Accordion */}
-          {selected && ngoProfile && (
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-              <div 
-                className="px-6 py-4 border-b border-gray-200 cursor-pointer hover:bg-gray-50 transition-colors"
-                onClick={() => setIsNgoProfileExpanded(!isNgoProfileExpanded)}
-              >
+            {/* Pagination Controls */}
+            {totalOpportunities > 0 && (
+              <div className="px-6 py-4 border-t border-gray-200">
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <BuildingOfficeIcon className="w-6 h-6 text-[#556B2F]" />
-                    <h2 className="text-lg font-semibold text-gray-900">NGO Profile</h2>
-                    <span className="text-sm text-gray-500">({ngoProfile.name})</span>
+                  <div className="text-sm text-gray-600">
+                    Showing {Math.min(startIndex + 1, totalOpportunities)} to {Math.min(endIndex, totalOpportunities)} of {totalOpportunities} opportunities
                   </div>
-                  {isNgoProfileExpanded ? (
-                    <ChevronDownIcon className="w-5 h-5 text-gray-500" />
-                  ) : (
-                    <ChevronRightIcon className="w-5 h-5 text-gray-500" />
+                  
+                  {/* Only show pagination controls if there's more than one page */}
+                  {totalPages > 1 && (
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => handlePageChange(currentPage - 1)}
+                        disabled={currentPage === 1}
+                        className="px-3 py-1 text-sm border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        Previous
+                      </button>
+                      
+                      <div className="flex items-center gap-1">
+                        {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => {
+                          // Show first page, last page, current page, and pages around current
+                          if (
+                            page === 1 ||
+                            page === totalPages ||
+                            (page >= currentPage - 1 && page <= currentPage + 1)
+                          ) {
+                            return (
+                              <button
+                                key={page}
+                                onClick={() => handlePageChange(page)}
+                                className={`px-3 py-1 text-sm border rounded-md min-w-[32px] ${
+                                  currentPage === page
+                                    ? 'bg-[#556B2F] text-white border-[#556B2F]'
+                                    : 'border-gray-300 hover:bg-gray-50 text-gray-700'
+                                }`}
+                              >
+                                {page}
+                              </button>
+                            );
+                          } else if (
+                            page === currentPage - 2 ||
+                            page === currentPage + 2
+                          ) {
+                            return (
+                              <span key={page} className="px-2 text-gray-400">
+                                ...
+                              </span>
+                            );
+                          }
+                          return null;
+                        })}
+                      </div>
+
+                      <button
+                        onClick={() => handlePageChange(currentPage + 1)}
+                        disabled={currentPage === totalPages}
+                        className="px-3 py-1 text-sm border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        Next
+                      </button>
+                    </div>
                   )}
                 </div>
+                
+                {/* Debug info - remove this after testing */}
+                <div className="mt-2 text-xs text-gray-400">
+                  Debug: Total: {totalOpportunities}, Pages: {totalPages}, Current: {currentPage}, Per Page: {rowsPerPage}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Selected Opportunity Details */}
+          {selected && (
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+              <div className="px-6 py-4 border-b border-gray-200">
+                <h2 className="text-lg font-semibold text-gray-900">Opportunity Details</h2>
               </div>
               
-              {isNgoProfileExpanded && (
-                <div className="p-6 space-y-6">
-                  {/* Basic Information */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="space-y-4">
-                      <h3 className="text-lg font-semibold text-gray-900 border-b border-gray-200 pb-2">
-                        Organization Details
-                      </h3>
-                      <div className="space-y-3">
-                        <div className="flex items-center gap-3">
-                          <BuildingOfficeIcon className="w-5 h-5 text-gray-500" />
-                          <div>
-                            <p className="text-sm text-gray-500">Organization Name</p>
-                            <p className="font-medium text-gray-900">{ngoProfile.name}</p>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-3">
-                          <EnvelopeIcon className="w-5 h-5 text-gray-500" />
-                          <div>
-                            <p className="text-sm text-gray-500">Email</p>
-                            <p className="font-medium text-gray-900">{ngoProfile.email}</p>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-3">
-                          <CalendarDaysIcon className="w-5 h-5 text-gray-500" />
-                          <div>
-                            <p className="text-sm text-gray-500">Year Created</p>
-                            <p className="font-medium text-gray-900">{ngoProfile.year_created}</p>
-                          </div>
-                        </div>
+              <div className="p-6 space-y-6">
+                {/* NGO Profile Accordion */}
+                {ngoProfile && (
+                  <div className="border border-gray-200 rounded-lg">
+                    <button
+                      onClick={() => setIsNgoProfileExpanded(!isNgoProfileExpanded)}
+                      className="w-full px-4 py-3 flex items-center justify-between text-left hover:bg-gray-50 transition-colors"
+                    >
+                      <div className="flex items-center gap-3">
+                        <BuildingOfficeIcon className="w-5 h-5 text-[#556B2F]" />
+                        <span className="font-medium text-gray-900">NGO Profile</span>
                       </div>
-                    </div>
-                    
-                    <div className="space-y-4">
-                      <h3 className="text-lg font-semibold text-gray-900 border-b border-gray-200 pb-2">
-                        Legal Representative
-                      </h3>
-                      <div className="space-y-3">
-                        <div className="flex items-center gap-3">
-                          <UserIcon className="w-5 h-5 text-gray-500" />
-                          <div>
-                            <p className="text-sm text-gray-500">Name</p>
-                            <p className="font-medium text-gray-900">{ngoProfile.legal_rep_name}</p>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-3">
-                          <IdentificationIcon className="w-5 h-5 text-gray-500" />
-                          <div>
-                            <p className="text-sm text-gray-500">Function</p>
-                            <p className="font-medium text-gray-900">{ngoProfile.legal_rep_function}</p>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-3">
-                          <EnvelopeIcon className="w-5 h-5 text-gray-500" />
-                          <div>
-                            <p className="text-sm text-gray-500">Email</p>
-                            <p className="font-medium text-gray-900">{ngoProfile.legal_rep_email}</p>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-3">
-                          <PhoneIcon className="w-5 h-5 text-gray-500" />
-                          <div>
-                            <p className="text-sm text-gray-500">Phone</p>
-                            <p className="font-medium text-gray-900">{ngoProfile.legal_rep_phone}</p>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Profile Image */}
-                  {ngoProfile.profile_image_url && (
-                    <div className="space-y-4">
-                      <h3 className="text-lg font-semibold text-gray-900 border-b border-gray-200 pb-2">
-                        Organization Logo
-                      </h3>
-                      <div className="flex justify-center">
-                        <img 
-                          src={ngoProfile.profile_image_url} 
-                          alt={`${ngoProfile.name} logo`}
-                          className="max-w-xs h-auto rounded-lg shadow-sm border border-gray-200"
-                        />
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Documents */}
-                  {ngoProfile.documents && ngoProfile.documents.length > 0 && (
-                    <div className="space-y-4">
-                      <h3 className="text-lg font-semibold text-gray-900 border-b border-gray-200 pb-2">
-                        Documents
-                      </h3>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {ngoProfile.documents.map((doc) => (
-                          <div key={doc.id} className="bg-gray-50 rounded-lg p-4">
-                            <div className="flex items-center gap-3">
-                              <DocumentTextIcon className="w-5 h-5 text-blue-600" />
-                              <div className="flex-1">
-                                <h4 className="font-medium text-gray-900">{doc.name}</h4>
-                                {doc.description && (
-                                  <p className="text-sm text-gray-600 mt-1">{doc.description}</p>
-                                )}
-                                <a 
-                                  href={doc.url}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="text-blue-600 hover:text-blue-700 text-sm font-medium mt-2 inline-flex items-center gap-1"
-                                >
-                                  View Document
-                                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                                  </svg>
-                                </a>
+                      {isNgoProfileExpanded ? (
+                        <ChevronDownIcon className="w-5 h-5 text-gray-400" />
+                      ) : (
+                        <ChevronRightIcon className="w-5 h-5 text-gray-400" />
+                      )}
+                    </button>
+              
+                    {isNgoProfileExpanded && (
+                      <div className="px-4 pb-4 border-t border-gray-200">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+                          <div className="space-y-4">
+                            <div>
+                              <h4 className="text-sm font-medium text-gray-900 mb-2">Organization Information</h4>
+                              <div className="space-y-2 text-sm text-gray-600">
+                                <div className="flex items-center gap-2">
+                                  <BuildingOfficeIcon className="w-4 h-4" />
+                                  <span className="font-medium">{ngoProfile.name}</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <EnvelopeIcon className="w-4 h-4" />
+                                  <span>{ngoProfile.email}</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <CalendarDaysIcon className="w-4 h-4" />
+                                  <span>Founded in {ngoProfile.year_created}</span>
+                                </div>
                               </div>
                             </div>
                           </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Additional Information */}
-                  {ngoProfile.additional_info && ngoProfile.additional_info.length > 0 && (
-                    <div className="space-y-4">
-                      <h3 className="text-lg font-semibold text-gray-900 border-b border-gray-200 pb-2">
-                        Additional Information
-                      </h3>
-                      <div className="space-y-4">
-                        {ngoProfile.additional_info.map((info) => (
-                          <div key={info.id} className="bg-gray-50 rounded-lg p-4">
-                            <h4 className="font-medium text-gray-900 mb-2">{info.title}</h4>
-                            <p className="text-gray-700 leading-relaxed">{info.content}</p>
-                            <span className="inline-block mt-2 px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
-                              {info.type}
-                            </span>
+                          
+                          <div className="space-y-4">
+                            <div>
+                              <h4 className="text-sm font-medium text-gray-900 mb-2">Legal Representative</h4>
+                              <div className="space-y-2 text-sm text-gray-600">
+                                <div className="flex items-center gap-2">
+                                  <IdentificationIcon className="w-4 h-4" />
+                                  <span className="font-medium">{ngoProfile.legal_rep_name}</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <EnvelopeIcon className="w-4 h-4" />
+                                  <span>{ngoProfile.legal_rep_email}</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <PhoneIcon className="w-4 h-4" />
+                                  <span>{ngoProfile.legal_rep_phone}</span>
+                                </div>
+                                <div className="text-xs text-gray-500">
+                                  {ngoProfile.legal_rep_function}
+                                </div>
+                              </div>
+                            </div>
                           </div>
-                        ))}
+                        </div>
                       </div>
-                    </div>
-                  )}
-
-                  {/* Timestamps */}
-                  <div className="pt-4 border-t border-gray-200">
-                    <div className="flex justify-between text-sm text-gray-500">
-                      <span>Created: {new Date(ngoProfile.created_at).toLocaleDateString()}</span>
-                      <span>Updated: {new Date(ngoProfile.updated_at).toLocaleDateString()}</span>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Loading State for NGO Profile */}
-          {selected && loadingProfile && (
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-              <div className="flex items-center gap-3">
-                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#556B2F]"></div>
-                <span className="text-gray-600">Loading NGO Profile...</span>
-              </div>
-            </div>
-          )}
-
-          {/* Selected Opportunity Description */}
-          {selected && (
-            <div className="space-y-6">
-              {/* Opportunity Header */}
-              <div className="bg-white rounded-2xl shadow-sm p-8 border border-gray-100">
-                {/* Category and Status */}
-                <div className="flex items-center gap-3 mb-6">
-                  <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium border ${getCategoryColor(selected.category || 'job')}`}>
-                    {getCategoryIcon(selected.category || 'job')}
-                    <span className="capitalize">{selected.category || 'job'}</span>
-                  </div>
-                  
-                  <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium border ${getStatusColor(selected.status || 'active')}`}>
-                    {selected.status === 'active' && <span className="w-2 h-2 bg-green-400 rounded-full"></span>}
-                    {selected.status === 'suspended' && <span className="w-2 h-2 bg-yellow-400 rounded-full"></span>}
-                    {selected.status === 'expired' && <span className="w-2 h-2 bg-red-400 rounded-full"></span>}
-                    {selected.status || 'active'}
-                  </div>
-                  
-                  {getDeadlineStatus(selected.deadline) && (
-                    <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium border bg-gray-50 border-gray-200 ${getDeadlineStatus(selected.deadline)!.color}`}>
-                      <CalendarDaysIcon className="w-4 h-4" />
-                      {getDeadlineStatus(selected.deadline)!.text}
-                    </div>
-                  )}
-                </div>
-
-                {/* Title */}
-                <h1 className="text-3xl font-bold text-gray-900 mb-6">
-                  {selected.title}
-                </h1>
-
-                {/* Organization */}
-                <div className="flex items-center gap-4 mb-6">
-                  <div className="w-16 h-16 rounded-full bg-[#556B2F] flex items-center justify-center">
-                    <BuildingOfficeIcon className="w-8 h-8 text-white" />
-                  </div>
-                  <div>
-                    <h2 className="text-xl font-semibold text-gray-900">{selected.organization || 'Zaytoonz NGO'}</h2>
-                    <p className="text-gray-600">Posted {selected.posted || 'recently'}</p>
-                  </div>
-                </div>
-
-                {/* Quick Info Grid */}
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
-                  {selected.location && (
-                    <div className="flex items-center gap-3">
-                      <div className="p-2 bg-gray-100 rounded-lg">
-                        <MapPinIcon className="w-5 h-5 text-gray-600" />
-                      </div>
-                      <div>
-                        <p className="text-sm text-gray-500">Location</p>
-                        <p className="font-medium text-gray-900">{selected.location}</p>
-                      </div>
-                    </div>
-                  )}
-
-                  {selected.compensation && (
-                    <div className="flex items-center gap-3">
-                      <div className="p-2 bg-gray-100 rounded-lg">
-                        <BanknotesIcon className="w-5 h-5 text-gray-600" />
-                      </div>
-                      <div>
-                        <p className="text-sm text-gray-500">Compensation</p>
-                        <p className="font-medium text-gray-900">{selected.compensation}</p>
-                      </div>
-                    </div>
-                  )}
-
-                  {selected.type && (
-                    <div className="flex items-center gap-3">
-                      <div className="p-2 bg-gray-100 rounded-lg">
-                        <ClockIcon className="w-5 h-5 text-gray-600" />
-                      </div>
-                      <div>
-                        <p className="text-sm text-gray-500">Type</p>
-                        <p className="font-medium text-gray-900">{selected.type}</p>
-                      </div>
-                    </div>
-                  )}
-
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 bg-gray-100 rounded-lg">
-                      <UserIcon className="w-5 h-5 text-gray-600" />
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-500">Applicants</p>
-                      <p className="font-medium text-gray-900">{selected.applicants || 0}</p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Admin Actions */}
-                <div className="flex items-center gap-3 mt-6 pt-6 border-t border-gray-200">
-                  <button className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors font-medium flex items-center gap-2">
-                    <EyeIcon className="w-4 h-4" />
-                    View Applications
-                  </button>
-                  <button className="bg-[#556B2F] text-white px-4 py-2 rounded-lg hover:bg-[#6B8E23] transition-colors font-medium flex items-center gap-2">
-                    <PencilIcon className="w-4 h-4" />
-                    Edit
-                  </button>
-                  <button
-                    onClick={() => handleSuspend(selected.id)}
-                    className={`px-4 py-2 rounded-lg transition-colors font-medium flex items-center gap-2 ${
-                      selected.status === 'suspended'
-                        ? 'bg-green-600 text-white hover:bg-green-700'
-                        : 'bg-yellow-600 text-white hover:bg-yellow-700'
-                    }`}
-                  >
-                    {selected.status === 'suspended' ? (
-                      <>
-                        <PlayIcon className="w-4 h-4" />
-                        Activate
-                      </>
-                    ) : (
-                      <>
-                        <PauseIcon className="w-4 h-4" />
-                        Suspend
-                      </>
                     )}
-                  </button>
-                  <button className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors font-medium flex items-center gap-2">
-                    <TrashIcon className="w-4 h-4" />
-                    Delete
-                  </button>
+                  </div>
+                )}
+
+                {/* Opportunity Description */}
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">{selected.title}</h3>
+                  <FormattedDescription description={selected.description} />
                 </div>
               </div>
-
-              {/* Description */}
-              <div className="bg-white rounded-2xl shadow-sm p-8 border border-gray-100">
-                <div className="flex items-center gap-3 mb-6">
-                  <DocumentTextIcon className="w-6 h-6 text-gray-600" />
-                  <h2 className="text-2xl font-semibold text-gray-900">Description</h2>
-                </div>
-                <FormattedDescription description={selected.description || ''} />
-              </div>
-
-              {/* Metadata */}
-              {selected.metadata && Object.keys(selected.metadata).length > 0 && (
-                <div className="bg-white rounded-2xl shadow-sm p-8 border border-gray-100">
-                  <div className="flex items-center gap-3 mb-6">
-                    <InformationCircleIcon className="w-6 h-6 text-gray-600" />
-                    <h2 className="text-2xl font-semibold text-gray-900">Additional Information</h2>
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {Object.entries(selected.metadata).map(([key, value]) => (
-                      <div key={key} className="bg-gray-50 rounded-lg p-4">
-                        <h3 className="text-sm font-medium text-gray-600 mb-1 capitalize">
-                          {key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}
-                        </h3>
-                        <p className="text-gray-900 font-medium">
-                          {typeof value === 'object' ? JSON.stringify(value) : String(value)}
-                        </p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
             </div>
           )}
 
-          {/* Empty State */}
-          {!selected && (
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 h-64 flex items-center justify-center">
-              <div className="text-center">
-                <BriefcaseIcon className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                <h3 className="text-xl font-medium text-gray-500 mb-2">Select an Opportunity</h3>
-                <p className="text-gray-400">Click on any opportunity in the table above to view its details</p>
-              </div>
-            </div>
-          )}
+
         </div>
       </div>
+
+      {/* Data Extractor Modal */}
+      <DataExtractor
+        data={opportunities}
+        selectedItems={selectedOpportunities}
+        isOpen={isExtractModalOpen}
+        onClose={() => setIsExtractModalOpen(false)}
+        availableColumns={opportunityColumns}
+        defaultSelectedColumns={defaultOpportunityColumns}
+        filename="Job_Opportunities_Export"
+        title="Export Job Opportunities"
+        itemType="opportunities"
+      />
     </div>
   );
 } 

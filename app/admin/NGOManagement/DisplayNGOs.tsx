@@ -19,9 +19,11 @@ import {
   PlayIcon,
   PauseIcon,
   TrashIcon,
+  DocumentArrowDownIcon,
 } from "@heroicons/react/24/outline";
 import { type NGOProfile, type NGOProfileWithDetails } from "./supabaseService";
 import toast from "react-hot-toast";
+import * as XLSX from 'xlsx';
 
 interface DisplayNGOsProps {
   ngos: NGOProfile[];
@@ -57,6 +59,13 @@ export default function DisplayNGOs({
   const [localSearchTerm, setLocalSearchTerm] = useState(searchTerm);
   const [selectedNGO, setSelectedNGO] = useState<NGOProfileWithDetails | null>(null);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
+  
+  // Selection state
+  const [selectedNGOs, setSelectedNGOs] = useState<Set<string>>(new Set());
+  const [isExtractModalOpen, setIsExtractModalOpen] = useState(false);
+  const [selectedColumns, setSelectedColumns] = useState<Set<string>>(new Set([
+    'name', 'email', 'approval_status', 'legal_rep_name', 'year_created'
+  ]));
 
   const handleSearch = () => {
     if (localSearchTerm.trim()) {
@@ -110,6 +119,136 @@ export default function DisplayNGOs({
   const closeViewModal = () => {
     setIsViewModalOpen(false);
     setSelectedNGO(null);
+  };
+
+  // Selection handlers
+  const handleSelectNGO = (ngoId: string) => {
+    const newSelected = new Set(selectedNGOs);
+    if (newSelected.has(ngoId)) {
+      newSelected.delete(ngoId);
+    } else {
+      newSelected.add(ngoId);
+    }
+    setSelectedNGOs(newSelected);
+  };
+
+  const handleSelectAll = () => {
+    if (selectedNGOs.size === ngos.length) {
+      setSelectedNGOs(new Set());
+    } else {
+      setSelectedNGOs(new Set(ngos.map(ngo => ngo.id)));
+    }
+  };
+
+  const handleRowClick = (ngoId: string, event: React.MouseEvent) => {
+    // Only toggle selection if not clicking on action buttons
+    if ((event.target as HTMLElement).closest('button') || 
+        (event.target as HTMLElement).closest('a')) {
+      return;
+    }
+    handleSelectNGO(ngoId);
+  };
+
+  // Column definitions for export
+  const availableColumns = [
+    { key: 'name', label: 'NGO Name' },
+    { key: 'email', label: 'Email' },
+    { key: 'approval_status', label: 'Approval Status' },
+    { key: 'legal_rep_name', label: 'Legal Representative Name' },
+    { key: 'legal_rep_function', label: 'Legal Representative Function' },
+    { key: 'legal_rep_email', label: 'Legal Representative Email' },
+    { key: 'legal_rep_phone', label: 'Legal Representative Phone' },
+    { key: 'year_created', label: 'Year Created' },
+    { key: 'opportunities_count', label: 'Opportunities Count' },
+    { key: 'applications_count', label: 'Applications Count' },
+    { key: 'active_opportunities_count', label: 'Active Opportunities Count' },
+    { key: 'is_locked', label: 'Is Locked' },
+    { key: 'is_paused', label: 'Is Paused' },
+    { key: 'admin_notes', label: 'Admin Notes' },
+    { key: 'created_at', label: 'Created Date' },
+    { key: 'updated_at', label: 'Last Updated' },
+    { key: 'approved_at', label: 'Approved Date' },
+    { key: 'user_id', label: 'User ID' },
+  ];
+
+  const handleColumnToggle = (columnKey: string) => {
+    const newSelected = new Set(selectedColumns);
+    if (newSelected.has(columnKey)) {
+      newSelected.delete(columnKey);
+    } else {
+      newSelected.add(columnKey);
+    }
+    setSelectedColumns(newSelected);
+  };
+
+  // Excel export function
+  const handleExportToExcel = () => {
+    if (selectedNGOs.size === 0) {
+      toast.error('Please select at least one NGO to export');
+      return;
+    }
+
+    if (selectedColumns.size === 0) {
+      toast.error('Please select at least one column to export');
+      return;
+    }
+
+    const selectedNGOsData = ngos.filter(ngo => selectedNGOs.has(ngo.id));
+    
+    // Prepare data for export
+    const exportData = selectedNGOsData.map((ngo, index) => {
+      const row: any = {};
+      selectedColumns.forEach(columnKey => {
+        const column = availableColumns.find(col => col.key === columnKey);
+        if (column) {
+          let value = (ngo as any)[columnKey];
+          
+          // Handle special cases and provide default values
+          if (value === null || value === undefined || value === '') {
+            if (columnKey === 'is_locked' || columnKey === 'is_paused') {
+              value = 'No';
+            } else if (columnKey === 'opportunities_count' || columnKey === 'applications_count' || columnKey === 'active_opportunities_count') {
+              value = 0;
+            } else if (columnKey === 'admin_notes') {
+              value = '(No notes)';
+            } else if (columnKey === 'legal_rep_name' || columnKey === 'legal_rep_email' || columnKey === 'legal_rep_phone' || columnKey === 'legal_rep_function') {
+              value = '(Not provided)';
+            } else if (columnKey === 'created_at' || columnKey === 'updated_at' || columnKey === 'approved_at') {
+              value = value ? new Date(value).toLocaleDateString() : '(Not set)';
+            } else {
+              value = '(Empty)';
+            }
+          } else {
+            // Format specific fields
+            if (columnKey === 'is_locked' || columnKey === 'is_paused') {
+              value = value ? 'Yes' : 'No';
+            } else if (columnKey === 'created_at' || columnKey === 'updated_at' || columnKey === 'approved_at') {
+              value = new Date(value).toLocaleDateString();
+            }
+          }
+          
+          row[column.label] = value;
+        }
+      });
+      return row;
+    });
+
+    // Create workbook and worksheet
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.json_to_sheet(exportData);
+
+    // Add worksheet to workbook
+    XLSX.utils.book_append_sheet(wb, ws, 'NGOs');
+
+    // Generate filename with timestamp
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const filename = `NGOs_Export_${timestamp}.xlsx`;
+
+    // Save file
+    XLSX.writeFile(wb, filename);
+    
+    toast.success(`Exported ${selectedNGOsData.length} NGOs to ${filename}`);
+    setIsExtractModalOpen(false);
   };
 
   const getStatusIcon = (status: string) => {
@@ -246,6 +385,15 @@ export default function DisplayNGOs({
             >
               Search
             </button>
+            {selectedNGOs.size > 0 && (
+              <button
+                onClick={() => setIsExtractModalOpen(true)}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 flex items-center gap-2"
+              >
+                <DocumentArrowDownIcon className="h-5 w-5" />
+                Extract ({selectedNGOs.size})
+              </button>
+            )}
           </div>
         </div>
 
@@ -275,6 +423,17 @@ export default function DisplayNGOs({
                 <thead className="bg-gray-50">
                   <tr>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <div className="flex items-center">
+                        <input
+                          type="checkbox"
+                          checked={selectedNGOs.size === ngos.length && ngos.length > 0}
+                          onChange={handleSelectAll}
+                          className="h-4 w-4 text-[#556B2F] focus:ring-[#556B2F] border-gray-300 rounded"
+                        />
+                        <span className="ml-2">Select</span>
+                      </div>
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       NGO Name
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -296,7 +455,22 @@ export default function DisplayNGOs({
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
                   {ngos.map((ngo) => (
-                    <tr key={ngo.id} className="hover:bg-gray-50 transition-colors duration-200">
+                    <tr 
+                      key={ngo.id} 
+                      className={`hover:bg-gray-50 transition-colors duration-200 cursor-pointer ${
+                        selectedNGOs.has(ngo.id) ? 'bg-blue-50' : ''
+                      }`}
+                      onClick={(e) => handleRowClick(ngo.id, e)}
+                    >
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <input
+                          type="checkbox"
+                          checked={selectedNGOs.has(ngo.id)}
+                          onChange={() => handleSelectNGO(ngo.id)}
+                          className="h-4 w-4 text-[#556B2F] focus:ring-[#556B2F] border-gray-300 rounded"
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                      </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center">
                           <div className="flex-shrink-0">
@@ -502,6 +676,87 @@ export default function DisplayNGOs({
               >
                 Next
               </button>
+            </div>
+          </div>
+        )}
+
+        {/* Export Column Selection Modal */}
+        {isExtractModalOpen && (
+          <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+            <div className="relative top-20 mx-auto p-5 border w-11/12 max-w-2xl shadow-lg rounded-md bg-white">
+              <div className="flex justify-between items-center mb-6">
+                <h3 className="text-2xl font-bold text-gray-900">Export NGO Data</h3>
+                <button
+                  onClick={() => setIsExtractModalOpen(false)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <XMarkIcon className="h-6 w-6" />
+                </button>
+              </div>
+
+              <div className="space-y-6">
+                <div>
+                  <p className="text-sm text-gray-600 mb-4">
+                    Selected NGOs: <span className="font-semibold">{selectedNGOs.size}</span>
+                  </p>
+                  <p className="text-sm text-gray-600 mb-4">
+                    Select the columns you want to include in the Excel export:
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-96 overflow-y-auto">
+                  {availableColumns.map((column) => (
+                    <div key={column.key} className="flex items-center">
+                      <input
+                        type="checkbox"
+                        id={column.key}
+                        checked={selectedColumns.has(column.key)}
+                        onChange={() => handleColumnToggle(column.key)}
+                        className="h-4 w-4 text-[#556B2F] focus:ring-[#556B2F] border-gray-300 rounded"
+                      />
+                      <label
+                        htmlFor={column.key}
+                        className="ml-2 text-sm text-gray-700 cursor-pointer"
+                      >
+                        {column.label}
+                      </label>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="flex items-center justify-between pt-4 border-t">
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setSelectedColumns(new Set(availableColumns.map(col => col.key)))}
+                      className="px-3 py-1 text-sm border border-gray-300 rounded-md text-gray-700 bg-white hover:bg-gray-50"
+                    >
+                      Select All
+                    </button>
+                    <button
+                      onClick={() => setSelectedColumns(new Set())}
+                      className="px-3 py-1 text-sm border border-gray-300 rounded-md text-gray-700 bg-white hover:bg-gray-50"
+                    >
+                      Clear All
+                    </button>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setIsExtractModalOpen(false)}
+                      className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 bg-white hover:bg-gray-50"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={handleExportToExcel}
+                      disabled={selectedColumns.size === 0}
+                      className="px-4 py-2 bg-[#556B2F] text-white rounded-md hover:bg-[#4A5D28] focus:outline-none focus:ring-2 focus:ring-[#556B2F] focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                    >
+                      <DocumentArrowDownIcon className="h-5 w-5" />
+                      Export to Excel
+                    </button>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         )}
