@@ -11,6 +11,37 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const type = searchParams.get('type');
 
+    console.log('Fetching opportunities with type:', type);
+
+    // Get opportunities from both internal and scraped sources
+    const [internalResult, scrapedResult] = await Promise.all([
+      getInternalOpportunities(type),
+      getScrapedOpportunities(type)
+    ]);
+
+    let allOpportunities: any[] = [];
+
+    // Add internal opportunities
+    if (internalResult.opportunities) {
+      allOpportunities.push(...internalResult.opportunities);
+    }
+
+    // Add scraped opportunities
+    if (scrapedResult.opportunities) {
+      allOpportunities.push(...scrapedResult.opportunities);
+    }
+
+    console.log(`Found ${allOpportunities.length} total opportunities (${internalResult.opportunities?.length || 0} internal, ${scrapedResult.opportunities?.length || 0} scraped)`);
+
+    return NextResponse.json(allOpportunities);
+  } catch (error) {
+    console.error('Error in opportunities API:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
+}
+
+async function getInternalOpportunities(type: string | null) {
+  try {
     // Build the query to get opportunities with their descriptions and application counts
     let query = supabase
       .from('opportunities')
@@ -40,8 +71,8 @@ export async function GET(request: NextRequest) {
     const { data: opportunities, error } = await query;
 
     if (error) {
-      console.error('Error fetching opportunities:', error);
-      return NextResponse.json({ error: 'Failed to fetch opportunities' }, { status: 500 });
+      console.error('Error fetching internal opportunities:', error);
+      return { opportunities: [], error: error.message };
     }
 
     // Get application counts for each opportunity
@@ -86,10 +117,68 @@ export async function GET(request: NextRequest) {
       };
     }) || [];
 
-    return NextResponse.json(transformedOpportunities);
+    return { opportunities: transformedOpportunities, error: null };
   } catch (error) {
-    console.error('Error in opportunities API:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    console.error('Error fetching internal opportunities:', error);
+    return { opportunities: [], error: 'Failed to fetch internal opportunities' };
+  }
+}
+
+async function getScrapedOpportunities(type: string | null) {
+  try {
+    // Build the query to get scraped opportunities with their details
+    let query = supabase
+      .from('scraped_opportunities')
+      .select(`
+        *,
+        scraped_opportunity_details (
+          *
+        )
+      `);
+
+    // Filter by opportunity type if provided
+    if (type) {
+      query = query.eq('opportunity_type', type);
+    }
+
+    // Only get active scraped opportunities
+    query = query.eq('status', 'active');
+
+    const { data: scrapedOpportunities, error } = await query;
+
+    if (error) {
+      console.error('Error fetching scraped opportunities:', error);
+      return { opportunities: [], error: error.message };
+    }
+
+    // Transform scraped opportunities to match the frontend interface
+    const transformedScrapedOpportunities = scrapedOpportunities?.map((opp: any) => {
+      const details = opp.scraped_opportunity_details?.[0];
+      const deadline = details?.deadline ? new Date(details.deadline).toLocaleDateString() : undefined;
+      
+      return {
+        id: `scraped_${opp.id}`, // Prefix to distinguish from internal opportunities
+        title: opp.title,
+        description: details?.description || '',
+        category: opp.opportunity_type,
+        organization: details?.company || 'External Organization',
+        location: details?.location || 'Not specified',
+        compensation: details?.salary_range || 'Competitive',
+        type: getOpportunityTypeLabel(opp.opportunity_type),
+        deadline: deadline,
+        posted: formatTimeAgo(opp.created_at),
+        status: 'active',
+        applicants: 0, // Scraped opportunities don't have applications yet
+        metadata: details?.metadata || {},
+        isScraped: true,
+        sourceUrl: opp.source_url
+      };
+    }) || [];
+
+    return { opportunities: transformedScrapedOpportunities, error: null };
+  } catch (error) {
+    console.error('Error fetching scraped opportunities:', error);
+    return { opportunities: [], error: 'Failed to fetch scraped opportunities' };
   }
 }
 

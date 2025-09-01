@@ -162,12 +162,12 @@ export function Sidebar({ user }: SidebarProps) {
                   </Link>
                 </li>
                 <li>
-                  <Link href="#" className="flex items-center px-4 py-2 text-sm rounded-xl group transition-all duration-200 text-gray-700 hover:bg-[#556B2F]/10">
+                  <Link href="/admin/InternalOpportunities/Fundings" className="flex items-center px-4 py-2 text-sm rounded-xl group transition-all duration-200 text-gray-700 hover:bg-[#556B2F]/10">
                     <BanknotesIcon className="mr-3 h-4 w-4 flex-shrink-0 text-[#556B2F]" /> Fundings
                   </Link>
                 </li>
                 <li>
-                  <Link href="#" className="flex items-center px-4 py-2 text-sm rounded-xl group transition-all duration-200 text-gray-700 hover:bg-[#556B2F]/10">
+                  <Link href="/admin/InternalOpportunities/Trainings" className="flex items-center px-4 py-2 text-sm rounded-xl group transition-all duration-200 text-gray-700 hover:bg-[#556B2F]/10">
                     <AcademicCapIcon className="mr-3 h-4 w-4 flex-shrink-0 text-[#556B2F]" /> Training
                   </Link>
                 </li>
