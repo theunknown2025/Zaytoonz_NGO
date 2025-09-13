@@ -710,21 +710,9 @@ export default function OpportunityDetailClient({ opportunity }: OpportunityDeta
             </div>
           </div>
 
-          {/* Quick Info Grid */}
+          {/* Quick Info Grid - Only show non-criteria information */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
-            {opportunity.location && (
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-gray-100 rounded-lg">
-                  <MapPinIcon className="w-5 h-5 text-gray-600" />
-                </div>
-                <div>
-                  <p className="text-sm text-gray-500">Location</p>
-                  <p className="font-medium text-gray-900">{opportunity.location}</p>
-                </div>
-              </div>
-            )}
-
-            {opportunity.compensation && (
+            {opportunity.compensation && opportunity.compensation !== 'Not specified' && (
               <div className="flex items-center gap-3">
                 <div className="p-2 bg-gray-100 rounded-lg">
                   <BanknotesIcon className="w-5 h-5 text-gray-600" />
@@ -748,18 +736,126 @@ export default function OpportunityDetailClient({ opportunity }: OpportunityDeta
               </div>
             )}
 
-            {opportunity.deadline && (
+            {opportunity.hours && (
               <div className="flex items-center gap-3">
                 <div className="p-2 bg-gray-100 rounded-lg">
-                  <CalendarDaysIcon className="w-5 h-5 text-gray-600" />
+                  <ClockIcon className="w-5 h-5 text-gray-600" />
                 </div>
                 <div>
-                  <p className="text-sm text-gray-500">Deadline</p>
-                  <p className="font-medium text-gray-900">{opportunity.deadline}</p>
+                  <p className="text-sm text-gray-500">Hours</p>
+                  <p className="font-medium text-gray-900">{opportunity.hours}</p>
                 </div>
               </div>
             )}
+
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-gray-100 rounded-lg">
+                <CalendarDaysIcon className="w-5 h-5 text-gray-600" />
+              </div>
+              <div>
+                <p className="text-sm text-gray-500">Posted</p>
+                <p className="font-medium text-gray-900">{opportunity.posted}</p>
+              </div>
+            </div>
           </div>
+
+          {/* Criteria Display */}
+          {opportunity.criteria && Object.keys(opportunity.criteria).length > 0 && (
+            <div className="mt-8">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="p-2 bg-[#556B2F] bg-opacity-10 rounded-lg">
+                  <IdentificationIcon className="w-6 h-6 text-[#556B2F]" />
+                </div>
+                <div>
+                  <h2 className="text-xl font-semibold text-gray-900">Opportunity Criteria</h2>
+                  <p className="text-sm text-gray-600 mt-1">Key requirements and details for this opportunity</p>
+                </div>
+              </div>
+              
+              <div className="bg-gradient-to-br from-[#556B2F] from-opacity-5 to-[#6B8E23] to-opacity-5 rounded-2xl p-6 border border-[#556B2F] border-opacity-20">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {Object.entries(opportunity.criteria).map(([field, value]) => {
+                    if (!value || field === 'customFilters') return null;
+
+                    const getCriteriaLabel = (field: string) => {
+                      switch (field) {
+                        case 'contractType': return 'Contract Type';
+                        case 'level': return 'Level';
+                        case 'sector': return 'Sector';
+                        case 'location': return 'Location';
+                        case 'fundingType': return 'Funding Type';
+                        case 'eligibility': return 'Eligibility';
+                        case 'amountRange': return 'Amount Range';
+                        case 'purpose': return 'Purpose';
+                        case 'format': return 'Format';
+                        case 'duration': return 'Duration';
+                        case 'certification': return 'Certification';
+                        case 'cost': return 'Cost';
+                        case 'deadline': return 'Deadline';
+                        default: return field;
+                      }
+                    };
+
+                    const getCriteriaIcon = (field: string) => {
+                      switch (field) {
+                        case 'contractType': return <BriefcaseIcon className="w-5 h-5" />;
+                        case 'level': return <UserIcon className="w-5 h-5" />;
+                        case 'sector': return <BuildingOfficeIcon className="w-5 h-5" />;
+                        case 'location': return <MapPinIcon className="w-5 h-5" />;
+                        case 'fundingType': return <BanknotesIcon className="w-5 h-5" />;
+                        case 'eligibility': return <CheckCircleIcon className="w-5 h-5" />;
+                        case 'amountRange': return <BanknotesIcon className="w-5 h-5" />;
+                        case 'purpose': return <DocumentTextIcon className="w-5 h-5" />;
+                        case 'format': return <AcademicCapIcon className="w-5 h-5" />;
+                        case 'duration': return <ClockIcon className="w-5 h-5" />;
+                        case 'certification': return <CheckCircleIcon className="w-5 h-5" />;
+                        case 'cost': return <BanknotesIcon className="w-5 h-5" />;
+                        case 'deadline': return <CalendarDaysIcon className="w-5 h-5" />;
+                        default: return <InformationCircleIcon className="w-5 h-5" />;
+                      }
+                    };
+
+                    return (
+                      <div key={field} className="bg-white rounded-xl p-4 shadow-sm border border-[#556B2F] border-opacity-20 hover:shadow-md transition-all duration-200 hover:border-[#556B2F] hover:border-opacity-40">
+                        <div className="flex items-start gap-3">
+                          <div className="p-2 bg-[#556B2F] bg-opacity-10 rounded-lg flex-shrink-0">
+                            {getCriteriaIcon(field)}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-medium text-[#556B2F] uppercase tracking-wide mb-1">
+                              {getCriteriaLabel(field)}
+                            </p>
+                            <p className="text-sm font-semibold text-gray-900 truncate">
+                              {typeof value === 'string' ? value : JSON.stringify(value)}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+
+                  {/* Display custom filters */}
+                  {opportunity.criteria.customFilters && Object.entries(opportunity.criteria.customFilters).map(([filterName, filterValue]) => (
+                    <div key={`custom-${filterName}`} className="bg-white rounded-xl p-4 shadow-sm border border-[#6B8E23] border-opacity-20 hover:shadow-md transition-all duration-200 hover:border-[#6B8E23] hover:border-opacity-40">
+                      <div className="flex items-start gap-3">
+                        <div className="p-2 bg-[#6B8E23] bg-opacity-10 rounded-lg flex-shrink-0">
+                          <InformationCircleIcon className="w-5 h-5 text-[#6B8E23]" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-medium text-[#6B8E23] uppercase tracking-wide mb-1">
+                            {filterName}
+                          </p>
+                          <p className="text-sm font-semibold text-gray-900 truncate">
+                            {typeof filterValue === 'string' ? filterValue : JSON.stringify(filterValue)}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Main Content - Single Column Layout */}

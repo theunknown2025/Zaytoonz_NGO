@@ -28,6 +28,22 @@ export interface Opportunity {
     status?: string;
   };
   metadata?: any;
+  criteria?: {
+    contractType?: string;
+    level?: string;
+    sector?: string;
+    location?: string;
+    fundingType?: string;
+    eligibility?: string;
+    amountRange?: string;
+    purpose?: string;
+    format?: string;
+    duration?: string;
+    certification?: string;
+    cost?: string;
+    deadline?: string;
+    customFilters?: { [key: string]: string };
+  };
 }
 
 // Enhanced function to fetch all opportunities with complete information
@@ -42,7 +58,7 @@ export async function getOpportunities(): Promise<{ opportunities: Opportunity[]
         opportunity_type,
         created_at,
         updated_at,
-        opportunity_description!inner (
+        opportunity_description (
           id,
           title,
           description,
@@ -50,14 +66,15 @@ export async function getOpportunities(): Promise<{ opportunities: Opportunity[]
           hours,
           status,
           metadata,
+          criteria,
           created_at,
           updated_at,
           user_id,
-          users (
+          users!opportunity_description_user_id_fkey (
             id,
             full_name,
             email,
-            ngo_profile (
+            ngo_profile!ngo_profile_user_id_fkey (
               id,
               name,
               email,
@@ -95,14 +112,31 @@ export async function getOpportunities(): Promise<{ opportunities: Opportunity[]
 
     // Transform the data to match the frontend interface
     const opportunities: Opportunity[] = data.map((item: any) => {
-      const description = item.opportunity_description[0];
+      // Handle both array and single object cases for opportunity_description
+      const description = Array.isArray(item.opportunity_description) 
+        ? item.opportunity_description[0] 
+        : item.opportunity_description;
+      
       const metadata = description?.metadata || {};
-      const user = description?.users?.[0];
+      const criteria = description?.criteria || {};
+      
+      // Fix: users is not an array, it's a single object
+      const user = description?.users;
       const ngoProfile = user?.ngo_profile?.[0];
+      
       const emailData = item.opportunity_form_email?.[0];
       const formChoice = item.opportunity_form_choice?.[0];
       const formTemplates = formChoice?.forms_templates as any;
       const formData = Array.isArray(formTemplates) ? formTemplates[0] : formTemplates;
+      
+      // Get location from criteria if description.location is null
+      const location = description?.location || criteria?.location || null;
+      
+      // Get type from criteria or metadata
+      const type = criteria?.contractType || metadata?.employment_type || metadata?.funding_type || getTypeLabel(item.opportunity_type);
+      
+      // Get compensation from criteria or metadata
+      const compensation = criteria?.amountRange || metadata?.compensation || metadata?.salary || metadata?.funding_amount || null;
       
       return {
         id: item.id,
@@ -113,15 +147,15 @@ export async function getOpportunities(): Promise<{ opportunities: Opportunity[]
           email: ngoProfile.email,
           profileImage: ngoProfile.profile_image_url
         } : undefined,
-        location: description?.location || 'Location not specified',
-        compensation: metadata?.compensation || metadata?.salary || metadata?.funding_amount || 'Not specified',
-        type: metadata?.employment_type || metadata?.funding_type || getTypeLabel(item.opportunity_type),
+        location: location,
+        compensation: compensation,
+        type: type,
         category: item.opportunity_type as 'job' | 'funding' | 'training',
         posted: formatDate(item.created_at),
         description: description?.description || 'No description available',
-        deadline: metadata?.deadline || metadata?.application_deadline,
+        deadline: criteria?.deadline || metadata?.deadline || metadata?.application_deadline,
         status: description?.status,
-        hours: description?.hours || metadata?.duration,
+        hours: description?.hours || criteria?.duration || metadata?.duration,
         contactEmails: emailData?.contact_emails || [],
         referenceCodes: emailData?.reference_codes || [],
         applicationForm: formData ? {
@@ -131,7 +165,8 @@ export async function getOpportunities(): Promise<{ opportunities: Opportunity[]
           instructions: formData.description,
           status: formData.status
         } : undefined,
-        metadata: metadata
+        metadata: metadata,
+        criteria: criteria
       };
     });
 
@@ -161,14 +196,15 @@ export async function getOpportunitiesByCategory(category: 'job' | 'funding' | '
           hours,
           status,
           metadata,
+          criteria,
           created_at,
           updated_at,
           user_id,
-          users (
+          users!opportunity_description_user_id_fkey (
             id,
             full_name,
             email,
-            ngo_profile (
+            ngo_profile!ngo_profile_user_id_fkey (
               id,
               name,
               email,
@@ -243,7 +279,8 @@ export async function getOpportunitiesByCategory(category: 'job' | 'funding' | '
           instructions: formData.description,
           status: formData.status
         } : undefined,
-        metadata: metadata
+        metadata: metadata,
+        criteria: description?.criteria || {}
       };
     });
 
@@ -273,14 +310,15 @@ export async function searchOpportunities(searchQuery: string, category?: 'job' 
           hours,
           status,
           metadata,
+          criteria,
           created_at,
           updated_at,
           user_id,
-          users (
+          users!opportunity_description_user_id_fkey (
             id,
             full_name,
             email,
-            ngo_profile (
+            ngo_profile!ngo_profile_user_id_fkey (
               id,
               name,
               email,
@@ -369,7 +407,8 @@ export async function searchOpportunities(searchQuery: string, category?: 'job' 
           instructions: formData.description,
           status: formData.status
         } : undefined,
-        metadata: metadata
+        metadata: metadata,
+        criteria: description?.criteria || {}
       };
     });
 
@@ -434,14 +473,15 @@ export async function getOpportunityById(id: string): Promise<{ opportunity: Opp
           hours,
           status,
           metadata,
+          criteria,
           created_at,
           updated_at,
           user_id,
-          users (
+          users!opportunity_description_user_id_fkey (
             id,
             full_name,
             email,
-            ngo_profile (
+            ngo_profile!ngo_profile_user_id_fkey (
               id,
               name,
               email,
@@ -521,7 +561,8 @@ export async function getOpportunityById(id: string): Promise<{ opportunity: Opp
         instructions: formData.description,
         status: formData.status
       } : undefined,
-      metadata: metadata
+      metadata: metadata,
+      criteria: description?.criteria || {}
     };
 
     return { opportunity, error: null };
