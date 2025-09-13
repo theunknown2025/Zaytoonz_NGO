@@ -16,7 +16,8 @@ import {
   BellIcon,
   WrenchScrewdriverIcon,
   ChartBarIcon,
-  GlobeAltIcon
+  GlobeAltIcon,
+  ChatBubbleLeftRightIcon
 } from "@heroicons/react/24/outline";
 
 interface SidebarProps {
@@ -73,6 +74,11 @@ export const Sidebar: React.FC<SidebarProps> = ({ user }) => {
       name: "My Job Alerts", 
       href: "/seeker/opportunities/alerts", 
       icon: BellIcon 
+    },
+    { 
+      name: "Morchid AI", 
+      href: "/seeker/Morchid", 
+      icon: ChatBubbleLeftRightIcon 
     },
     { 
       name: "Resources", 
