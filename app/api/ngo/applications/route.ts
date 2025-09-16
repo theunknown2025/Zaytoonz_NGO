@@ -22,7 +22,17 @@ export async function GET(request: NextRequest) {
 
     console.log('Fetching applications for NGO user:', ngoUserId);
 
+    // Debug: Check what opportunities exist in the database
+    const { data: allOpportunities, error: debugError } = await supabase
+      .from('opportunity_description')
+      .select('opportunity_id, title, status, user_id')
+      .in('status', ['published', 'completed']);
+    
+    console.log('All opportunities in database:', allOpportunities);
+    console.log('Looking for user_id:', ngoUserId);
+
     // Use a simpler approach - first get opportunity descriptions, then join with opportunities
+    // For now, let's get all opportunities regardless of user_id to debug the issue
     const { data: opportunityDescriptions, error: descError } = await supabase
       .from('opportunity_description')
       .select(`
@@ -34,8 +44,7 @@ export async function GET(request: NextRequest) {
         created_at,
         user_id
       `)
-      .eq('user_id', ngoUserId)
-      .eq('status', 'published');
+      .in('status', ['published', 'completed']); // Include both published and completed opportunities
 
 
 
@@ -47,8 +56,22 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    if (!opportunityDescriptions || opportunityDescriptions.length === 0) {
+    console.log('Filtered opportunities for user:', opportunityDescriptions);
 
+    // Filter to only show opportunities from NGO users
+    const ngoUserIds = await supabase
+      .from('users')
+      .select('id')
+      .eq('user_type', 'NGO');
+    
+    const ngoIds = ngoUserIds.data?.map(user => user.id) || [];
+    const ngoOpportunities = opportunityDescriptions?.filter(opp => ngoIds.includes(opp.user_id)) || [];
+    
+    console.log('NGO user IDs:', ngoIds);
+    console.log('NGO opportunities:', ngoOpportunities);
+
+    if (!ngoOpportunities || ngoOpportunities.length === 0) {
+      console.log('No NGO opportunities found');
       return NextResponse.json(
         { opportunities: [] },
         { status: 200 }
@@ -56,8 +79,8 @@ export async function GET(request: NextRequest) {
     }
 
     // Get the corresponding opportunities data
-    const opportunityIds = opportunityDescriptions.map(desc => desc.opportunity_id);
-    const { data: ngoOpportunities, error: opportunitiesError } = await supabase
+    const opportunityIds = ngoOpportunities.map(desc => desc.opportunity_id);
+    const { data: opportunitiesData, error: opportunitiesError } = await supabase
       .from('opportunities')
       .select(`
         id,
@@ -78,7 +101,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    if (!ngoOpportunities || ngoOpportunities.length === 0) {
+    if (!opportunitiesData || opportunitiesData.length === 0) {
       return NextResponse.json(
         { opportunities: [] },
         { status: 200 }
@@ -144,7 +167,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Group applications by opportunity
-    const opportunitiesWithApplications = ngoOpportunities.map(opportunity => {
+    const opportunitiesWithApplications = opportunitiesData.map(opportunity => {
       const opportunityApplications = applications?.filter(
         app => app.opportunity_id === opportunity.id
       ) || [];
@@ -159,13 +182,14 @@ export async function GET(request: NextRequest) {
       });
 
       // Find the corresponding opportunity description
-      const description = opportunityDescriptions.find(desc => desc.opportunity_id === opportunity.id);
+      const description = ngoOpportunities.find(desc => desc.opportunity_id === opportunity.id);
 
       return {
         opportunity_id: opportunity.id,
         title: description?.title || opportunity.title,
         description: description?.description || '',
         location: description?.location || '',
+        status: description?.status || 'completed',
         created_at: description?.created_at || opportunity.created_at,
         opportunities: {
           id: opportunity.id,
@@ -225,6 +249,55 @@ export async function PUT(request: NextRequest) {
     }
 
     return NextResponse.json({ application }, { status: 200 });
+  } catch (error) {
+    console.error('API error:', error);
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    );
+  }
+}
+
+// PATCH - Publish opportunity
+export async function PATCH(request: NextRequest) {
+  try {
+    const body = await request.json();
+    const { opportunityId, action } = body;
+
+    if (!opportunityId || !action) {
+      return NextResponse.json(
+        { error: 'Missing required fields' },
+        { status: 400 }
+      );
+    }
+
+    if (action === 'publish') {
+      // Update the opportunity status to 'published'
+      const { data: opportunity, error } = await supabase
+        .from('opportunity_description')
+        .update({ 
+          status: 'published',
+          updated_at: new Date().toISOString()
+        })
+        .eq('opportunity_id', opportunityId)
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Database error:', error);
+        return NextResponse.json(
+          { error: 'Failed to publish opportunity' },
+          { status: 500 }
+        );
+      }
+
+      return NextResponse.json({ opportunity }, { status: 200 });
+    }
+
+    return NextResponse.json(
+      { error: 'Invalid action' },
+      { status: 400 }
+    );
   } catch (error) {
     console.error('API error:', error);
     return NextResponse.json(

@@ -1,9 +1,11 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { ChartPieIcon, EyeIcon, PlusIcon } from '@heroicons/react/24/outline';
+import { ChartPieIcon, EyeIcon, PlusIcon, CloudArrowUpIcon } from '@heroicons/react/24/outline';
 import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer } from 'recharts';
 import Link from 'next/link';
+import { saveOpportunityProgress, getLatestOpportunityProgress } from '../services/opportunityService';
+import { toast } from 'react-hot-toast';
 
 interface Evaluation {
   id: string;
@@ -37,10 +39,59 @@ export default function OpportunityEvaluation({
   const [loading, setLoading] = useState(true);
   const [selectedEvaluation, setSelectedEvaluation] = useState<Evaluation | null>(null);
   const [saving, setSaving] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [loadingProgress, setLoadingProgress] = useState(false);
+  const [forceRender, setForceRender] = useState(0);
+
+  // Debug evaluations state changes
+  useEffect(() => {
+    console.log('📊 Evaluations state changed:', evaluations.length, evaluations);
+    // Force a re-render if evaluations change
+    setForceRender(prev => prev + 1);
+  }, [evaluations]);
 
   useEffect(() => {
     loadEvaluations();
   }, []);
+
+  // Load saved progress after evaluations are loaded
+  useEffect(() => {
+    if (evaluations.length > 0 && !loading) {
+      loadSavedProgress();
+    }
+  }, [evaluations, loading]);
+
+  // Load saved progress when component mounts
+  const loadSavedProgress = async () => {
+    setLoadingProgress(true);
+    try {
+      // Pass the opportunityId to load progress for this specific opportunity
+      const { data, error } = await getLatestOpportunityProgress(opportunityId);
+      
+      if (error) {
+        console.error('Error loading saved progress:', error);
+        return;
+      }
+      
+      if (data && data.metadata) {
+        console.log('Loaded saved evaluation progress:', data);
+        
+        // Load evaluation selection if available
+        if (data.metadata.selectedEvaluationId) {
+          // Find the evaluation in the evaluations list
+          const evaluation = evaluations.find(evaluationItem => evaluationItem.id === data.metadata.selectedEvaluationId);
+          if (evaluation) {
+            setSelectedEvaluation(evaluation);
+            onEvaluationSelect(evaluation.id, evaluation.name);
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error loading saved progress:', error);
+    } finally {
+      setLoadingProgress(false);
+    }
+  };
 
   // Load selected evaluation details when selectedEvaluationId changes
   useEffect(() => {
@@ -56,29 +107,38 @@ export default function OpportunityEvaluation({
 
   const loadEvaluations = async () => {
     try {
-      // First try to load from API
-      try {
-        const response = await fetch('/api/evaluations');
-        if (response.ok) {
-          const evaluationList = await response.json();
-          setEvaluations(evaluationList);
-          // Save to localStorage for offline access
-          localStorage.setItem('evaluations', JSON.stringify(evaluationList));
-          console.log('✅ Loaded evaluation templates from API:', evaluationList.length);
-          return;
-        }
-      } catch (apiError) {
-        console.warn('⚠️ Failed to fetch evaluations from API, falling back to localStorage:', apiError);
+      console.log('🔄 Loading evaluations...');
+      // Check if we're in browser environment
+      if (typeof window === 'undefined') {
+        console.log('⚠️ Not in browser environment, skipping localStorage');
+        setLoading(false);
+        return;
       }
-
-      // Fallback to localStorage
+      
+      // Load from localStorage first (this is where EvaluationMaker saves them)
       const stored = localStorage.getItem('evaluations');
+      console.log('📦 localStorage evaluations:', stored);
       if (stored) {
         const evaluationList = JSON.parse(stored);
         setEvaluations(evaluationList);
-        console.log('✅ Loaded evaluation templates from localStorage:', evaluationList.length);
+        console.log('✅ Loaded evaluation templates from localStorage:', evaluationList.length, evaluationList);
       } else {
-        // Create fallback evaluation templates if none exist
+        // If no evaluations exist, try to load from API as fallback
+        try {
+          const response = await fetch('/api/evaluations');
+          if (response.ok) {
+            const evaluationList = await response.json();
+            setEvaluations(evaluationList);
+            // Save to localStorage for offline access
+            localStorage.setItem('evaluations', JSON.stringify(evaluationList));
+            console.log('✅ Loaded evaluation templates from API:', evaluationList.length);
+            return;
+          }
+        } catch (apiError) {
+          console.warn('⚠️ Failed to fetch evaluations from API:', apiError);
+        }
+
+        // If no evaluations exist anywhere, create fallback templates
         const fallbackEvaluations = [
           {
             id: '11111111-1111-1111-1111-111111111111',
@@ -126,7 +186,26 @@ export default function OpportunityEvaluation({
         ];
         setEvaluations(fallbackEvaluations);
         localStorage.setItem('evaluations', JSON.stringify(fallbackEvaluations));
-        console.log('✅ Created fallback evaluation templates');
+        console.log('✅ Created fallback evaluation templates:', fallbackEvaluations);
+        
+        // Also create a test evaluation to make sure localStorage is working
+        const testEvaluation = {
+          id: 'test-eval-' + Date.now(),
+          name: 'Test Evaluation',
+          description: 'This is a test evaluation to verify localStorage is working',
+          scale: 5,
+          criteria: [
+            { label: 'Test Criteria 1', value: 3 },
+            { label: 'Test Criteria 2', value: 4 }
+          ],
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        };
+        
+        const allEvaluations = [...fallbackEvaluations, testEvaluation];
+        setEvaluations(allEvaluations);
+        localStorage.setItem('evaluations', JSON.stringify(allEvaluations));
+        console.log('✅ Added test evaluation:', testEvaluation);
       }
     } catch (error) {
       console.error('Error loading evaluations:', error);
@@ -143,6 +222,51 @@ export default function OpportunityEvaluation({
   const handleSkipEvaluation = () => {
     setSelectedEvaluation(null);
     onEvaluationSelect('', 'No Evaluation Selected');
+  };
+
+  const handleSaveProgress = async () => {
+    console.log("Save Progress button clicked");
+    setIsSaving(true);
+    try {
+      // Load existing progress to preserve previous data
+      const { data: existingData } = await getLatestOpportunityProgress(opportunityId);
+      
+      // Prepare data for saving
+      const progressData = {
+        title: existingData?.title || '', // Preserve from previous steps
+        description: existingData?.description || '', // Preserve from previous steps
+        location: existingData?.location || '', // Preserve from previous steps
+        hours: existingData?.hours || '', // Preserve from previous steps
+        status: 'draft',
+        step: 'evaluation',
+        criteria: existingData?.criteria || {}, // Preserve criteria from previous steps
+        metadata: {
+          ...existingData?.metadata, // Preserve existing metadata
+          selectedEvaluationId: selectedEvaluationId || selectedEvaluation?.id || '',
+          selectedEvaluationName: selectedEvaluation?.name || 'No Evaluation Selected'
+        },
+        opportunity_id: opportunityId
+      };
+
+      console.log("Saving evaluation progress:", progressData);
+
+      // Save to database
+      const result = await saveOpportunityProgress(progressData);
+      
+      console.log("Save result:", result);
+      
+      if (result.error) {
+        console.error("Save error:", result.error);
+        toast.error('Failed to save progress: ' + result.error.message);
+      } else {
+        toast.success('Progress saved successfully!');
+      }
+    } catch (error) {
+      console.error('Error saving progress:', error);
+      toast.error('An error occurred while saving progress');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const saveEvaluationChoice = async () => {
@@ -180,16 +304,41 @@ export default function OpportunityEvaluation({
     });
   };
 
-  if (loading) {
+  if (loading || loadingProgress) {
     return (
       <div className="flex items-center justify-center py-12">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#556B2F]"></div>
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#556B2F] mx-auto mb-4"></div>
+          <p className="text-gray-600">
+            {loading ? 'Loading evaluation templates...' : 'Loading your saved progress...'}
+          </p>
+        </div>
       </div>
     );
   }
 
+  console.log('🎨 Rendering with evaluations:', evaluations.length, evaluations, 'Render count:', forceRender);
+
   return (
     <div className="space-y-6">
+      {/* Debug info */}
+      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+        <h3 className="text-sm font-medium text-yellow-800 mb-2">Debug Info</h3>
+        <p className="text-xs text-yellow-700">
+          Evaluations loaded: {evaluations.length} | Loading: {loading.toString()} | LoadingProgress: {loadingProgress.toString()} | Render: {forceRender}
+        </p>
+        {evaluations.length > 0 && (
+          <div className="mt-2">
+            <p className="text-xs text-yellow-700">Evaluation names:</p>
+            <ul className="text-xs text-yellow-600 ml-4">
+              {evaluations.map(evaluation => (
+                <li key={evaluation.id}>- {evaluation.name}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </div>
+      
       <div>
         <h2 className="text-xl font-semibold text-gray-900">Evaluation Template</h2>
         <p className="mt-1 text-sm text-gray-500">
@@ -409,19 +558,35 @@ export default function OpportunityEvaluation({
         <div className="flex justify-between">
           <button
             type="button"
-            onClick={onPrevious}
-            className="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#556B2F]"
+            onClick={(e) => {
+              e.preventDefault();
+              handleSaveProgress();
+            }}
+            disabled={isSaving}
+            className={`inline-flex items-center px-4 py-2 border border-[#556B2F] text-sm font-medium rounded-md shadow-sm text-[#556B2F] bg-white hover:bg-[#556B2F]/5 transition-all duration-200 ${
+              isSaving ? 'opacity-75 cursor-not-allowed' : ''
+            }`}
           >
-            Previous
+            <CloudArrowUpIcon className="w-4 h-4 mr-2" />
+            {isSaving ? 'Saving...' : 'Save Progress'}
           </button>
-          <button
-            type="button"
-            onClick={saveEvaluationChoice}
-            disabled={saving}
-            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-gradient-to-r from-[#556B2F] to-[#6B8E23] hover:shadow-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#556B2F] disabled:opacity-50"
-          >
-            {saving ? 'Saving...' : 'Continue to Review'}
-          </button>
+          <div className="flex space-x-3">
+            <button
+              type="button"
+              onClick={onPrevious}
+              className="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#556B2F]"
+            >
+              Previous
+            </button>
+            <button
+              type="button"
+              onClick={saveEvaluationChoice}
+              disabled={saving}
+              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-gradient-to-r from-[#556B2F] to-[#6B8E23] hover:shadow-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#556B2F] disabled:opacity-50"
+            >
+              {saving ? 'Saving...' : 'Continue to Review'}
+            </button>
+          </div>
         </div>
       </div>
     </div>

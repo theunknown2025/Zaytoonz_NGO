@@ -215,7 +215,7 @@ export default function NGODashboard() {
 
         setUserStats({
           totalUsers: users.length,
-          ngoUsers: users.filter(user => user.user_type === 'NGO').length,
+          ngoUsers: users.filter(user => user.user_type === 'NGO' || user.user_type === 'admin_ngo' || user.user_type === 'assistant_ngo').length,
           seekerUsers: users.filter(user => user.user_type === 'Personne').length,
           ngoProfiles: ngoProfiles.length,
           usersWithCvs: uniqueCvUsers.length

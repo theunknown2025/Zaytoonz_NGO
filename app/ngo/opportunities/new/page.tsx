@@ -41,6 +41,22 @@ interface OpportunityFormData {
   referenceCodes: string[];
   selectedEvaluationId: string;
   selectedEvaluationName: string;
+  criteria?: {
+    contractType?: string;
+    level?: string;
+    sector?: string;
+    location?: string;
+    fundingType?: string;
+    eligibility?: string;
+    amountRange?: string;
+    purpose?: string;
+    format?: string;
+    duration?: string;
+    certification?: string;
+    cost?: string;
+    deadline?: string;
+    customFilters?: { [key: string]: string };
+  };
 }
 
 export default function NewOpportunityPage() {
@@ -79,7 +95,8 @@ export default function NewOpportunityPage() {
     contactEmails: [],
     referenceCodes: [],
     selectedEvaluationId: '',
-    selectedEvaluationName: ''
+    selectedEvaluationName: '',
+    criteria: {}
   });
   
   // State to store the title of the selected form
@@ -434,6 +451,13 @@ export default function NewOpportunityPage() {
     }));
   };
 
+  const handleCriteriaChange = (criteria: any) => {
+    setFormData(prev => ({
+      ...prev,
+      criteria: criteria
+    }));
+  };
+
   const createInitialOpportunity = async () => {
     try {
       setSavingOpportunity(true);
@@ -502,6 +526,7 @@ export default function NewOpportunityPage() {
         hours: formData.hours,
         status: 'completed', // Set status to completed when submitting
         step: 'submission',
+        criteria: formData.criteria || {}, // Include criteria data
         metadata: {
           opportunityType: opportunityType,
           submittedAt: new Date().toISOString()
@@ -720,10 +745,14 @@ export default function NewOpportunityPage() {
       case 2:
         return (
           <OpportunityDescription 
-            formData={formData} 
+            formData={{
+              ...formData,
+              opportunityType: opportunityType
+            }} 
             onChange={handleChange} 
             onNext={handleNext}
             opportunityId={opportunityId}
+            onCriteriaChange={handleCriteriaChange}
           />
         );
       case 3:
@@ -871,7 +900,8 @@ export default function NewOpportunityPage() {
       contactEmails: [],
       referenceCodes: [],
       selectedEvaluationId: '',
-      selectedEvaluationName: ''
+      selectedEvaluationName: '',
+      criteria: {}
     });
     
     // Reset other states

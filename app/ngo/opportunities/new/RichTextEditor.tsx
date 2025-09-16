@@ -15,7 +15,7 @@ export default function RichTextEditor({ value, onChange }: RichTextEditorProps)
     <div className="rounded-lg overflow-hidden">
       <Editor
         apiKey="8zqtjlumo8xzy2pnjvfrjfi9w3bxr22h3kvgt2cqgxg8ianm"
-        initialValue={value}
+        value={value}
         init={{
           height: 400,
           menubar: true,
@@ -28,7 +28,15 @@ export default function RichTextEditor({ value, onChange }: RichTextEditorProps)
             'bold italic backcolor | alignleft aligncenter ' +
             'alignright alignjustify | bullist numlist outdent indent | ' +
             'removeformat | help',
-          content_style: 'body { font-family:Helvetica,Arial,sans-serif; font-size:14px }',
+          content_style: 'body { font-family:Helvetica,Arial,sans-serif; font-size:14px; direction: ltr; text-align: left; }',
+          directionality: 'ltr',
+          language: 'en',
+          setup: (editor) => {
+            editor.on('init', () => {
+              editor.getBody().style.direction = 'ltr';
+              editor.getBody().style.textAlign = 'left';
+            });
+          }
         }}
         onEditorChange={onChange}
       />

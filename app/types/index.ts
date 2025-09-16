@@ -3,7 +3,7 @@ export interface User {
   name: string;
   email: string;
   image?: string;
-  role: 'USER' | 'NGO' | 'ADMIN';
+  role: 'USER' | 'NGO' | 'ADMIN' | 'admin_ngo' | 'assistant_ngo';
   phone?: string;
   createdAt: Date;
   updatedAt: Date;

@@ -273,6 +273,22 @@ interface OpportunityProgressData {
   step?: string;
   opportunity_id?: string;
   metadata?: any; // Store template mode, selected template, and field values
+  criteria?: {
+    contractType?: string;
+    level?: string;
+    sector?: string;
+    location?: string;
+    fundingType?: string;
+    eligibility?: string;
+    amountRange?: string;
+    purpose?: string;
+    format?: string;
+    duration?: string;
+    certification?: string;
+    cost?: string;
+    deadline?: string;
+    customFilters?: { [key: string]: string };
+  };
 }
 
 /**
@@ -339,6 +355,46 @@ export async function saveOpportunityProgress(data: OpportunityProgressData) {
     
     console.log('Using user ID for database operations:', userId);
     
+    // If we have an opportunity_id, ensure the opportunity exists in the database
+    if (data.opportunity_id) {
+      console.log('Checking if opportunity exists with ID:', data.opportunity_id);
+      const { data: opportunity, error: opportunityError } = await supabase
+        .from('opportunities')
+        .select('id')
+        .eq('id', data.opportunity_id)
+        .maybeSingle();
+      
+      if (opportunityError && opportunityError.code !== 'PGRST116') {
+        console.error('Error checking opportunity existence:', opportunityError);
+        return { error: opportunityError };
+      }
+      
+      if (!opportunity) {
+        console.log('Opportunity does not exist, creating it first...');
+        // Create the opportunity first
+        const { data: newOpportunity, error: createError } = await supabase
+          .from('opportunities')
+          .insert({
+            id: data.opportunity_id,
+            title: data.title || 'Draft Opportunity',
+            opportunity_type: 'job', // Default type, will be updated later
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          })
+          .select()
+          .single();
+        
+        if (createError) {
+          console.error('Error creating opportunity:', createError);
+          return { error: createError };
+        }
+        
+        console.log('Created opportunity:', newOpportunity);
+      } else {
+        console.log('Opportunity exists:', opportunity);
+      }
+    }
+    
     // Check if we already have a record for this specific opportunity
     let existingData = null;
     let fetchError = null;
@@ -387,6 +443,7 @@ export async function saveOpportunityProgress(data: OpportunityProgressData) {
           status: data.status || 'draft',
           step: data.step || 'description',
           metadata: data.metadata || null,
+          criteria: data.criteria || {},
           opportunity_id: data.opportunity_id || null,
           updated_at: now.toISOString()
         })
@@ -413,6 +470,7 @@ export async function saveOpportunityProgress(data: OpportunityProgressData) {
           status: data.status || 'draft',
           step: data.step || 'description',
           metadata: data.metadata || null,
+          criteria: data.criteria || {},
           opportunity_id: data.opportunity_id || null,
           created_at: now.toISOString(),
           updated_at: now.toISOString()

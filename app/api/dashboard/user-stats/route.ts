@@ -39,7 +39,7 @@ export async function GET() {
 
     const stats = {
       total_users: users.length,
-      ngo_users: users.filter(user => user.user_type === 'NGO').length,
+      ngo_users: users.filter(user => user.user_type === 'NGO' || user.user_type === 'admin_ngo' || user.user_type === 'assistant_ngo').length,
       seeker_users: users.filter(user => user.user_type === 'Personne').length,
       ngo_profiles: ngoProfiles.length,
       users_with_cvs: uniqueCvUsers.length

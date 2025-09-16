@@ -40,7 +40,7 @@ export default function SignIn() {
       // Redirect based on user type after successful login
       setTimeout(() => {
         if (user) {
-          if (user.userType === 'NGO') {
+          if (user.userType === 'NGO' || user.userType === 'admin_ngo' || user.userType === 'assistant_ngo') {
             router.push('/ngo/dashboard');
           } else if (user.userType === 'Personne') {
             // Redirect to seeker dashboard for users with "Personne" role

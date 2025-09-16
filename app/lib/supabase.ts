@@ -24,7 +24,7 @@ export async function isEmailRegistered(email: string): Promise<boolean> {
 }
 
 // Function to signup a new user
-export async function signUpUser(fullName: string, email: string, password: string, userType: 'Personne' | 'NGO' | 'Admin') {
+export async function signUpUser(fullName: string, email: string, password: string, userType: 'Personne' | 'NGO' | 'Admin' | 'admin_ngo' | 'assistant_ngo') {
   try {
     // Check if email already exists
     const { data: existingUser, error: checkError } = await supabase
@@ -60,7 +60,7 @@ export async function signUpUser(fullName: string, email: string, password: stri
     }
 
     // Create the type-specific details record
-    if (userType === 'NGO') {
+    if (userType === 'NGO' || userType === 'admin_ngo' || userType === 'assistant_ngo') {
       const { error: ngoError } = await supabase
         .from('ngo_details')
         .insert({ user_id: userData.id });
@@ -85,7 +85,7 @@ export async function signUpUser(fullName: string, email: string, password: stri
         id: userData.id,
         fullName: userData.full_name,
         email: userData.email,
-        userType: userData.user_type as 'Personne' | 'NGO' | 'Admin'
+        userType: userData.user_type as 'Personne' | 'NGO' | 'Admin' | 'admin_ngo' | 'assistant_ngo'
       }, 
       error: null 
     };
@@ -132,7 +132,7 @@ export async function signInUser(email: string, password: string) {
         id: userData.id,
         fullName: userData.full_name,
         email: userData.email,
-        userType: userData.user_type as 'Personne' | 'NGO' | 'Admin'
+        userType: userData.user_type as 'Personne' | 'NGO' | 'Admin' | 'admin_ngo' | 'assistant_ngo'
       }, 
       error: null 
     };
@@ -195,11 +195,11 @@ export async function handleAuthCallback() {
 
       if (!existingUser) {
         // Get the user type from sessionStorage (for Google signup)
-        let userType: 'Personne' | 'NGO' | 'Admin' = 'Personne'; // Default
+        let userType: 'Personne' | 'NGO' | 'Admin' | 'admin_ngo' | 'assistant_ngo' = 'Personne'; // Default
         if (typeof window !== 'undefined') {
           const storedUserType = sessionStorage.getItem('googleSignupUserType');
-          if (storedUserType && (storedUserType === 'Personne' || storedUserType === 'NGO' || storedUserType === 'Admin')) {
-            userType = storedUserType as 'Personne' | 'NGO' | 'Admin';
+          if (storedUserType && (storedUserType === 'Personne' || storedUserType === 'NGO' || storedUserType === 'Admin' || storedUserType === 'admin_ngo' || storedUserType === 'assistant_ngo')) {
+            userType = storedUserType as 'Personne' | 'NGO' | 'Admin' | 'admin_ngo' | 'assistant_ngo';
           }
           // Clear the stored user type
           sessionStorage.removeItem('googleSignupUserType');
@@ -224,7 +224,7 @@ export async function handleAuthCallback() {
         }
 
         // Create type-specific details based on user type
-        if (userType === 'NGO') {
+        if (userType === 'NGO' || userType === 'admin_ngo' || userType === 'assistant_ngo') {
           const { error: detailsError } = await supabase
             .from('ngo_details')
             .insert({ user_id: newUser.id });
@@ -253,7 +253,7 @@ export async function handleAuthCallback() {
             id: newUser.id,
             fullName: newUser.full_name,
             email: newUser.email,
-            userType: newUser.user_type as 'Personne' | 'NGO' | 'Admin'
+            userType: newUser.user_type as 'Personne' | 'NGO' | 'Admin' | 'admin_ngo'
           }, 
           error: null 
         };
@@ -268,7 +268,7 @@ export async function handleAuthCallback() {
             id: existingUser.id,
             fullName: existingUser.full_name,
             email: existingUser.email,
-            userType: existingUser.user_type as 'Personne' | 'NGO' | 'Admin'
+            userType: existingUser.user_type as 'Personne' | 'NGO' | 'Admin' | 'admin_ngo'
           }, 
           error: null 
         };
@@ -283,7 +283,7 @@ export async function handleAuthCallback() {
 }
 
 // Function to get a user's profile details
-export async function getUserProfile(userId: string, userType: 'Personne' | 'NGO') {
+export async function getUserProfile(userId: string, userType: 'Personne' | 'NGO' | 'admin_ngo' | 'assistant_ngo') {
   try {
     // Get the basic user data
     const { data: userData, error: userError } = await supabase
@@ -297,7 +297,7 @@ export async function getUserProfile(userId: string, userType: 'Personne' | 'NGO
     }
 
     // Get the type-specific details
-    const detailsTable = userType === 'NGO' ? 'ngo_details' : 'personne_details';
+    const detailsTable = (userType === 'NGO' || userType === 'admin_ngo' || userType === 'assistant_ngo') ? 'ngo_details' : 'personne_details';
     const { data: detailsData, error: detailsError } = await supabase
       .from(detailsTable)
       .select('*')

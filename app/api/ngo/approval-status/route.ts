@@ -21,35 +21,27 @@ export async function GET(request: NextRequest) {
       .eq('user_id', userId)
       .single();
 
-    // If ngo_profile doesn't exist, try ngo_details table
-    if (profileError && profileError.code === 'PGRST116') {
-      console.log('No NGO profile found, checking ngo_details table');
-      
-      const { data: ngoDetails, error: detailsError } = await supabase
-        .from('ngo_details')
-        .select('approval_status, admin_notes, approved_at, approved_by')
-        .eq('user_id', userId)
-        .single();
-
-      if (!detailsError && ngoDetails) {
-        ngoProfile = ngoDetails;
-        profileError = null;
-        console.log('Found approval status in ngo_details table');
-      }
-    }
+    // Note: Only ngo_profile table exists, no ngo_details table
 
     // If still no profile found, check if user exists and create a default profile
+    let userData: any = null;
     if (profileError && profileError.code === 'PGRST116') {
       console.log('No NGO profile found in either table, checking if user exists');
       
-      const { data: userData, error: userError } = await supabase
+      const { data: userDataResult, error: userError } = await supabase
         .from('users')
         .select('id, email, user_type')
         .eq('id', userId)
         .single();
+        
+      userData = userDataResult;
 
-      if (!userError && userData && userData.user_type === 'NGO') {
+      if (!userError && userData && (userData.user_type === 'NGO' || userData.user_type === 'admin_ngo' || userData.user_type === 'assistant_ngo')) {
         console.log('User exists and is NGO type, creating default profile');
+        
+        // Auto-approve assistant_ngo users, others need approval
+        const approvalStatus = userData.user_type === 'assistant_ngo' ? 'approved' : 'pending';
+        const approvedAt = userData.user_type === 'assistant_ngo' ? new Date().toISOString() : null;
         
         // Try to create a profile in ngo_profile table
         const { data: newProfile, error: createError } = await supabase
@@ -63,7 +55,8 @@ export async function GET(request: NextRequest) {
             legal_rep_email: userData.email,
             legal_rep_phone: 'Not specified',
             legal_rep_function: 'Not specified',
-            approval_status: 'pending'
+            approval_status: approvalStatus,
+            approved_at: approvedAt
           })
           .select('approval_status, admin_notes, approved_at, approved_by')
           .single();
@@ -71,7 +64,7 @@ export async function GET(request: NextRequest) {
         if (!createError && newProfile) {
           ngoProfile = newProfile;
           profileError = null;
-          console.log('Created default NGO profile with pending status');
+          console.log(`Created default NGO profile with ${approvalStatus} status`);
         } else {
           console.error('Error creating NGO profile:', createError);
         }
@@ -83,8 +76,14 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to fetch approval status' }, { status: 500 });
     }
 
-    // Return the approval status (default to pending if no profile found)
-    const approvalStatus = ngoProfile?.approval_status || 'pending';
+    // Return the approval status (auto-approve assistant_ngo users)
+    let approvalStatus = ngoProfile?.approval_status || 'pending';
+    
+    // Auto-approve assistant_ngo users even if no profile exists
+    if (!ngoProfile && userData?.user_type === 'assistant_ngo') {
+      approvalStatus = 'approved';
+    }
+    
     console.log('Final approval status:', approvalStatus);
 
     return NextResponse.json({

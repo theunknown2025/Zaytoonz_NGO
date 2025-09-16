@@ -11,7 +11,8 @@ import {
   BriefcaseIcon,
   CurrencyDollarIcon,
   AcademicCapIcon,
-  DocumentTextIcon
+  DocumentTextIcon,
+  TagIcon
 } from '@heroicons/react/24/outline';
 import { type OpportunityType } from '../../services/opportunityService';
 
@@ -25,6 +26,22 @@ interface OpportunityCardProps {
     opportunity_type: OpportunityType;
     created_at: string;
     updated_at: string;
+    criteria?: {
+      contractType?: string;
+      level?: string;
+      sector?: string;
+      location?: string;
+      fundingType?: string;
+      eligibility?: string;
+      amountRange?: string;
+      purpose?: string;
+      format?: string;
+      duration?: string;
+      certification?: string;
+      cost?: string;
+      deadline?: string;
+      customFilters?: { [key: string]: string };
+    };
   };
   onDelete: (id: string) => void;
 }
@@ -140,6 +157,37 @@ export default function OpportunityCard({ opportunity, onDelete }: OpportunityCa
             <span>Created {formatDate(opportunity.created_at)}</span>
           </div>
         </div>
+
+        {/* Criteria Summary */}
+        {opportunity.criteria && Object.keys(opportunity.criteria).filter(key => 
+          key !== 'customFilters' && opportunity.criteria?.[key as keyof typeof opportunity.criteria]
+        ).length > 0 && (
+          <div className="mt-4 pt-3 border-t border-gray-100">
+            <div className="flex items-center mb-2">
+              <TagIcon className="h-4 w-4 mr-1 text-purple-500" />
+              <span className="text-xs font-medium text-gray-600">Key Criteria:</span>
+            </div>
+            <div className="flex flex-wrap gap-1">
+              {Object.entries(opportunity.criteria)
+                .filter(([key, value]) => key !== 'customFilters' && value)
+                .slice(0, 3) // Show only first 3 criteria in card
+                .map(([field, value]) => (
+                  <span key={field} className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-50 text-purple-700 border border-purple-200">
+                    {typeof value === 'string' ? value : JSON.stringify(value)}
+                  </span>
+                ))}
+              {Object.keys(opportunity.criteria).filter(key => 
+                key !== 'customFilters' && opportunity.criteria?.[key as keyof typeof opportunity.criteria]
+              ).length > 3 && (
+                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-50 text-gray-600 border border-gray-200">
+                  +{Object.keys(opportunity.criteria).filter(key => 
+                    key !== 'customFilters' && opportunity.criteria?.[key as keyof typeof opportunity.criteria]
+                  ).length - 3}
+                </span>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Card Footer */}

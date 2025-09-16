@@ -54,6 +54,22 @@ interface OpportunityDetail {
       templateFields?: Record<string, string>;
       categories?: string[];
     };
+    criteria?: {
+      contractType?: string;
+      level?: string;
+      sector?: string;
+      location?: string;
+      fundingType?: string;
+      eligibility?: string;
+      amountRange?: string;
+      purpose?: string;
+      format?: string;
+      duration?: string;
+      certification?: string;
+      cost?: string;
+      deadline?: string;
+      customFilters?: { [key: string]: string };
+    };
   };
   form_choice?: {
     applicationMethod: 'form' | 'email';
@@ -308,6 +324,15 @@ export default function ListOpportunities() {
           process,
           form_choice: formInfo || undefined
         };
+        
+        // Debug: Log the description data to see what's being loaded
+        console.log('🔍 Opportunity details loaded for', opportunityId, ':', {
+          description,
+          hasCriteria: !!description?.criteria,
+          criteriaKeys: description?.criteria ? Object.keys(description.criteria) : [],
+          criteriaData: description?.criteria
+        });
+        
         return updated;
       });
     } catch (error) {
@@ -785,87 +810,89 @@ export default function ListOpportunities() {
     }
   };
 
-  // Helper function to render application method with form details
-  const renderApplicationMethodWithForm = (formChoice: any, opportunityId: string) => {
-    if (!formChoice) {
+  // Helper function to format criteria labels
+  const formatCriteriaLabel = (field: string) => {
+    const labelMap: { [key: string]: string } = {
+      contractType: 'Contract Type',
+      level: 'Level',
+      sector: 'Sector/Industry',
+      location: 'Location',
+      fundingType: 'Funding Type',
+      eligibility: 'Eligibility',
+      amountRange: 'Amount Range',
+      purpose: 'Purpose',
+      format: 'Format',
+      duration: 'Duration',
+      certification: 'Certification',
+      cost: 'Cost',
+      deadline: 'Deadline'
+    };
+    return labelMap[field] || field;
+  };
+
+  // Helper function to render criteria section
+  const renderCriteriaSection = (criteria: any) => {
+    console.log('🎯 renderCriteriaSection called with:', criteria);
+    
+    if (!criteria || Object.keys(criteria).length === 0) {
+      console.log('❌ No criteria found or empty criteria object');
       return (
         <div className="text-center py-4 text-gray-500">
-          <p>No application method configured</p>
+          <p>No criteria specified</p>
         </div>
       );
     }
+    
+    console.log('✅ Criteria found:', Object.keys(criteria));
+
+    const standardCriteria = Object.entries(criteria)
+      .filter(([key, value]) => key !== 'customFilters' && value)
+      .map(([field, value]) => ({ field, value }));
+
+    const customFilters = criteria.customFilters || {};
 
     return (
-      <div className="space-y-6">
-        {/* Application Method Header */}
-        <div className="bg-white rounded-lg p-4 border border-green-200">
-          <h4 className="font-semibold text-gray-900 mb-3">Application Method</h4>
-          
-          {formChoice.applicationMethod === 'form' ? (
-            <div className="space-y-3">
-              <div className="flex items-center text-green-700">
-                <DocumentTextIcon className="w-5 h-5 mr-2" />
-                <span className="font-medium">Online Application Form</span>
-              </div>
-              {formChoice.formName && (
-                <p className="text-gray-600">
-                  <strong>Form:</strong> {formChoice.formName}
-                </p>
-              )}
-              {formChoice.referenceCodes && formChoice.referenceCodes.length > 0 && (
-                <div>
-                  <p className="text-gray-600 mb-2">
-                    <strong>Reference Codes:</strong>
-                  </p>
-                  <div className="flex flex-wrap gap-2">
-                    {formChoice.referenceCodes.map((code: string, index: number) => (
-                      <span key={index} className="bg-green-100 text-green-800 px-2 py-1 rounded text-sm">
-                        {code}
-                      </span>
-                    ))}
-                  </div>
+      <div className="space-y-4">
+        {/* Standard Criteria */}
+        {standardCriteria.length > 0 && (
+          <div>
+            <h4 className="text-sm font-medium text-gray-700 mb-3">Standard Criteria</h4>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {standardCriteria.map(({ field, value }) => (
+                <div key={field} className="flex items-center justify-between p-3 bg-white border border-gray-200 rounded-lg">
+                  <span className="text-sm font-medium text-gray-600">
+                    {formatCriteriaLabel(field)}:
+                  </span>
+                  <span className="text-sm text-gray-900 font-medium">{typeof value === 'string' ? value : JSON.stringify(value)}</span>
                 </div>
-              )}
+              ))}
             </div>
-          ) : (
-            <div className="space-y-3">
-              <div className="flex items-center text-green-700">
-                <EnvelopeIcon className="w-5 h-5 mr-2" />
-                <span className="font-medium">Email Application</span>
-              </div>
-              {formChoice.contactEmails && formChoice.contactEmails.length > 0 && (
-                <div>
-                  <p className="text-gray-600 mb-2">
-                    <strong>Contact Emails:</strong>
-                  </p>
-                  <div className="space-y-1">
-                    {formChoice.contactEmails.map((email: string, index: number) => (
-                      <div key={index} className="flex items-center text-gray-700">
-                        <EnvelopeIcon className="w-4 h-4 mr-2 text-gray-400" />
-                        <a href={`mailto:${email}`} className="text-blue-600 hover:text-blue-800">
-                          {email}
-                        </a>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
+          </div>
+        )}
 
-        {/* Form Preview Section */}
-        {formChoice.applicationMethod === 'form' && (
-          <div className="bg-white rounded-lg p-6 border border-gray-200">
-            <div className="flex items-center justify-between mb-4">
-              <h4 className="font-semibold text-gray-900">Application Form Preview</h4>
-              <span className="text-sm text-gray-500">Read-only preview</span>
+        {/* Custom Filters */}
+        {Object.keys(customFilters).length > 0 && (
+          <div>
+            <h4 className="text-sm font-medium text-gray-700 mb-3">Custom Criteria</h4>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {Object.entries(customFilters).map(([filterName, filterValue]) => (
+                <div key={filterName} className="flex items-center justify-between p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                  <span className="text-sm font-medium text-blue-700">
+                    {filterName}:
+                  </span>
+                  <span className="text-sm text-blue-900 font-medium">{typeof filterValue === 'string' ? filterValue : JSON.stringify(filterValue)}</span>
+                </div>
+              ))}
             </div>
-            <FormPreview opportunityId={opportunityId} />
           </div>
         )}
       </div>
     );
+  };
+
+  // Helper function to render application method with form details
+  const renderApplicationMethodWithForm = (formChoice: any, opportunityId: string) => {
+    return <div>Application method preview</div>;
   };
   
   const renderOpportunityCard = (opportunity: Opportunity) => (
@@ -1038,13 +1065,40 @@ export default function ListOpportunities() {
 
                         {/* Categories */}
                         {opportunityDetails[opportunity.id]?.description?.metadata?.categories && (
-                          <div className="flex flex-wrap gap-2 mb-6">
+                          <div className="flex flex-wrap gap-2 mb-4">
                             {opportunityDetails[opportunity.id]?.description?.metadata?.categories?.map((category: string, index: number) => (
                               <span key={index} className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
                                 <TagIcon className="w-4 h-4 mr-1" />
                                 {category}
                               </span>
                             ))}
+                          </div>
+                        )}
+
+                        {/* Criteria Summary */}
+                        {opportunityDetails[opportunity.id]?.description?.criteria && (
+                          <div className="mb-6">
+                            <h4 className="text-sm font-medium text-gray-700 mb-2">Key Criteria:</h4>
+                            <div className="flex flex-wrap gap-2">
+                              {Object.entries(opportunityDetails[opportunity.id]?.description?.criteria || {})
+                                .filter(([key, value]) => key !== 'customFilters' && value)
+                                .slice(0, 4) // Show only first 4 criteria in summary
+                                .map(([field, value]) => (
+                                  <span key={field} className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                                    <span className="mr-1">{formatCriteriaLabel(field)}:</span>
+                                    <span>{typeof value === 'string' ? value : JSON.stringify(value)}</span>
+                                  </span>
+                                ))}
+                              {Object.keys(opportunityDetails[opportunity.id]?.description?.criteria || {}).filter(key => 
+                                key !== 'customFilters' && opportunityDetails[opportunity.id]?.description?.criteria?.[key as keyof typeof opportunityDetails[opportunity.id].description.criteria]
+                              ).length > 4 && (
+                                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
+                                  +{Object.keys(opportunityDetails[opportunity.id]?.description?.criteria || {}).filter(key => 
+                                    key !== 'customFilters' && opportunityDetails[opportunity.id]?.description?.criteria?.[key as keyof typeof opportunityDetails[opportunity.id].description.criteria]
+                                  ).length - 4} more
+                                </span>
+                              )}
+                            </div>
                           </div>
                         )}
                       </div>
@@ -1138,6 +1192,27 @@ export default function ListOpportunities() {
 
                   {/* Main Content Section */}
                   <div className="space-y-8">
+                    {/* Criteria Section - Moved before Description */}
+                    {(() => {
+                      const criteria = opportunityDetails[opportunity.id]?.description?.criteria;
+                      console.log('🔍 Checking criteria for opportunity', opportunity.id, ':', {
+                        hasOpportunityDetails: !!opportunityDetails[opportunity.id],
+                        hasDescription: !!opportunityDetails[opportunity.id]?.description,
+                        hasCriteria: !!criteria,
+                        criteriaValue: criteria,
+                        criteriaType: typeof criteria
+                      });
+                      return criteria;
+                    })() && (
+                      <div className="bg-gray-50 rounded-xl p-6">
+                        <h2 className="text-xl font-semibold text-gray-900 mb-4 flex items-center">
+                          <TagIcon className="w-6 h-6 mr-2 text-purple-600" />
+                          Opportunity Criteria
+                        </h2>
+                        {renderCriteriaSection(opportunityDetails[opportunity.id].description?.criteria)}
+                      </div>
+                    )}
+
                     {/* Description Section */}
                     <div className="bg-gray-50 rounded-xl p-6">
                       <h2 className="text-xl font-semibold text-gray-900 mb-4 flex items-center">

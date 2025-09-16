@@ -19,7 +19,8 @@ import {
   ChevronDownIcon,
   ClockIcon,
   CheckCircleIcon,
-  XCircleIcon
+  XCircleIcon,
+  UserGroupIcon
 } from "@heroicons/react/24/outline";
 
 interface SidebarProps {
@@ -150,6 +151,12 @@ export const Sidebar: React.FC<SidebarProps> = ({ user }) => {
       href: "/ngo/profile", 
       icon: UserCircleIcon,
       requiresApproval: false
+    },
+    { 
+      name: "Team Management", 
+      href: "/ngo/team", 
+      icon: UserGroupIcon,
+      requiresApproval: true
     },
     { 
       name: "New Opportunity", 

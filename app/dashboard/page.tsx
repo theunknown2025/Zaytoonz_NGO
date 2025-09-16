@@ -13,6 +13,13 @@ export default function Dashboard() {
     // If user is not logged in, redirect to login
     if (!user) {
       router.push('/auth/signin');
+      return;
+    }
+    
+    // Redirect admin_ngo and assistant_ngo users to NGO dashboard
+    if (user.userType === 'admin_ngo' || user.userType === 'assistant_ngo') {
+      router.push('/ngo/dashboard');
+      return;
     }
   }, [user, router]);
 
@@ -95,7 +102,7 @@ export default function Dashboard() {
                   Welcome, {user.fullName}
                 </h3>
                 <p className="mt-1 max-w-2xl text-sm text-gray-500">
-                  {user.userType === 'NGO' ? 'NGO Account' : 'Individual Account'}
+                  {(user.userType === 'NGO' || user.userType === 'admin_ngo' || user.userType === 'assistant_ngo') ? 'NGO Account' : 'Individual Account'}
                 </p>
               </div>
               <div className="px-4 py-5 sm:p-0">

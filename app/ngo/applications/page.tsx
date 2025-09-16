@@ -25,6 +25,7 @@ import DataExtractor from './components/DataExtractor';
 import ApplicationEvaluation from './components/ApplicationEvaluation';
 import CVDisplay from './components/CVDisplay';
 import { useAuth } from '@/app/lib/auth';
+import { toast } from 'react-hot-toast';
 
 interface SeekerProfile {
   id: string;
@@ -60,6 +61,7 @@ interface OpportunityWithApplications {
   title: string;
   description: string;
   location: string;
+  status: string;
   created_at: string;
   opportunities: {
     id: string;
@@ -80,6 +82,7 @@ export default function ApplicationsPage() {
   const [expandedApplications, setExpandedApplications] = useState<Set<string>>(new Set());
   const [extractorOpen, setExtractorOpen] = useState(false);
   const [selectedOpportunityForExtract, setSelectedOpportunityForExtract] = useState<OpportunityWithApplications | null>(null);
+  const [publishingOpportunities, setPublishingOpportunities] = useState<Set<string>>(new Set());
   
   const { user: authUser } = useAuth();
 
@@ -198,6 +201,41 @@ export default function ApplicationsPage() {
   const handleExtractorClose = () => {
     setExtractorOpen(false);
     setSelectedOpportunityForExtract(null);
+  };
+
+  const handlePublishOpportunity = async (opportunityId: string) => {
+    try {
+      setPublishingOpportunities(prev => new Set(Array.from(prev).concat(opportunityId)));
+      
+      const response = await fetch('/api/ngo/applications', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          opportunityId,
+          action: 'publish'
+        }),
+      });
+
+      if (response.ok) {
+        // Refresh the data to show updated status
+        await fetchApplications();
+        toast.success('Opportunity published successfully!');
+      } else {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to publish opportunity');
+      }
+    } catch (error) {
+      console.error('Error publishing opportunity:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to publish opportunity');
+    } finally {
+      setPublishingOpportunities(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(opportunityId);
+        return newSet;
+      });
+    }
   };
 
   // Filter applications based on status
@@ -547,6 +585,9 @@ export default function ApplicationsPage() {
                       Applications
                     </th>
                     <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Status
+                    </th>
+                    <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Created Date
                     </th>
                     <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -579,6 +620,15 @@ export default function ApplicationsPage() {
                           )}
                         </div>
                       </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                          opportunity.status === 'published' 
+                            ? 'bg-green-100 text-green-800' 
+                            : 'bg-yellow-100 text-yellow-800'
+                        }`}>
+                          {opportunity.status === 'published' ? 'Published' : 'Completed'}
+                        </span>
+                      </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         <div className="flex items-center">
                           <CalendarIcon className="w-4 h-4 mr-1" />
@@ -594,6 +644,25 @@ export default function ApplicationsPage() {
                             <EyeIcon className="w-4 h-4 mr-1" />
                             {expandedOpportunities.has(opportunity.opportunity_id) ? 'Hide' : 'View'} Applications
                           </button>
+                          {opportunity.status === 'completed' && (
+                            <button
+                              onClick={() => handlePublishOpportunity(opportunity.opportunity_id)}
+                              disabled={publishingOpportunities.has(opportunity.opportunity_id)}
+                              className="inline-flex items-center px-3 py-1 bg-green-600 text-white text-xs rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              {publishingOpportunities.has(opportunity.opportunity_id) ? (
+                                <>
+                                  <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white mr-1"></div>
+                                  Publishing...
+                                </>
+                              ) : (
+                                <>
+                                  <PlusIcon className="w-4 h-4 mr-1" />
+                                  Publish
+                                </>
+                              )}
+                            </button>
+                          )}
                           {opportunity.application_count > 0 && (
                             <button
                               onClick={() => handleExtractData(opportunity)}

@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
       .eq('id', userId)
       .single();
 
-    if (userError || !userData || userData.user_type !== 'NGO') {
+    if (userError || !userData || (userData.user_type !== 'NGO' && userData.user_type !== 'admin_ngo' && userData.user_type !== 'assistant_ngo')) {
       return NextResponse.json({ error: 'User not found or not an NGO' }, { status: 400 });
     }
 

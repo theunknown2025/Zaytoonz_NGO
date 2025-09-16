@@ -29,7 +29,7 @@ export default function NGOLayout({
     id: authUser.id,
     name: authUser.fullName,
     email: authUser.email,
-    role: 'NGO',
+    role: authUser.userType === 'admin_ngo' ? 'admin_ngo' : 'assistant_ngo',
     createdAt: new Date(),
     updatedAt: new Date()
   } as User : {} as User;
