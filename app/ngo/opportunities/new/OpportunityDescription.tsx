@@ -754,7 +754,7 @@ export default function OpportunityDescription({ formData, onChange, onNext, opp
                      field}
                   </label>
                   <select
-                    value={criteria[field as keyof CriteriaSelection] || ''}
+                    value={typeof criteria[field as keyof CriteriaSelection] === 'string' ? criteria[field as keyof CriteriaSelection] as string : ''}
                     onChange={(e) => handleCriteriaChange(field, e.target.value)}
                     className="block w-full border border-gray-300 rounded-md shadow-sm focus:ring-2 focus:ring-[#556B2F] focus:border-[#556B2F] sm:text-sm py-2 pl-3 pr-10 hover:border-[#556B2F]/50 transition-colors"
                   >

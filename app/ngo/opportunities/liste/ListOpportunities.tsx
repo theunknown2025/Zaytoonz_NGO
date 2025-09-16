@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
@@ -326,7 +326,7 @@ export default function ListOpportunities() {
         };
         
         // Debug: Log the description data to see what's being loaded
-        console.log('🔍 Opportunity details loaded for', opportunityId, ':', {
+        console.log('ðŸ” Opportunity details loaded for', opportunityId, ':', {
           description,
           hasCriteria: !!description?.criteria,
           criteriaKeys: description?.criteria ? Object.keys(description.criteria) : [],
@@ -832,10 +832,10 @@ export default function ListOpportunities() {
 
   // Helper function to render criteria section
   const renderCriteriaSection = (criteria: any) => {
-    console.log('🎯 renderCriteriaSection called with:', criteria);
+    console.log('ðŸŽ¯ renderCriteriaSection called with:', criteria);
     
     if (!criteria || Object.keys(criteria).length === 0) {
-      console.log('❌ No criteria found or empty criteria object');
+      console.log('âŒ No criteria found or empty criteria object');
       return (
         <div className="text-center py-4 text-gray-500">
           <p>No criteria specified</p>
@@ -843,7 +843,7 @@ export default function ListOpportunities() {
       );
     }
     
-    console.log('✅ Criteria found:', Object.keys(criteria));
+    console.log('âœ… Criteria found:', Object.keys(criteria));
 
     const standardCriteria = Object.entries(criteria)
       .filter(([key, value]) => key !== 'customFilters' && value)
@@ -922,13 +922,13 @@ export default function ListOpportunities() {
           <div className="flex items-center text-sm text-gray-500 mt-1">
             <ClockIcon className="h-4 w-4 mr-1" />
             <span>Created: {formatDate(opportunity.created_at)}</span>
-            <span className="mx-2">•</span>
+            <span className="mx-2">â€¢</span>
             <span>Updated: {formatDate(opportunity.updated_at)}</span>
             
             {/* Show published status if published */}
             {opportunity.status === 'published' && (
               <>
-                <span className="mx-2">•</span>
+                <span className="mx-2">â€¢</span>
                 <span className="text-green-600 font-medium flex items-center">
                   <GlobeAltIcon className="h-4 w-4 mr-1" /> 
                   Live
@@ -1089,15 +1089,17 @@ export default function ListOpportunities() {
                                     <span>{typeof value === 'string' ? value : JSON.stringify(value)}</span>
                                   </span>
                                 ))}
-                              {Object.keys(opportunityDetails[opportunity.id]?.description?.criteria || {}).filter(key => 
-                                key !== 'customFilters' && opportunityDetails[opportunity.id]?.description?.criteria?.[key as keyof typeof opportunityDetails[opportunity.id].description.criteria]
-                              ).length > 4 && (
-                                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
-                                  +{Object.keys(opportunityDetails[opportunity.id]?.description?.criteria || {}).filter(key => 
-                                    key !== 'customFilters' && opportunityDetails[opportunity.id]?.description?.criteria?.[key as keyof typeof opportunityDetails[opportunity.id].description.criteria]
-                                  ).length - 4} more
-                                </span>
-                              )}
+                              {(() => {
+                                const criteria = opportunityDetails[opportunity.id]?.description?.criteria || {};
+                                const criteriaKeys = Object.keys(criteria).filter(key => 
+                                  key !== 'customFilters' && criteria[key as keyof typeof criteria]
+                                );
+                                return criteriaKeys.length > 4 && (
+                                  <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
+                                    +{criteriaKeys.length - 4} more
+                                  </span>
+                                );
+                              })()}
                             </div>
                           </div>
                         )}
@@ -1195,7 +1197,7 @@ export default function ListOpportunities() {
                     {/* Criteria Section - Moved before Description */}
                     {(() => {
                       const criteria = opportunityDetails[opportunity.id]?.description?.criteria;
-                      console.log('🔍 Checking criteria for opportunity', opportunity.id, ':', {
+                      console.log('ðŸ” Checking criteria for opportunity', opportunity.id, ':', {
                         hasOpportunityDetails: !!opportunityDetails[opportunity.id],
                         hasDescription: !!opportunityDetails[opportunity.id]?.description,
                         hasCriteria: !!criteria,
