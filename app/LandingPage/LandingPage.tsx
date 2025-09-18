@@ -56,21 +56,27 @@ export default function LandingPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center">
-              <img src="/image.png" alt="Zaytoonz" className="h-8 w-auto" />
+              <img src="/image.png" alt="Zaytoonz" className="h-12 w-auto" />
             </div>
             
             <nav className="hidden md:flex space-x-8">
               <a href="#home" className="text-olive-700 hover:text-olive-600 font-medium transition-colors">
                 Home
               </a>
-              <a href="#services" className="text-olive-700 hover:text-olive-600 font-medium transition-colors">
-                Services
+              <a href="#jobs" className="text-olive-700 hover:text-olive-600 font-medium transition-colors">
+                Jobs
+              </a>
+              <a href="#training" className="text-olive-700 hover:text-olive-600 font-medium transition-colors">
+                Training
+              </a>
+              <a href="#funding" className="text-olive-700 hover:text-olive-600 font-medium transition-colors">
+                Funding
+              </a>
+              <a href="#resources" className="text-olive-700 hover:text-olive-600 font-medium transition-colors">
+                Resources
               </a>
               <a href="#about" className="text-olive-700 hover:text-olive-600 font-medium transition-colors">
-                About
-              </a>
-              <a href="#contact" className="text-olive-700 hover:text-olive-600 font-medium transition-colors">
-                Contact
+                About us
               </a>
             </nav>
 
@@ -103,14 +109,20 @@ export default function LandingPage() {
                 <a href="#home" className="block px-3 py-2 text-olive-700 hover:text-olive-600">
                   Home
                 </a>
-                <a href="#services" className="block px-3 py-2 text-olive-700 hover:text-olive-600">
-                  Services
+                <a href="#jobs" className="block px-3 py-2 text-olive-700 hover:text-olive-600">
+                  Jobs
+                </a>
+                <a href="#training" className="block px-3 py-2 text-olive-700 hover:text-olive-600">
+                  Training
+                </a>
+                <a href="#funding" className="block px-3 py-2 text-olive-700 hover:text-olive-600">
+                  Funding
+                </a>
+                <a href="#resources" className="block px-3 py-2 text-olive-700 hover:text-olive-600">
+                  Resources
                 </a>
                 <a href="#about" className="block px-3 py-2 text-olive-700 hover:text-olive-600">
-                  About
-                </a>
-                <a href="#contact" className="block px-3 py-2 text-olive-700 hover:text-olive-600">
-                  Contact
+                  About us
                 </a>
                 <div className="pt-4 pb-3 border-t border-olive-200">
                   <a href="/auth/signin" className="block w-full text-left px-3 py-2 text-olive-700 hover:text-olive-600">
@@ -559,7 +571,7 @@ export default function LandingPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
           <div className="grid md:grid-cols-5 gap-8">
             <div className="col-span-2">
-              <img src="/image.png" alt="Zaytoonz" className="h-8 w-auto mb-4" />
+              <img src="/image.png" alt="Zaytoonz" className="h-12 w-auto mb-4" />
               <p className="text-olive-600 mb-4 max-w-md">
               Zaytoonz offers a streamlined platform that connects skilled professionals with mission-driven non-profit entities, enabling impactful collaborations that drive meaningful social change.              </p>
             </div>

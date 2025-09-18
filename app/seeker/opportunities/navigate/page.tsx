@@ -79,6 +79,22 @@ export default function NavigatePage() {
         setError(fetchError);
         console.error('Error fetching opportunities:', fetchError);
       } else if (data) {
+        // Debug logging
+        console.log('Fetched opportunities:', data.length);
+        const scrapedCount = data.filter(opp => opp.isScraped).length;
+        console.log('Scraped opportunities count:', scrapedCount);
+        
+        // Log a few scraped opportunities for debugging
+        const scrapedOpps = data.filter(opp => opp.isScraped).slice(0, 3);
+        scrapedOpps.forEach(opp => {
+          console.log('Scraped opportunity:', {
+            id: opp.id,
+            title: opp.title,
+            sourceUrl: opp.sourceUrl,
+            isScraped: opp.isScraped
+          });
+        });
+
         setOpportunities(data);
         setFilteredOpportunities(data);
       }
@@ -128,8 +144,26 @@ export default function NavigatePage() {
     }
   };
 
-  const handleOpportunityClick = (opportunityId: string) => {
-    router.push(`/seeker/opportunities/${opportunityId}`);
+  const handleOpportunityClick = (opportunity: Opportunity) => {
+    // Debug logging
+    console.log('Opportunity clicked:', {
+      id: opportunity.id,
+      title: opportunity.title,
+      isScraped: opportunity.isScraped,
+      sourceUrl: opportunity.sourceUrl,
+      organization: opportunity.organization
+    });
+
+    // Check if it's a scraped opportunity
+    if (opportunity.isScraped && opportunity.sourceUrl) {
+      console.log('Opening scraped opportunity URL:', opportunity.sourceUrl);
+      // Open scraped opportunity in new tab
+      window.open(opportunity.sourceUrl, '_blank', 'noopener,noreferrer');
+    } else {
+      console.log('Navigating to internal opportunity page:', `/seeker/opportunities/${opportunity.id}`);
+      // Navigate to internal opportunity page
+      router.push(`/seeker/opportunities/${opportunity.id}`);
+    }
   };
 
   const toggleSaveOpportunity = (opportunityId: string, event: React.MouseEvent) => {
@@ -191,7 +225,7 @@ export default function NavigatePage() {
     return (
       <div 
         className="bg-white rounded-lg shadow-sm hover:shadow-md transition-all duration-200 border border-gray-200 p-6 cursor-pointer hover:bg-gray-50"
-        onClick={() => handleOpportunityClick(opportunity.id)}
+        onClick={() => handleOpportunityClick(opportunity)}
       >
         <div className="flex items-center justify-between">
           {/* Left Section - Main Info */}
@@ -219,6 +253,13 @@ export default function NavigatePage() {
                   {categoryIcon}
                   <span className="capitalize">{opportunity.category}</span>
                 </div>
+                
+                {/* External Indicator for Scraped Opportunities */}
+                {opportunity.isScraped && (
+                  <div className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-orange-50 text-orange-700 border border-orange-200">
+                    <span>External</span>
+                  </div>
+                )}
                 
                 {/* Deadline Status */}
                 {deadlineStatus && (

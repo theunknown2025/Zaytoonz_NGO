@@ -44,13 +44,15 @@ export interface Opportunity {
     deadline?: string;
     customFilters?: { [key: string]: string };
   };
+  sourceUrl?: string; // For scraped opportunities
+  isScraped?: boolean; // Flag to identify scraped opportunities
 }
 
-// Enhanced function to fetch all opportunities with complete information
+// Enhanced function to fetch all opportunities with complete information (both internal and scraped)
 export async function getOpportunities(): Promise<{ opportunities: Opportunity[] | null, error: string | null }> {
   try {
-    // Query opportunities with all related data (excluding processes)
-    const { data, error } = await supabase
+    // Fetch internal NGO opportunities
+    const { data: internalData, error: internalError } = await supabase
       .from('opportunities')
       .select(`
         id,
@@ -101,17 +103,30 @@ export async function getOpportunities(): Promise<{ opportunities: Opportunity[]
       .eq('opportunity_description.status', 'published')
       .order('created_at', { ascending: false });
 
-    if (error) {
-      console.error('Error fetching opportunities:', error);
-      return { opportunities: null, error: error.message };
+    if (internalError) {
+      console.error('Error fetching internal opportunities:', internalError);
+      return { opportunities: null, error: internalError.message };
     }
 
-    if (!data || data.length === 0) {
-      return { opportunities: [], error: null };
+    // Fetch scraped opportunities
+    const { data: scrapedData, error: scrapedError } = await supabase
+      .from('scraped_opportunities')
+      .select(`
+        *,
+        scraped_opportunity_details (
+          *
+        )
+      `)
+      .eq('status', 'active')
+      .order('created_at', { ascending: false });
+
+    if (scrapedError) {
+      console.error('Error fetching scraped opportunities:', scrapedError);
+      return { opportunities: null, error: scrapedError.message };
     }
 
-    // Transform the data to match the frontend interface
-    const opportunities: Opportunity[] = data.map((item: any) => {
+    // Transform internal opportunities
+    const internalOpportunities: Opportunity[] = (internalData || []).map((item: any) => {
       // Handle both array and single object cases for opportunity_description
       const description = Array.isArray(item.opportunity_description) 
         ? item.opportunity_description[0] 
@@ -170,17 +185,66 @@ export async function getOpportunities(): Promise<{ opportunities: Opportunity[]
       };
     });
 
-    return { opportunities, error: null };
+    // Transform scraped opportunities
+    const scrapedOpportunities: Opportunity[] = (scrapedData || []).map((item: any) => {
+      const details = item.scraped_opportunity_details?.[0];
+      const deadline = details?.deadline ? new Date(details.deadline).toLocaleDateString() : undefined;
+      
+      // Get the specific opportunity URL from metadata.link, fallback to source_url
+      const specificUrl = details?.metadata?.link || item.source_url;
+      
+      return {
+        id: `scraped_${item.id}`, // Prefix to distinguish from internal opportunities
+        title: item.title,
+        organization: details?.company || 'External Organization',
+        organizationProfile: {
+          name: details?.company || 'External Organization',
+          email: details?.contact_info || '',
+          profileImage: undefined
+        },
+        location: details?.location || 'Not specified',
+        compensation: details?.salary_range || 'Competitive',
+        type: getTypeLabel(item.opportunity_type),
+        category: item.opportunity_type as 'job' | 'funding' | 'training',
+        posted: formatDate(item.created_at),
+        description: details?.description || 'No description available',
+        deadline: deadline,
+        status: 'published',
+        hours: details?.hours || undefined,
+        contactEmails: details?.contact_info ? [details.contact_info] : [],
+        referenceCodes: [],
+        metadata: details?.metadata || {},
+        criteria: {
+          contractType: details?.requirements || undefined,
+          location: details?.location || undefined,
+          deadline: deadline,
+          customFilters: details?.tags || []
+        },
+        sourceUrl: specificUrl,
+        isScraped: true
+      };
+    });
+
+    // Combine and sort all opportunities by creation date (newest first)
+    const allOpportunities = [...internalOpportunities, ...scrapedOpportunities]
+      .sort((a, b) => {
+        const dateA = new Date(a.posted);
+        const dateB = new Date(b.posted);
+        return dateB.getTime() - dateA.getTime();
+      });
+
+    return { opportunities: allOpportunities, error: null };
   } catch (error: any) {
     console.error('Error in getOpportunities:', error);
     return { opportunities: null, error: error.message || 'An unexpected error occurred' };
   }
 }
 
-// Function to fetch opportunities by category
+// Function to fetch opportunities by category (both internal and scraped)
 export async function getOpportunitiesByCategory(category: 'job' | 'funding' | 'training'): Promise<{ opportunities: Opportunity[] | null, error: string | null }> {
   try {
-    const { data, error } = await supabase
+    // Fetch internal NGO opportunities by category
+    const { data: internalData, error: internalError } = await supabase
       .from('opportunities')
       .select(`
         id,
@@ -232,17 +296,31 @@ export async function getOpportunitiesByCategory(category: 'job' | 'funding' | '
       .eq('opportunity_description.status', 'published')
       .order('created_at', { ascending: false });
 
-    if (error) {
-      console.error('Error fetching opportunities by category:', error);
-      return { opportunities: null, error: error.message };
+    if (internalError) {
+      console.error('Error fetching internal opportunities by category:', internalError);
+      return { opportunities: null, error: internalError.message };
     }
 
-    if (!data || data.length === 0) {
-      return { opportunities: [], error: null };
+    // Fetch scraped opportunities by category
+    const { data: scrapedData, error: scrapedError } = await supabase
+      .from('scraped_opportunities')
+      .select(`
+        *,
+        scraped_opportunity_details (
+          *
+        )
+      `)
+      .eq('opportunity_type', category)
+      .eq('status', 'active')
+      .order('created_at', { ascending: false });
+
+    if (scrapedError) {
+      console.error('Error fetching scraped opportunities by category:', scrapedError);
+      return { opportunities: null, error: scrapedError.message };
     }
 
-    // Transform the data
-    const opportunities: Opportunity[] = data.map((item: any) => {
+    // Transform internal opportunities
+    const internalOpportunities: Opportunity[] = (internalData || []).map((item: any) => {
       const description = item.opportunity_description[0];
       const metadata = description?.metadata || {};
       const user = description?.users?.[0];
@@ -284,17 +362,66 @@ export async function getOpportunitiesByCategory(category: 'job' | 'funding' | '
       };
     });
 
-    return { opportunities, error: null };
+    // Transform scraped opportunities
+    const scrapedOpportunities: Opportunity[] = (scrapedData || []).map((item: any) => {
+      const details = item.scraped_opportunity_details?.[0];
+      const deadline = details?.deadline ? new Date(details.deadline).toLocaleDateString() : undefined;
+      
+      // Get the specific opportunity URL from metadata.link, fallback to source_url
+      const specificUrl = details?.metadata?.link || item.source_url;
+      
+      return {
+        id: `scraped_${item.id}`,
+        title: item.title,
+        organization: details?.company || 'External Organization',
+        organizationProfile: {
+          name: details?.company || 'External Organization',
+          email: details?.contact_info || '',
+          profileImage: undefined
+        },
+        location: details?.location || 'Not specified',
+        compensation: details?.salary_range || 'Competitive',
+        type: getTypeLabel(item.opportunity_type),
+        category: item.opportunity_type as 'job' | 'funding' | 'training',
+        posted: formatDate(item.created_at),
+        description: details?.description || 'No description available',
+        deadline: deadline,
+        status: 'published',
+        hours: details?.hours || undefined,
+        contactEmails: details?.contact_info ? [details.contact_info] : [],
+        referenceCodes: [],
+        metadata: details?.metadata || {},
+        criteria: {
+          contractType: details?.requirements || undefined,
+          location: details?.location || undefined,
+          deadline: deadline,
+          customFilters: details?.tags || []
+        },
+        sourceUrl: specificUrl,
+        isScraped: true
+      };
+    });
+
+    // Combine and sort all opportunities by creation date (newest first)
+    const allOpportunities = [...internalOpportunities, ...scrapedOpportunities]
+      .sort((a, b) => {
+        const dateA = new Date(a.posted);
+        const dateB = new Date(b.posted);
+        return dateB.getTime() - dateA.getTime();
+      });
+
+    return { opportunities: allOpportunities, error: null };
   } catch (error: any) {
     console.error('Error in getOpportunitiesByCategory:', error);
     return { opportunities: null, error: error.message || 'An unexpected error occurred' };
   }
 }
 
-// Function to search opportunities
+// Function to search opportunities (both internal and scraped)
 export async function searchOpportunities(searchQuery: string, category?: 'job' | 'funding' | 'training'): Promise<{ opportunities: Opportunity[] | null, error: string | null }> {
   try {
-    let query = supabase
+    // Search internal NGO opportunities
+    let internalQuery = supabase
       .from('opportunities')
       .select(`
         id,
@@ -346,31 +473,59 @@ export async function searchOpportunities(searchQuery: string, category?: 'job' 
 
     // Add category filter if specified
     if (category) {
-      query = query.eq('opportunity_type', category);
+      internalQuery = internalQuery.eq('opportunity_type', category);
     }
 
     // Add search filters
     if (searchQuery) {
-      query = query.or(`
+      internalQuery = internalQuery.or(`
         title.ilike.%${searchQuery}%,
         opportunity_description.title.ilike.%${searchQuery}%,
         opportunity_description.description.ilike.%${searchQuery}%
       `);
     }
 
-    const { data, error } = await query.order('created_at', { ascending: false });
+    const { data: internalData, error: internalError } = await internalQuery.order('created_at', { ascending: false });
 
-    if (error) {
-      console.error('Error searching opportunities:', error);
-      return { opportunities: null, error: error.message };
+    if (internalError) {
+      console.error('Error searching internal opportunities:', internalError);
+      return { opportunities: null, error: internalError.message };
     }
 
-    if (!data || data.length === 0) {
-      return { opportunities: [], error: null };
+    // Search scraped opportunities
+    let scrapedQuery = supabase
+      .from('scraped_opportunities')
+      .select(`
+        *,
+        scraped_opportunity_details (
+          *
+        )
+      `)
+      .eq('status', 'active');
+
+    // Add category filter if specified
+    if (category) {
+      scrapedQuery = scrapedQuery.eq('opportunity_type', category);
     }
 
-    // Transform the data
-    const opportunities: Opportunity[] = data.map((item: any) => {
+    // Add search filters for scraped opportunities
+    if (searchQuery) {
+      scrapedQuery = scrapedQuery.or(`
+        title.ilike.%${searchQuery}%,
+        scraped_opportunity_details.description.ilike.%${searchQuery}%,
+        scraped_opportunity_details.company.ilike.%${searchQuery}%
+      `);
+    }
+
+    const { data: scrapedData, error: scrapedError } = await scrapedQuery.order('created_at', { ascending: false });
+
+    if (scrapedError) {
+      console.error('Error searching scraped opportunities:', scrapedError);
+      return { opportunities: null, error: scrapedError.message };
+    }
+
+    // Transform internal opportunities
+    const internalOpportunities: Opportunity[] = (internalData || []).map((item: any) => {
       const description = item.opportunity_description[0];
       const metadata = description?.metadata || {};
       const user = description?.users?.[0];
@@ -412,7 +567,55 @@ export async function searchOpportunities(searchQuery: string, category?: 'job' 
       };
     });
 
-    return { opportunities, error: null };
+    // Transform scraped opportunities
+    const scrapedOpportunities: Opportunity[] = (scrapedData || []).map((item: any) => {
+      const details = item.scraped_opportunity_details?.[0];
+      const deadline = details?.deadline ? new Date(details.deadline).toLocaleDateString() : undefined;
+      
+      // Get the specific opportunity URL from metadata.link, fallback to source_url
+      const specificUrl = details?.metadata?.link || item.source_url;
+      
+      return {
+        id: `scraped_${item.id}`,
+        title: item.title,
+        organization: details?.company || 'External Organization',
+        organizationProfile: {
+          name: details?.company || 'External Organization',
+          email: details?.contact_info || '',
+          profileImage: undefined
+        },
+        location: details?.location || 'Not specified',
+        compensation: details?.salary_range || 'Competitive',
+        type: getTypeLabel(item.opportunity_type),
+        category: item.opportunity_type as 'job' | 'funding' | 'training',
+        posted: formatDate(item.created_at),
+        description: details?.description || 'No description available',
+        deadline: deadline,
+        status: 'published',
+        hours: details?.hours || undefined,
+        contactEmails: details?.contact_info ? [details.contact_info] : [],
+        referenceCodes: [],
+        metadata: details?.metadata || {},
+        criteria: {
+          contractType: details?.requirements || undefined,
+          location: details?.location || undefined,
+          deadline: deadline,
+          customFilters: details?.tags || []
+        },
+        sourceUrl: specificUrl,
+        isScraped: true
+      };
+    });
+
+    // Combine and sort all opportunities by creation date (newest first)
+    const allOpportunities = [...internalOpportunities, ...scrapedOpportunities]
+      .sort((a, b) => {
+        const dateA = new Date(a.posted);
+        const dateB = new Date(b.posted);
+        return dateB.getTime() - dateA.getTime();
+      });
+
+    return { opportunities: allOpportunities, error: null };
   } catch (error: any) {
     console.error('Error in searchOpportunities:', error);
     return { opportunities: null, error: error.message || 'An unexpected error occurred' };
