@@ -21,7 +21,10 @@ import {
   UserIcon,
   CheckCircleIcon,
   ExclamationCircleIcon,
-  InformationCircleIcon
+  InformationCircleIcon,
+  ArrowTopRightOnSquareIcon,
+  EyeIcon,
+  XMarkIcon
 } from '@heroicons/react/24/outline';
 import { HeartIcon as HeartSolidIcon } from '@heroicons/react/24/solid';
 import { getOpportunities, searchOpportunities, type Opportunity } from '@/app/lib/opportunities';
@@ -35,6 +38,8 @@ export default function NavigatePage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [savedOpportunities, setSavedOpportunities] = useState<Set<string>>(new Set());
+  const [selectedOpportunity, setSelectedOpportunity] = useState<Opportunity | null>(null);
+  const [showDescriptionModal, setShowDescriptionModal] = useState(false);
 
   // Helper function to strip HTML tags and get plain text for preview
   const stripHtmlTags = (html: string) => {
@@ -305,6 +310,40 @@ export default function NavigatePage() {
               <p className="text-gray-700 text-sm line-clamp-2">
                 {truncateText(opportunity.description || '')}
               </p>
+
+              {/* Action Buttons for Scraped Opportunities */}
+              {opportunity.isScraped && (
+                <div className="flex items-center gap-3 mt-3">
+                  {/* View More Button - Shows full description */}
+                  {opportunity.description && opportunity.description.length > 120 && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedOpportunity(opportunity);
+                        setShowDescriptionModal(true);
+                      }}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors"
+                    >
+                      <EyeIcon className="w-4 h-4" />
+                      <span>View More</span>
+                    </button>
+                  )}
+                  
+                  {/* View Opportunity Button - Opens specific opportunity URL */}
+                  {opportunity.sourceUrl && (
+                    <a
+                      href={opportunity.sourceUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={(e) => e.stopPropagation()}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-[#556B2F] hover:bg-[#6B8E23] rounded-lg transition-colors"
+                    >
+                      <ArrowTopRightOnSquareIcon className="w-4 h-4" />
+                      <span>View Opportunity</span>
+                    </a>
+                  )}
+                </div>
+              )}
             </div>
           </div>
 
@@ -494,6 +533,93 @@ export default function NavigatePage() {
           </div>
         )}
       </div>
+
+      {/* Description Modal */}
+      {showDescriptionModal && selectedOpportunity && (
+        <div 
+          className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
+          onClick={() => setShowDescriptionModal(false)}
+        >
+          <div 
+            className="bg-white rounded-2xl max-w-2xl w-full max-h-[80vh] overflow-hidden shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="bg-gradient-to-r from-[#556B2F] to-[#6B8E23] p-6 text-white">
+              <div className="flex items-start justify-between">
+                <div className="flex-1 pr-4">
+                  <h2 className="text-xl font-bold mb-2">{selectedOpportunity.title}</h2>
+                  <div className="flex items-center gap-4 text-sm opacity-90">
+                    <div className="flex items-center gap-1">
+                      <BuildingOfficeIcon className="w-4 h-4" />
+                      <span>{selectedOpportunity.organization}</span>
+                    </div>
+                    {selectedOpportunity.location && (
+                      <div className="flex items-center gap-1">
+                        <MapPinIcon className="w-4 h-4" />
+                        <span>{selectedOpportunity.location}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowDescriptionModal(false)}
+                  className="p-2 hover:bg-white/20 rounded-full transition-colors"
+                >
+                  <XMarkIcon className="w-6 h-6" />
+                </button>
+              </div>
+            </div>
+            
+            {/* Modal Body - Full Description */}
+            <div className="p-6 overflow-y-auto max-h-[50vh]">
+              <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">
+                Full Description
+              </h3>
+              <div className="prose prose-sm max-w-none text-gray-700 whitespace-pre-wrap">
+                {containsHtml(selectedOpportunity.description || '') ? (
+                  <div dangerouslySetInnerHTML={{ __html: selectedOpportunity.description || '' }} />
+                ) : (
+                  <p>{selectedOpportunity.description || 'No description available'}</p>
+                )}
+              </div>
+              
+              {/* Additional Details */}
+              {selectedOpportunity.deadline && (
+                <div className="mt-6 pt-6 border-t border-gray-200">
+                  <div className="flex items-center gap-2 text-sm text-gray-600">
+                    <CalendarDaysIcon className="w-4 h-4" />
+                    <span className="font-medium">Deadline:</span>
+                    <span>{selectedOpportunity.deadline}</span>
+                  </div>
+                </div>
+              )}
+            </div>
+            
+            {/* Modal Footer */}
+            <div className="p-6 bg-gray-50 border-t border-gray-200 flex items-center justify-between">
+              <button
+                onClick={() => setShowDescriptionModal(false)}
+                className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 transition-colors"
+              >
+                Close
+              </button>
+              
+              {selectedOpportunity.sourceUrl && (
+                <a
+                  href={selectedOpportunity.sourceUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 px-6 py-2.5 text-sm font-medium text-white bg-[#556B2F] hover:bg-[#6B8E23] rounded-lg transition-colors"
+                >
+                  <ArrowTopRightOnSquareIcon className="w-4 h-4" />
+                  <span>View Opportunity</span>
+                </a>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 } 

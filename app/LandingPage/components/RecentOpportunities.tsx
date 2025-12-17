@@ -78,14 +78,16 @@ const RecentOpportunities: React.FC = () => {
         scrapedOpportunities = (scrapedData.opportunities || []).map((opp: any) => ({
           id: opp.id,
           title: opp.title,
+          description_title: opp.metadata?.title || opp.title,
           opportunity_type: opp.opportunity_type,
-          created_at: opp.scraped_at,
-          description: opp.description || '',
-          location: opp.location || '',
-          hours: opp.hours || '',
-          status: opp.status,
+          // Prefer scraped_at but fall back to created_at if missing
+          created_at: opp.scraped_at || opp.created_at,
+          description: opp.description || opp.metadata?.original_data?.description || '',
+          location: opp.location || opp.metadata?.location || '',
+          hours: opp.hours || opp.metadata?.hours || '',
+          status: opp.status || 'active',
           source: 'scraped' as const,
-          source_url: opp.source_url,
+          source_url: opp.source_url || opp.metadata?.link,
           company: opp.company
         }));
       }
@@ -527,7 +529,7 @@ const RecentOpportunities: React.FC = () => {
                       rel="noopener noreferrer"
                       className="w-full bg-gradient-to-r from-olive-500 to-olive-600 hover:from-olive-600 hover:to-olive-700 text-white py-3 px-4 rounded-lg font-semibold hover:shadow-lg transition-all duration-300 flex items-center justify-center space-x-2 group"
                     >
-                      <span>Apply</span>
+                      <span>View Opportunity</span>
                       <ChevronRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
                     </a>
                   ) : (
@@ -535,7 +537,7 @@ const RecentOpportunities: React.FC = () => {
                       href={`/seeker/opportunities/${opportunity.id}`}
                       className="w-full bg-gradient-to-r from-olive-500 to-olive-600 hover:from-olive-600 hover:to-olive-700 text-white py-3 px-4 rounded-lg font-semibold hover:shadow-lg transition-all duration-300 flex items-center justify-center space-x-2 group"
                     >
-                      <span>Apply</span>
+                      <span>View Details</span>
                       <ChevronRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
                     </a>
                   )}

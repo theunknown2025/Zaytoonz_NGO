@@ -7,8 +7,10 @@ export default function MorchidLayout({
 }: {
   children: ReactNode;
 }) {
+  // Morchid uses the parent seeker layout which includes the Zaytoonz sidebar
+  // This layout just ensures proper sizing within the main content area
   return (
-    <div className="h-full">
+    <div className="h-full w-full">
       {children}
     </div>
   );

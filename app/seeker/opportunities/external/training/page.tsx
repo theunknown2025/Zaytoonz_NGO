@@ -268,20 +268,20 @@ export default function ExternalTrainingPage() {
                           setSelectedOpportunity(opportunity);
                           setShowDetails(true);
                         }}
-                        className="px-4 py-2 bg-[#556B2F] hover:bg-[#6B8E23] text-white text-sm rounded-lg transition-colors duration-200 flex items-center space-x-2"
+                        className="px-4 py-2 bg-blue-50 hover:bg-blue-100 text-blue-700 text-sm rounded-lg transition-colors duration-200 flex items-center space-x-2"
                       >
                         <EyeIcon className="w-4 h-4" />
-                        <span>View Details</span>
+                        <span>View More</span>
                       </button>
 
                       <a
                         href={opportunity.source_url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-[#556B2F] hover:text-[#6B8E23] text-sm font-medium flex items-center space-x-1"
+                        className="px-4 py-2 bg-[#556B2F] hover:bg-[#6B8E23] text-white text-sm rounded-lg transition-colors duration-200 flex items-center space-x-2"
                       >
                         <LinkIcon className="w-4 h-4" />
-                        <span>Enroll Now</span>
+                        <span>View Opportunity</span>
                       </a>
                     </div>
                   </div>

@@ -156,6 +156,9 @@ async function getScrapedOpportunities(type: string | null) {
       const details = opp.scraped_opportunity_details?.[0];
       const deadline = details?.deadline ? new Date(details.deadline).toLocaleDateString() : undefined;
       
+      // Get the specific opportunity URL from metadata.link or metadata.url, fallback to source_url
+      const specificUrl = details?.metadata?.link || details?.metadata?.url || details?.metadata?.href || opp.source_url;
+      
       return {
         id: `scraped_${opp.id}`, // Prefix to distinguish from internal opportunities
         title: opp.title,
@@ -171,7 +174,7 @@ async function getScrapedOpportunities(type: string | null) {
         applicants: 0, // Scraped opportunities don't have applications yet
         metadata: details?.metadata || {},
         isScraped: true,
-        sourceUrl: opp.source_url
+        sourceUrl: specificUrl
       };
     }) || [];
 

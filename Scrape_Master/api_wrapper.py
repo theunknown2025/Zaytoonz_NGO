@@ -15,7 +15,8 @@ from datetime import datetime
 # Import your existing scraper modules
 from scraper import scrape_urls
 from pagination import paginate_urls  
-from markdown import fetch_and_store_markdowns
+from markdown import fetch_and_store_markdowns, read_raw_data
+from utils import generate_unique_name
 from assets import MODELS_USED, OPENAI_MODEL_FULLNAME
 from api_management import get_supabase_client
 
@@ -39,10 +40,11 @@ app.add_middleware(
 # Request/Response Models
 class ScrapeRequest(BaseModel):
     url: str
-    fields: Optional[List[str]] = ["title", "company", "location", "description"]
+    fields: Optional[List[str]] = ["title", "company", "location", "description", "url", "deadline", "job_type", "salary_range"]
     model: Optional[str] = OPENAI_MODEL_FULLNAME
     use_pagination: Optional[bool] = False
     pagination_details: Optional[str] = ""
+    return_raw_content: Optional[bool] = False  # If True, return the full raw markdown content
 
 class JobData(BaseModel):
     title: Optional[str] = None
@@ -51,9 +53,12 @@ class JobData(BaseModel):
     job_type: Optional[str] = None
     salary_range: Optional[str] = None
     description: Optional[str] = None
+    url: Optional[str] = None  # Direct link to the specific opportunity
+    link: Optional[str] = None  # Alternative field name for URL
     requirements: Optional[str] = None
     benefits: Optional[str] = None
     application_deadline: Optional[str] = None
+    deadline: Optional[str] = None  # Alternative field name for deadline
     tags: Optional[List[str]] = None
     experience_level: Optional[str] = None
     remote_work: Optional[bool] = False
@@ -71,9 +76,19 @@ class ScrapeResponse(BaseModel):
     pagination_urls: Optional[List[str]] = None
     metadata: Optional[Dict[str, Any]] = None
 
-def convert_scraped_data_to_job_format(scraped_data: List[Dict], fields: List[str]) -> List[JobData]:
+def convert_scraped_data_to_job_format(scraped_data: List[Dict], fields: List[str], source_url: str = "") -> List[JobData]:
     """Convert the scraped data format to JobData format expected by Next.js frontend"""
     jobs = []
+    
+    # Extract base URL for relative links
+    base_url = ""
+    if source_url:
+        try:
+            from urllib.parse import urlparse
+            parsed = urlparse(source_url)
+            base_url = f"{parsed.scheme}://{parsed.netloc}"
+        except:
+            base_url = ""
     
     for data_item in scraped_data:
         if not isinstance(data_item, dict):
@@ -100,7 +115,7 @@ def convert_scraped_data_to_job_format(scraped_data: List[Dict], fields: List[st
         else:
             listings = [parsed_data]
             
-        # Convert each listing to JobData format
+        # Convert each listing to JobData format - NO LIMIT on number of listings
         for listing in listings:
             if not isinstance(listing, dict):
                 continue
@@ -112,12 +127,27 @@ def convert_scraped_data_to_job_format(scraped_data: List[Dict], fields: List[st
             job_data.title = listing.get("title") or listing.get("job_title") or listing.get("position")
             job_data.company = listing.get("company") or listing.get("employer") or listing.get("organization")
             job_data.location = listing.get("location") or listing.get("place") or listing.get("address")
-            job_data.description = listing.get("description") or listing.get("job_description") or listing.get("details")
+            job_data.description = listing.get("description") or listing.get("job_description") or listing.get("details") or listing.get("summary")
             job_data.job_type = listing.get("job_type") or listing.get("type") or listing.get("employment_type")
             job_data.salary_range = listing.get("salary_range") or listing.get("salary") or listing.get("compensation")
             job_data.requirements = listing.get("requirements") or listing.get("qualifications")
             job_data.benefits = listing.get("benefits") or listing.get("perks")
             job_data.experience_level = listing.get("experience_level") or listing.get("experience") or listing.get("level")
+            
+            # Extract URL/Link - IMPORTANT for each opportunity
+            opportunity_url = listing.get("url") or listing.get("link") or listing.get("href") or listing.get("apply_url") or listing.get("detail_url") or listing.get("opportunity_url")
+            if opportunity_url:
+                # Handle relative URLs
+                if opportunity_url.startswith("/"):
+                    opportunity_url = base_url + opportunity_url
+                elif not opportunity_url.startswith("http"):
+                    opportunity_url = base_url + "/" + opportunity_url
+                job_data.url = opportunity_url
+                job_data.link = opportunity_url
+            
+            # Extract deadline
+            job_data.deadline = listing.get("deadline") or listing.get("application_deadline") or listing.get("closing_date") or listing.get("due_date")
+            job_data.application_deadline = job_data.deadline
             
             # Handle remote work detection
             remote_indicators = listing.get("remote_work") or listing.get("remote") or listing.get("work_type", "")
@@ -128,16 +158,19 @@ def convert_scraped_data_to_job_format(scraped_data: List[Dict], fields: List[st
                 
             # Extract tags from available fields
             tags = []
-            for field in ["tags", "skills", "technologies", "keywords"]:
+            for field in ["tags", "skills", "technologies", "keywords", "categories"]:
                 if field in listing and listing[field]:
                     if isinstance(listing[field], list):
                         tags.extend(listing[field])
                     elif isinstance(listing[field], str):
                         tags.append(listing[field])
-            job_data.tags = tags[:10] if tags else None  # Limit to 10 tags
+            job_data.tags = tags[:15] if tags else None  # Increased limit to 15 tags
             
-            jobs.append(job_data)
+            # Only add if we have at least a title
+            if job_data.title:
+                jobs.append(job_data)
     
+    print(f"📊 Total opportunities extracted: {len(jobs)}")
     return jobs
 
 @app.post("/api/scrape", response_model=ScrapeResponse)
@@ -166,6 +199,22 @@ async def scrape_job(request: ScrapeRequest):
         
         if not unique_names:
             raise HTTPException(status_code=422, detail="Failed to fetch content from URL")
+        
+        # If return_raw_content is True, return the full raw markdown without AI processing
+        if request.return_raw_content:
+            raw_content = read_raw_data(unique_names[0])
+            print(f"📄 Returning raw content: {len(raw_content)} characters")
+            return ScrapeResponse(
+                success=True,
+                data=JobData(description=raw_content),
+                message=f"Successfully fetched raw content from {request.url}",
+                metadata={
+                    "total_cost": 0,
+                    "unique_name": unique_names[0],
+                    "content_length": len(raw_content),
+                    "is_raw_content": True
+                }
+            )
             
         # Step 2: Scrape data using AI
         scraped_data = []
@@ -216,8 +265,8 @@ async def scrape_job(request: ScrapeRequest):
         
         # Step 4: Convert to JobData format expected by Next.js
         print(f"🔄 Converting {len(scraped_data)} items to job format...")
-        jobs = convert_scraped_data_to_job_format(scraped_data, request.fields)
-        print(f"✅ Conversion complete: {len(jobs)} jobs found")
+        jobs = convert_scraped_data_to_job_format(scraped_data, request.fields, request.url)
+        print(f"✅ Conversion complete: {len(jobs)} opportunities found")
         
         # Determine response format
         if len(jobs) == 1:
@@ -268,6 +317,51 @@ async def scrape_job(request: ScrapeRequest):
             error=error_msg,
             message=f"Failed to scrape job data: {error_msg}"
         )
+
+@app.post("/api/raw-content")
+async def get_raw_content(request: ScrapeRequest):
+    """
+    Fetch and return the raw markdown content from a URL without AI processing.
+    This returns the FULL page content as-is.
+    """
+    try:
+        # Validate Supabase connection
+        supabase = get_supabase_client()
+        if not supabase:
+            raise HTTPException(status_code=500, detail="Supabase not configured")
+            
+        # Validate URL
+        if not request.url:
+            raise HTTPException(status_code=400, detail="URL is required")
+        
+        # Fetch and store markdown data
+        print(f"🌐 Fetching raw markdown for: {request.url}")
+        unique_names = fetch_and_store_markdowns([request.url])
+        
+        if not unique_names:
+            raise HTTPException(status_code=422, detail="Failed to fetch content from URL")
+        
+        # Get the raw content directly
+        raw_content = read_raw_data(unique_names[0])
+        print(f"📄 Raw content fetched: {len(raw_content)} characters")
+        
+        return {
+            "success": True,
+            "url": request.url,
+            "raw_content": raw_content,
+            "content_length": len(raw_content),
+            "unique_name": unique_names[0]
+        }
+        
+    except Exception as e:
+        import traceback
+        error_msg = str(e)
+        print(f"❌ Error fetching raw content: {error_msg}")
+        return {
+            "success": False,
+            "error": error_msg,
+            "url": request.url
+        }
 
 @app.get("/health")
 async def health_check():

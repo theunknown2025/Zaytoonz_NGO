@@ -12,10 +12,13 @@ export interface JobData {
   requirements?: string;
   benefits?: string;
   application_deadline?: string;
+  deadline?: string;
   tags?: string[];
   experience_level?: string;
   remote_work?: boolean;
-  source_url?: string;
+  source_url?: string;  // The page URL where this was scraped from
+  url?: string;         // The direct link to this specific opportunity
+  link?: string;        // Alternative field name for URL
   scraped_at?: string;
   id?: string;
 }
@@ -64,9 +67,10 @@ export async function scrapeJobData(url: string): Promise<JobData | JobListResul
 async function scrapeWithExternalPython(url: string): Promise<JobData | JobListResult | null> {
   try {
     // Enhanced request with configurable fields and model
+    // Including 'url' and 'description' to ensure each opportunity has these fields
     const requestBody = {
       url,
-      fields: ["title", "company", "location", "job_type", "salary_range", "description", "requirements", "benefits", "tags", "experience_level", "remote_work"],
+      fields: ["title", "company", "location", "job_type", "salary_range", "description", "url", "deadline", "requirements", "benefits", "tags", "experience_level", "remote_work"],
       model: process.env.NEXT_PUBLIC_PREFERRED_AI_MODEL || "gpt-4o-mini",
       use_pagination: process.env.NEXT_PUBLIC_ENABLE_PAGINATION === 'true',
       pagination_details: process.env.NEXT_PUBLIC_PAGINATION_DETAILS || ""
@@ -100,13 +104,30 @@ async function scrapeWithExternalPython(url: string): Promise<JobData | JobListR
       
       // Handle multiple jobs response format
       if (result.jobs && Array.isArray(result.jobs)) {
+        // Extract base URL for normalizing relative links
+        const baseUrl = new URL(url).origin;
+        
         return {
-          jobs: result.jobs.map(job => ({
-            ...job,
-            source_url: url,
-            scraped_at: new Date().toISOString(),
-            id: `python-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
-          })),
+          jobs: result.jobs.map(job => {
+            // Normalize URL/link fields
+            let jobUrl = job.url || job.link || job.href;
+            if (jobUrl) {
+              if (jobUrl.startsWith('/')) {
+                jobUrl = baseUrl + jobUrl;
+              } else if (!jobUrl.startsWith('http')) {
+                jobUrl = baseUrl + '/' + jobUrl;
+              }
+            }
+            
+            return {
+              ...job,
+              url: jobUrl,
+              link: jobUrl,
+              source_url: url,
+              scraped_at: new Date().toISOString(),
+              id: `python-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+            };
+          }),
           summary: {
             totalFound: result.jobs.length,
             source: url,
@@ -512,6 +533,9 @@ function extractFromJobListingPage($: cheerio.Root, url: string): JobListResult 
   console.log(`📊 Total links on page: ${$('a').length}`);
   console.log(`📊 Total headings on page: ${$('h1, h2, h3, h4, h5, h6').length}`);
   
+  // Extract base URL for relative links
+  const baseUrl = new URL(url).origin;
+  
   for (const selector of jobSelectors) {
     let foundWithThisSelector = 0;
     
@@ -530,6 +554,20 @@ function extractFromJobListingPage($: cheerio.Root, url: string): JobListResult 
           jobUrl = link.attr('href') || '';
         } else {
           jobTitle = $(element).text().trim();
+          // Try to find any link in parent
+          const parentLink = $(element).parent().find('a').first();
+          if (parentLink.length) {
+            jobUrl = parentLink.attr('href') || '';
+          }
+        }
+      }
+      
+      // Normalize the job URL - convert relative to absolute
+      if (jobUrl) {
+        if (jobUrl.startsWith('/')) {
+          jobUrl = baseUrl + jobUrl;
+        } else if (!jobUrl.startsWith('http')) {
+          jobUrl = baseUrl + '/' + jobUrl;
         }
       }
       
@@ -543,7 +581,7 @@ function extractFromJobListingPage($: cheerio.Root, url: string): JobListResult 
         jobTitles.push(jobTitle);
         foundWithThisSelector++;
         
-        console.log(`✅ Job ${jobTitles.length}: "${jobTitle}"`);
+        console.log(`✅ Job ${jobTitles.length}: "${jobTitle}" | URL: ${jobUrl || 'N/A'}`);
         
         // Extract additional context from parent element
         const parentElement = $(element).closest('article, .post, .job-item, .item, div, li');
@@ -554,18 +592,26 @@ function extractFromJobListingPage($: cheerio.Root, url: string): JobListResult 
         const locationText = extractLocationFromContext(parentElement, $);
         const dateText = extractDateFromContext(parentElement, $);
         
-        // Create individual job entry
+        // Extract description - look for description elements or use context
+        const descriptionElement = parentElement.find('.description, .summary, .excerpt, .content, p').first();
+        const description = descriptionElement.length > 0 
+          ? descriptionElement.text().trim()
+          : (contextText.length > 50 ? contextText.substring(0, 500) + '...' : `Job opportunity found on ${domain}. Visit the link for full details.`);
+        
+        // Create individual job entry with URL and description
         const jobEntry: JobData = {
           title: jobTitle,
           company: companyText || extractDomainName(domain),
           location: locationText || 'Location not specified',
-          description: contextText.length > 100 ? 
-            contextText.substring(0, 200) + '...' : 
-            `Job opportunity found on ${domain}. Visit the source URL for full details.`,
+          description: description,
+          url: jobUrl || undefined,  // Direct link to this opportunity
+          link: jobUrl || undefined,  // Alternative field
+          source_url: url,  // The listing page URL
           tags: generateTagsFromContent(jobTitle, contextText),
           job_type: extractJobTypeFromText(contextText),
           experience_level: extractExperienceLevelFromText(contextText),
-          remote_work: isRemoteWork(contextText)
+          remote_work: isRemoteWork(contextText),
+          application_deadline: dateText || undefined
         };
         
         jobs.push(jobEntry);
@@ -574,11 +620,8 @@ function extractFromJobListingPage($: cheerio.Root, url: string): JobListResult 
     
     console.log(`   Selector "${selector}" found ${foundWithThisSelector} jobs`);
     
-    // If we found a good number of jobs, we can stop looking
-    if (jobTitles.length >= 5) {
-      console.log(`✅ Found sufficient jobs (${jobTitles.length}), stopping search`);
-      break;
-    }
+    // REMOVED THE LIMIT - Extract ALL opportunities
+    // Continue with all selectors to find more jobs
   }
   
   // If no jobs found, create a summary entry
@@ -589,6 +632,9 @@ function extractFromJobListingPage($: cheerio.Root, url: string): JobListResult 
       company: extractDomainName(domain),
       location: 'Various locations',
       description: `Job listing page from ${domain}. Multiple opportunities may be available - please visit the source page for details.`,
+      url: url,
+      link: url,
+      source_url: url,
       tags: ['Job Portal', 'Multiple Opportunities'],
       job_type: 'Various',
       experience_level: 'Various',

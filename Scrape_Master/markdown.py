@@ -50,29 +50,53 @@ def fetch_fit_markdown(url: str) -> str:
 def read_raw_data(unique_name: str) -> str:
     """
     Query the 'scraped_data' table for the row with this unique_name,
-    and return the 'raw_data' field.
+    and return the 'raw_data' field. If Supabase is unavailable, fall
+    back to an empty string so scraping can proceed.
     """
     supabase = get_supabase()
-    response = supabase.table("scraped_data").select("raw_data").eq("unique_name", unique_name).execute()
-    data = response.data
-    if data and len(data) > 0:
-        return data[0]["raw_data"]
+    if not supabase:
+        print("WARN: Supabase credentials missing; skipping cache lookup.")
+        return ""
+
+    try:
+        response = (
+            supabase.table("scraped_data")
+            .select("raw_data")
+            .eq("unique_name", unique_name)
+            .execute()
+        )
+        data = response.data
+        if data and len(data) > 0:
+            return data[0].get("raw_data", "")
+    except Exception as exc:
+        print(f"WARN: Supabase lookup failed for {unique_name}: {exc}")
     return ""
 
 def save_raw_data(unique_name: str, url: str, raw_data: str) -> None:
     """
     Save or update the row in supabase with unique_name, url, and raw_data.
-    If a row with unique_name doesn't exist, it inserts; otherwise it might upsert.
+    If Supabase is unavailable or times out, log and continue without failing
+    the scraping flow.
     """
     supabase = get_supabase()
-    supabase.table("scraped_data").upsert({
-        "unique_name": unique_name,
-        "url": url,
-        "raw_data": raw_data
-    }, on_conflict="id").execute()
-    BLUE = "\033[34m"
-    RESET = "\033[0m"
-    print(f"{BLUE}INFO:Raw data stored for {unique_name}{RESET}")
+    if not supabase:
+        print("WARN: Supabase credentials missing; skipping cache save.")
+        return
+
+    try:
+        supabase.table("scraped_data").upsert(
+            {
+                "unique_name": unique_name,
+                "url": url,
+                "raw_data": raw_data,
+            },
+            on_conflict="id",
+        ).execute()
+        BLUE = "\033[34m"
+        RESET = "\033[0m"
+        print(f"{BLUE}INFO:Raw data stored for {unique_name}{RESET}")
+    except Exception as exc:
+        print(f"WARN: Supabase save failed for {unique_name}: {exc}")
 
 def fetch_and_store_markdowns(urls: List[str]) -> List[str]:
     """
@@ -89,12 +113,13 @@ def fetch_and_store_markdowns(urls: List[str]) -> List[str]:
         unique_name = generate_unique_name(url)
         MAGENTA = "\033[35m"
         RESET = "\033[0m"
-        # check if we already have raw_data in supabase
+
+        # Check if we already have raw_data in Supabase; failures fall back to fresh fetch
         raw_data = read_raw_data(unique_name)
         if raw_data:
             print(f"{MAGENTA}Found existing data in supabase for {url} => {unique_name}{RESET}")
         else:
-            # fetch fit markdown
+            # fetch fit markdown; let this raise so caller sees crawl issues, but not Supabase
             fit_md = fetch_fit_markdown(url)
             print(fit_md)
             save_raw_data(unique_name, url, fit_md)

@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import bcrypt from 'bcryptjs';
 
 // These environment variables need to be set in your .env.local file
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
@@ -13,25 +14,29 @@ export async function isEmailRegistered(email: string): Promise<boolean> {
     .from('users')
     .select('email')
     .eq('email', email)
-    .single();
+    .limit(1);
 
-  if (error && error.code !== 'PGRST116') {
+  const user = data?.[0] ?? null;
+
+  if (error) {
     // PGRST116 means no rows returned, which is fine
     console.error('Error checking if email exists:', error);
   }
 
-  return !!data;
+  return !!user;
 }
 
 // Function to signup a new user
 export async function signUpUser(fullName: string, email: string, password: string, userType: 'Personne' | 'NGO' | 'Admin' | 'admin_ngo' | 'assistant_ngo') {
   try {
     // Check if email already exists
-    const { data: existingUser, error: checkError } = await supabase
+    const { data: existingUsers, error: checkError } = await supabase
       .from('users')
       .select('email, auth_provider')
       .eq('email', email)
-      .single();
+      .limit(1);
+
+    const existingUser = existingUsers?.[0] ?? null;
 
     if (existingUser) {
       if (existingUser.auth_provider === 'google') {
@@ -51,19 +56,20 @@ export async function signUpUser(fullName: string, email: string, password: stri
         user_type: userType,
         auth_provider: 'email' // Regular email/password signup
       })
-      .select()
-      .single();
+      .select();
 
-    if (userError) {
+    const insertedUser = userData?.[0] ?? null;
+
+    if (userError || !insertedUser) {
       console.error('Error creating user:', userError);
-      return { user: null, error: userError.message };
+      return { user: null, error: userError?.message || 'Failed to create user' };
     }
 
     // Create the type-specific details record
     if (userType === 'NGO' || userType === 'admin_ngo' || userType === 'assistant_ngo') {
       const { error: ngoError } = await supabase
         .from('ngo_details')
-        .insert({ user_id: userData.id });
+        .insert({ user_id: insertedUser.id });
 
       if (ngoError) {
         console.error('Error creating NGO details:', ngoError);
@@ -72,7 +78,7 @@ export async function signUpUser(fullName: string, email: string, password: stri
     } else if (userType === 'Personne') {
       const { error: personneError } = await supabase
         .from('personne_details')
-        .insert({ user_id: userData.id });
+        .insert({ user_id: insertedUser.id });
 
       if (personneError) {
         console.error('Error creating personne details:', personneError);
@@ -82,10 +88,10 @@ export async function signUpUser(fullName: string, email: string, password: stri
 
     return { 
       user: {
-        id: userData.id,
-        fullName: userData.full_name,
-        email: userData.email,
-        userType: userData.user_type as 'Personne' | 'NGO' | 'Admin' | 'admin_ngo' | 'assistant_ngo'
+        id: insertedUser.id,
+        fullName: insertedUser.full_name,
+        email: insertedUser.email,
+        userType: insertedUser.user_type as 'Personne' | 'NGO' | 'Admin' | 'admin_ngo' | 'assistant_ngo'
       }, 
       error: null 
     };
@@ -100,13 +106,15 @@ export async function signUpUser(fullName: string, email: string, password: stri
 export async function signInUser(email: string, password: string) {
   try {
     // Find user by email
-    const { data: userData, error: userError } = await supabase
+    const { data: users, error: userError } = await supabase
       .from('users')
       .select('*')
       .eq('email', email)
-      .single();
+      .limit(1);
 
-    if (userError) {
+    const userData = users?.[0] ?? null;
+
+    if (userError || !userData) {
       return { user: null, error: 'Invalid email or password' };
     }
 
@@ -115,15 +123,31 @@ export async function signInUser(email: string, password: string) {
       return { user: null, error: 'This account was created with Google. Please sign in with Google instead.' };
     }
 
-    // In a real implementation, you would verify the password hash here
-    // For this example, we'll do a simple check (this is NOT secure and just for demo)
-    const hashedPassword = 'hashed_' + password;
-    const doubleHashedPassword = 'hashed_' + hashedPassword;
-    if (
-      userData.password_hash !== hashedPassword &&
-      userData.password_hash !== password &&
-      userData.password_hash !== doubleHashedPassword
-    ) {
+    // Verify password using bcrypt
+    if (!userData.password_hash) {
+      return { user: null, error: 'Invalid email or password' };
+    }
+
+    // Check if password_hash is a bcrypt hash (starts with $2a$, $2b$, or $2y$)
+    const isBcryptHash = /^\$2[ayb]\$\d{2}\$/.test(userData.password_hash);
+    
+    let passwordValid = false;
+    
+    if (isBcryptHash) {
+      // Verify using bcrypt
+      passwordValid = await bcrypt.compare(password, userData.password_hash);
+    } else {
+      // Legacy support for old password formats (for backward compatibility)
+      const hashedPassword = 'hashed_' + password;
+      const doubleHashedPassword = 'hashed_' + hashedPassword;
+      passwordValid = (
+        userData.password_hash === hashedPassword ||
+        userData.password_hash === password ||
+        userData.password_hash === doubleHashedPassword
+      );
+    }
+
+    if (!passwordValid) {
       return { user: null, error: 'Invalid email or password' };
     }
 
@@ -182,13 +206,15 @@ export async function handleAuthCallback() {
 
     if (user) {
       // Check if user exists in our users table
-      const { data: existingUser, error: userError } = await supabase
+      const { data: existingUsers, error: userError } = await supabase
         .from('users')
         .select('*')
         .eq('email', user.email)
-        .single();
+        .limit(1);
 
-      if (userError && userError.code !== 'PGRST116') {
+      const existingUser = existingUsers?.[0] ?? null;
+
+      if (userError) {
         console.error('Error checking existing user:', userError);
         return { user: null, error: userError.message };
       }
@@ -206,7 +232,7 @@ export async function handleAuthCallback() {
         }
 
         // Create new user in our users table
-        const { data: newUser, error: createError } = await supabase
+        const { data: newUsers, error: createError } = await supabase
           .from('users')
           .insert({
             full_name: user.user_metadata?.full_name || user.email?.split('@')[0] || 'User',
@@ -215,12 +241,13 @@ export async function handleAuthCallback() {
             auth_provider: 'google',
             password_hash: null // OAuth users don't have passwords
           })
-          .select()
-          .single();
+          .select();
 
-        if (createError) {
+        const newUser = newUsers?.[0] ?? null;
+
+        if (createError || !newUser) {
           console.error('Error creating user:', createError);
-          return { user: null, error: createError.message };
+          return { user: null, error: createError?.message || 'Failed to create user' };
         }
 
         // Create type-specific details based on user type
@@ -286,25 +313,29 @@ export async function handleAuthCallback() {
 export async function getUserProfile(userId: string, userType: 'Personne' | 'NGO' | 'admin_ngo' | 'assistant_ngo') {
   try {
     // Get the basic user data
-    const { data: userData, error: userError } = await supabase
+    const { data: userRows, error: userError } = await supabase
       .from('users')
       .select('*')
       .eq('id', userId)
-      .single();
+      .limit(1);
 
-    if (userError) {
-      return { profile: null, error: userError.message };
+    const userData = userRows?.[0] ?? null;
+
+    if (userError || !userData) {
+      return { profile: null, error: userError?.message || 'User not found' };
     }
 
     // Get the type-specific details
     const detailsTable = (userType === 'NGO' || userType === 'admin_ngo' || userType === 'assistant_ngo') ? 'ngo_details' : 'personne_details';
-    const { data: detailsData, error: detailsError } = await supabase
+    const { data: detailsRows, error: detailsError } = await supabase
       .from(detailsTable)
       .select('*')
       .eq('user_id', userId)
-      .single();
+      .limit(1);
 
-    if (detailsError && detailsError.code !== 'PGRST116') {
+    const detailsData = detailsRows?.[0] ?? null;
+
+    if (detailsError) {
       // PGRST116 means no rows, which might be fine for a new user
       return { profile: null, error: detailsError.message };
     }

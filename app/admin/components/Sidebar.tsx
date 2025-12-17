@@ -18,10 +18,8 @@ import {
   UserGroupIcon,
   PresentationChartBarIcon,
   StarIcon,
-  GlobeAltIcon,
-  DocumentTextIcon,
-  RssIcon,
-  HomeIcon
+  HomeIcon,
+  MagnifyingGlassCircleIcon
 } from "@heroicons/react/24/outline";
 import { useState } from "react";
 
@@ -182,23 +180,12 @@ export function Sidebar({ user }: SidebarProps) {
           </li>
 
           <li>
-            <Link href="/admin/ManualScraper" className="flex items-center px-4 py-3 text-sm rounded-xl group transition-all duration-200 text-gray-700 hover:bg-[#556B2F]/10">
-              <DocumentTextIcon className="mr-3 h-5 w-5 flex-shrink-0 text-[#556B2F]" />
-              Manual Scrap
+            <Link href="/admin/Scraper" className="flex items-center px-4 py-3 text-sm rounded-xl group transition-all duration-200 text-gray-700 hover:bg-[#556B2F]/10">
+              <MagnifyingGlassCircleIcon className="mr-3 h-5 w-5 flex-shrink-0 text-[#556B2F]" />
+              Opportunities Scraper
             </Link>
           </li>
-          <li>
-            <Link href="/admin/scraper" className="flex items-center px-4 py-3 text-sm rounded-xl group transition-all duration-200 text-gray-700 hover:bg-[#556B2F]/10">
-              <GlobeAltIcon className="mr-3 h-5 w-5 flex-shrink-0 text-[#556B2F]" />
-              Legacy Scraper
-            </Link>
-          </li>
-          <li>
-            <Link href="/admin/zaytoonz-scraper" className="flex items-center px-4 py-3 text-sm rounded-xl group transition-all duration-200 text-gray-700 hover:bg-[#556B2F]/10">
-              <RssIcon className="mr-3 h-5 w-5 flex-shrink-0 text-[#556B2F]" />
-              Zaytoonz Scrap
-            </Link>
-          </li>
+
           <li>
             <Link href="#" className="flex items-center px-4 py-3 text-sm rounded-xl group transition-all duration-200 text-gray-700 hover:bg-[#556B2F]/10">
               <WrenchScrewdriverIcon className="mr-3 h-5 w-5 flex-shrink-0 text-[#556B2F]" />

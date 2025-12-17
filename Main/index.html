@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Zaytoonz - Connect With Us</title>
+    <link rel="icon" type="image/png" href="../public/image.png">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 40px 20px;
+            position: relative;
+            overflow-x: hidden;
+        }
+
+        /* Background slideshow */
+        .background-slideshow {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            z-index: -2;
+        }
+
+        .bg-slide {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-size: cover;
+            background-position: center;
+            opacity: 0;
+            transition: opacity 1.5s ease-in-out;
+        }
+
+        .bg-slide.active {
+            opacity: 1;
+        }
+
+        .bg-slide:nth-child(1) { background-image: url('../public/Health.png'); }
+        .bg-slide:nth-child(2) { background-image: url('../public/Water.png'); }
+        .bg-slide:nth-child(3) { background-image: url('../public/Green.png'); }
+        .bg-slide:nth-child(4) { background-image: url('../public/Education.png'); }
+
+        /* Dark overlay for readability */
+        .overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(
+                135deg,
+                rgba(26, 47, 26, 0.85) 0%,
+                rgba(45, 74, 45, 0.8) 25%,
+                rgba(61, 92, 61, 0.75) 50%,
+                rgba(74, 107, 74, 0.8) 75%,
+                rgba(85, 107, 47, 0.85) 100%
+            );
+            z-index: -1;
+        }
+
+        .container {
+            max-width: 900px;
+            width: 100%;
+            position: relative;
+            z-index: 1;
+            margin-top: -100px;
+        }
+
+        /* Logo and Header */
+        .header {
+            text-align: center;
+            margin-bottom: 50px;
+        }
+
+        .logo {
+            width: 750px;
+            height: auto;
+            margin-bottom: 12px;
+            filter: drop-shadow(0 10px 30px rgba(0, 0, 0, 0.3));
+        }
+
+        .title {
+            font-size: 3.5rem;
+            font-weight: 900;
+            color: white;
+            text-shadow: 0 4px 30px rgba(0, 0, 0, 0.4);
+            letter-spacing: -1px;
+            margin-bottom: 16px;
+            line-height: 1.1;
+        }
+
+        .slogan {
+            font-size: 1.5rem;
+            color: rgba(255, 255, 255, 0.95);
+            font-weight: 600;
+            margin-bottom: 12px;
+            text-shadow: 0 2px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .slogan-highlight {
+            color: #a8d94a;
+            font-weight: 700;
+        }
+
+        .subtitle {
+            font-size: 1.1rem;
+            color: rgba(255, 255, 255, 0.8);
+            font-weight: 400;
+            margin-bottom: 8px;
+            line-height: 1.6;
+        }
+
+        /* Social Links Grid - 3 columns */
+        .links-container {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+        }
+
+        .social-link {
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 28px 20px;
+            background: rgba(168, 217, 74, 0.3);
+            border-radius: 20px;
+            text-decoration: none;
+            color: white;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+            overflow: hidden;
+            min-height: 180px;
+            border: 1px solid rgba(168, 217, 74, 0.4);
+            backdrop-filter: blur(10px);
+        }
+
+        .social-link:hover {
+            transform: translateY(-8px) scale(1.02);
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            background: rgba(85, 107, 47, 0.95);
+            border-color: rgba(85, 107, 47, 1);
+        }
+
+        /* Front content (visible by default) */
+        .card-front {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 12px;
+            transition: opacity 0.3s ease, transform 0.3s ease;
+        }
+
+        .social-link:hover .card-front {
+            opacity: 0;
+            transform: scale(0.8);
+        }
+
+        /* QR Code (visible on hover) */
+        .card-back {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            opacity: 0;
+            transform: scale(0.8);
+            transition: opacity 0.3s ease, transform 0.3s ease;
+        }
+
+        .social-link:hover .card-back {
+            opacity: 1;
+            transform: scale(1);
+        }
+
+        .qr-code {
+            width: 100px;
+            height: 100px;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 10px;
+            overflow: hidden;
+            padding: 8px;
+        }
+
+        .qr-code img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .qr-placeholder {
+            font-size: 0.7rem;
+            color: #556B2F;
+            text-align: center;
+            font-weight: 600;
+        }
+
+        .scan-text {
+            font-size: 0.85rem;
+            color: white;
+            font-weight: 600;
+            text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+        }
+
+        .icon-wrapper {
+            width: 60px;
+            height: 60px;
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: transform 0.3s ease;
+        }
+
+        .icon-wrapper svg {
+            width: 32px;
+            height: 32px;
+        }
+
+        /* Platform-specific colors */
+        .whatsapp .icon-wrapper { background: linear-gradient(135deg, #25D366, #128C7E); }
+        .telegram .icon-wrapper { background: linear-gradient(135deg, #0088cc, #229ED9); }
+        .facebook .icon-wrapper { background: linear-gradient(135deg, #1877F2, #3b5998); }
+        .linkedin .icon-wrapper { background: linear-gradient(135deg, #0077B5, #00a0dc); }
+        .facebook-group .icon-wrapper { background: linear-gradient(135deg, #1877F2, #4267B2); }
+        .linkedin-group .icon-wrapper { background: linear-gradient(135deg, #0077B5, #005582); }
+
+        .link-title {
+            font-weight: 700;
+            font-size: 1rem;
+            color: white;
+            text-align: center;
+            text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+        }
+
+        .link-description {
+            font-size: 0.8rem;
+            color: rgba(255, 255, 255, 0.85);
+            font-weight: 400;
+            text-align: center;
+        }
+
+        /* Footer */
+        .footer {
+            text-align: center;
+            margin-top: 50px;
+            color: rgba(255, 255, 255, 0.6);
+            font-size: 0.85rem;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .links-container {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .logo {
+                width: 180px;
+            }
+
+            .title {
+                font-size: 2.5rem;
+            }
+
+            .slogan {
+                font-size: 1.2rem;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .links-container {
+                grid-template-columns: 1fr;
+                max-width: 320px;
+                margin: 0 auto;
+            }
+
+            .logo {
+                width: 150px;
+            }
+
+            .title {
+                font-size: 2rem;
+            }
+
+            .social-link {
+                min-height: 160px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Background Slideshow -->
+    <div class="background-slideshow">
+        <div class="bg-slide active"></div>
+        <div class="bg-slide"></div>
+        <div class="bg-slide"></div>
+        <div class="bg-slide"></div>
+    </div>
+    <div class="overlay"></div>
+
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <img src="../public/image.png" alt="Zaytoonz Logo" class="logo">
+            
+            <p class="slogan">
+                Fueling <span class="slogan-highlight">Social Impact</span> with Professional Expertise
+            </p>
+            
+            <p class="subtitle">Connect With Our Community</p>
+        </div>
+
+        <!-- Social Links Grid -->
+        <div class="links-container">
+            <!-- WhatsApp -->
+            <a href="https://chat.whatsapp.com/BgwfK7tgRTqC6s8DRAJ1Am" target="_blank" class="social-link whatsapp">
+                <div class="card-front">
+                    <div class="icon-wrapper">
+                        <svg fill="white" viewBox="0 0 24 24">
+                            <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+                        </svg>
+                    </div>
+                    <div class="link-title">WhatsApp</div>
+                    <div class="link-description">Community Chat</div>
+                </div>
+                <div class="card-back">
+                    <div class="qr-code">
+                        <img src="../public/sm/whatsapp-qr.png" alt="WhatsApp QR" onerror="this.style.display='none'; this.parentElement.innerHTML='<span class=\'qr-placeholder\'>QR Code</span>'">
+                    </div>
+                    <span class="scan-text">Scan to Join</span>
+                </div>
+            </a>
+
+            <!-- Telegram -->
+            <a href="https://t.me/zaytoonz" target="_blank" class="social-link telegram">
+                <div class="card-front">
+                    <div class="icon-wrapper">
+                        <svg fill="white" viewBox="0 0 24 24">
+                            <path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/>
+                        </svg>
+                    </div>
+                    <div class="link-title">Telegram</div>
+                    <div class="link-description">Channel</div>
+                </div>
+                <div class="card-back">
+                    <div class="qr-code">
+                        <img src="../public/sm/telegram-qr.png" alt="Telegram QR" onerror="this.style.display='none'; this.parentElement.innerHTML='<span class=\'qr-placeholder\'>QR Code</span>'">
+                    </div>
+                    <span class="scan-text">Scan to Join</span>
+                </div>
+            </a>
+
+            <!-- Facebook Page -->
+            <a href="https://www.facebook.com/zaytoonz/" target="_blank" class="social-link facebook">
+                <div class="card-front">
+                    <div class="icon-wrapper">
+                        <svg fill="white" viewBox="0 0 24 24">
+                            <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+                        </svg>
+                    </div>
+                    <div class="link-title">Facebook</div>
+                    <div class="link-description">Official Page</div>
+                </div>
+                <div class="card-back">
+                    <div class="qr-code">
+                        <img src="../public/sm/facebook-qr.png" alt="Facebook QR" onerror="this.style.display='none'; this.parentElement.innerHTML='<span class=\'qr-placeholder\'>QR Code</span>'">
+                    </div>
+                    <span class="scan-text">Scan to Follow</span>
+                </div>
+            </a>
+
+            <!-- LinkedIn Page -->
+            <a href="https://www.linkedin.com/company/zaytoonz/" target="_blank" class="social-link linkedin">
+                <div class="card-front">
+                    <div class="icon-wrapper">
+                        <svg fill="white" viewBox="0 0 24 24">
+                            <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
+                        </svg>
+                    </div>
+                    <div class="link-title">LinkedIn</div>
+                    <div class="link-description">Company Page</div>
+                </div>
+                <div class="card-back">
+                    <div class="qr-code">
+                        <img src="../public/sm/linkedin-qr.png" alt="LinkedIn QR" onerror="this.style.display='none'; this.parentElement.innerHTML='<span class=\'qr-placeholder\'>QR Code</span>'">
+                    </div>
+                    <span class="scan-text">Scan to Connect</span>
+                </div>
+            </a>
+
+            <!-- Facebook Group -->
+            <a href="https://www.facebook.com/groups/654692163266122" target="_blank" class="social-link facebook-group">
+                <div class="card-front">
+                    <div class="icon-wrapper">
+                        <svg fill="white" viewBox="0 0 24 24">
+                            <path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/>
+                        </svg>
+                    </div>
+                    <div class="link-title">FB Group</div>
+                    <div class="link-description">Community</div>
+                </div>
+                <div class="card-back">
+                    <div class="qr-code">
+                        <img src="../public/sm/facebook-group-qr.png" alt="FB Group QR" onerror="this.style.display='none'; this.parentElement.innerHTML='<span class=\'qr-placeholder\'>QR Code</span>'">
+                    </div>
+                    <span class="scan-text">Scan to Join</span>
+                </div>
+            </a>
+
+            <!-- LinkedIn Group -->
+            <a href="https://www.linkedin.com/groups/12864122/" target="_blank" class="social-link linkedin-group">
+                <div class="card-front">
+                    <div class="icon-wrapper">
+                        <svg fill="white" viewBox="0 0 24 24">
+                            <path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/>
+                        </svg>
+                    </div>
+                    <div class="link-title">LI Group</div>
+                    <div class="link-description">Networking</div>
+                </div>
+                <div class="card-back">
+                    <div class="qr-code">
+                        <img src="../public/sm/linkedin-group-qr.png" alt="LI Group QR" onerror="this.style.display='none'; this.parentElement.innerHTML='<span class=\'qr-placeholder\'>QR Code</span>'">
+                    </div>
+                    <span class="scan-text">Scan to Join</span>
+                </div>
+            </a>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p>© 2024 Zaytoonz. All rights reserved.</p>
+        </div>
+    </div>
+
+    <script>
+        // Background slideshow
+        const slides = document.querySelectorAll('.bg-slide');
+        let currentSlide = 0;
+
+        function nextSlide() {
+            slides[currentSlide].classList.remove('active');
+            currentSlide = (currentSlide + 1) % slides.length;
+            slides[currentSlide].classList.add('active');
+        }
+
+        // Change slide every 5 seconds
+        setInterval(nextSlide, 5000);
+    </script>
+</body>
+</html>

@@ -137,13 +137,6 @@ export default function ExternalOpportunitiesPage() {
             <h2 className="text-lg font-bold text-gray-900 mb-4">Quick Actions</h2>
             <div className="flex flex-wrap gap-3">
               <Link
-                href="/admin/zaytoonz-scraper"
-                className="px-4 py-2 bg-[#556B2F] hover:bg-[#6B8E23] text-white font-medium rounded-lg transition-colors duration-200 flex items-center space-x-2"
-              >
-                <GlobeAltIcon className="w-4 h-4" />
-                <span>Start New Scraping</span>
-              </Link>
-              <Link
                 href="/admin/ExternalOpportunities/Jobs"
                 className="px-4 py-2 border border-[#556B2F] text-[#556B2F] hover:bg-[#556B2F]/10 font-medium rounded-lg transition-colors duration-200 flex items-center space-x-2"
               >
