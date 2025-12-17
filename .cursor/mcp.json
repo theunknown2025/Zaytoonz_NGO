@@ -10,6 +10,13 @@
           "--access-token",
           "sbp_bc68995d76de8131959ede6eb83b99dbcfb44c2f"
         ]
+      },
+      "hostinger-api": {
+        "command": "hostinger-api-mcp",
+        "env": {
+          "DEBUG": "false",
+          "APITOKEN": "aX5LVijdp23IgB9fcBT5eNY2iY4XFHkbPtmxStEQd0483df7"
+        }
       }
     }
   }

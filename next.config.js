@@ -24,6 +24,34 @@ const nextConfig = {
       config.externals.push('undici');
     }
     
+    // Exclude Python venv and other non-JS files from webpack processing
+    // This prevents webpack from trying to process Python files
+    const webpack = require('webpack');
+    
+    // Ignore venv directories and Python files completely
+    config.plugins = config.plugins || [];
+    config.plugins.push(
+      new webpack.IgnorePlugin({
+        resourceRegExp: /^\.\/.*$/,
+        contextRegExp: /(venv|__pycache__|app\/admin\/Scrape_Master\/venv)/,
+      })
+    );
+    
+    // Ignore patterns for webpack watch
+    config.watchOptions = {
+      ...config.watchOptions,
+      ignored: [
+        '**/node_modules/**',
+        '**/.next/**',
+        '**/venv/**',
+        '**/__pycache__/**',
+        '**/*.py',
+        '**/*.pyc',
+        '**/app/admin/Scrape_Master/venv/**',
+        '**/Scrape_Master/venv/**',
+      ],
+    };
+    
     // Handle private fields syntax for undici
     config.module.rules.push({
       test: /\.m?js$/,
