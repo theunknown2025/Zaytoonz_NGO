@@ -13,12 +13,13 @@ module.exports = {
   apps: [
     {
       name: 'python-scraper',
-      script: 'venv/bin/uvicorn',
-      args: 'api_wrapper:app --host 0.0.0.0 --port 8000',
+      script: './venv/bin/python',
+      args: '-m uvicorn api_wrapper:app --host 0.0.0.0 --port 8000',
       cwd: './app/admin/Scrape_Master',
       interpreter: 'none',
       env: {
         NODE_ENV: 'production',
+        PYTHONPATH: './app/admin/Scrape_Master',
       },
       error_file: './logs/pm2/python-scraper-error.log',
       out_file: './logs/pm2/python-scraper-out.log',
