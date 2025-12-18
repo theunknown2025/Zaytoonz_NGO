@@ -13,6 +13,7 @@ import {
   Building,
   ChevronLeft
 } from 'lucide-react';
+import type { LanguageCode } from '../translations';
 
 interface Opportunity {
   id: string;
@@ -29,7 +30,25 @@ interface Opportunity {
   company?: string;
 }
 
-const RecentOpportunities: React.FC = () => {
+interface RecentOpportunitiesProps {
+  lang: LanguageCode;
+  translations: {
+    latestTitle: string;
+    jobs: string;
+    funding: string;
+    training: string;
+    viewOpportunity: string;
+    viewDetails: string;
+    posted: string;
+    external: string;
+    partner: string;
+    noAvailable: string;
+    checkBack: string;
+    exploreAll: string;
+  };
+}
+
+const RecentOpportunities: React.FC<RecentOpportunitiesProps> = ({ lang, translations }) => {
   const [activeTab, setActiveTab] = useState<'job' | 'funding' | 'training'>('job');
   const [opportunities, setOpportunities] = useState<{
     job: Opportunity[];
@@ -364,14 +383,14 @@ const RecentOpportunities: React.FC = () => {
       return (
         <div className="flex items-center space-x-1 bg-blue-100 text-blue-700 px-2 py-1 rounded-full text-xs font-medium">
           <Globe className="h-3 w-3" />
-          <span>External</span>
+                      <span>{translations.external}</span>
         </div>
       );
     }
     return (
       <div className="flex items-center space-x-1 bg-green-100 text-green-700 px-2 py-1 rounded-full text-xs font-medium">
         <Building className="h-3 w-3" />
-        <span>Partner</span>
+        <span>{translations.partner}</span>
       </div>
     );
   };
@@ -416,7 +435,11 @@ const RecentOpportunities: React.FC = () => {
               }`}
             >
               {getTabIcon(type)}
-              <span className="capitalize">{type}s</span>
+              <span className="capitalize">
+                {type === 'job' ? translations.jobs : 
+                 type === 'funding' ? translations.funding : 
+                 translations.training}
+              </span>
               <span className={`px-2 py-1 rounded-full text-xs ${
                 activeTab === type ? 'bg-white/20 text-white' : 'bg-olive-100 text-olive-700'
               }`}>
@@ -517,7 +540,7 @@ const RecentOpportunities: React.FC = () => {
 
                     <div className="flex items-center text-sm text-gray-500">
                       <Calendar className="h-4 w-4 mr-2" />
-                      <span>Posted {formatDate(opportunity.created_at)}</span>
+                      <span>{translations.posted} {formatDate(opportunity.created_at)}</span>
                     </div>
                   </div>
 
@@ -529,7 +552,7 @@ const RecentOpportunities: React.FC = () => {
                       rel="noopener noreferrer"
                       className="w-full bg-gradient-to-r from-olive-500 to-olive-600 hover:from-olive-600 hover:to-olive-700 text-white py-3 px-4 rounded-lg font-semibold hover:shadow-lg transition-all duration-300 flex items-center justify-center space-x-2 group"
                     >
-                      <span>View Opportunity</span>
+                      <span>{translations.viewOpportunity}</span>
                       <ChevronRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
                     </a>
                   ) : (
@@ -537,7 +560,7 @@ const RecentOpportunities: React.FC = () => {
                       href={`/seeker/opportunities/${opportunity.id}`}
                       className="w-full bg-gradient-to-r from-olive-500 to-olive-600 hover:from-olive-600 hover:to-olive-700 text-white py-3 px-4 rounded-lg font-semibold hover:shadow-lg transition-all duration-300 flex items-center justify-center space-x-2 group"
                     >
-                      <span>View Details</span>
+                      <span>{translations.viewDetails}</span>
                       <ChevronRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
                     </a>
                   )}
@@ -571,10 +594,10 @@ const RecentOpportunities: React.FC = () => {
             {getTabIcon(activeTab)}
           </div>
           <h3 className="text-xl font-semibold text-olive-700 mb-2">
-            No {activeTab}s available
+            {translations.noAvailable.replace('{type}', activeTab)}
           </h3>
           <p className="text-olive-600">
-            Check back soon for new {activeTab} opportunities.
+            {translations.checkBack.replace('{type}', activeTab)}
           </p>
         </div>
       )}
@@ -586,7 +609,7 @@ const RecentOpportunities: React.FC = () => {
             href="/seeker/opportunities"
             className="inline-flex items-center space-x-2 bg-gradient-to-r from-olive-500 to-olive-600 hover:from-olive-600 hover:to-olive-700 text-white px-8 py-3 rounded-lg font-semibold hover:shadow-lg transition-all duration-300 transform hover:scale-105"
           >
-            <span>Explore All Opportunities</span>
+            <span>{translations.exploreAll}</span>
             <ChevronRight className="h-4 w-4" />
           </a>
         </div>
