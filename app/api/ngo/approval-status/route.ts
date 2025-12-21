@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/app/lib/supabase';
 import { getUserId } from '@/app/lib/auth-utils';
 
+// Force dynamic rendering since we use headers for authentication
+export const dynamic = 'force-dynamic';
+
 export async function GET(request: NextRequest) {
   try {
     // Get the user ID using the authentication utility
