@@ -16,9 +16,9 @@ $VPS_USER = $script:VPS_USER
 $VPS_PASSWORD = $script:VPS_PASSWORD
 
 Write-Host ""
-Write-Host "╔════════════════════════════════════════════════════════╗" -ForegroundColor Cyan
-Write-Host "║  Zaytoonz NGO - Quick Deploy to /test                 ║" -ForegroundColor Cyan
-Write-Host "╚════════════════════════════════════════════════════════╝" -ForegroundColor Cyan
+Write-Host "================================================================" -ForegroundColor Cyan
+Write-Host "  Zaytoonz NGO - Quick Deploy to /test" -ForegroundColor Cyan
+Write-Host "================================================================" -ForegroundColor Cyan
 Write-Host ""
 
 # Build locally
@@ -95,6 +95,6 @@ Write-Host ""
 Write-Host "[SUCCESS] Deployment process completed!" -ForegroundColor Green
 Write-Host ""
 $appUrl = 'https://zaytoonz.com/test'
-Write-Host 'Access your app at:' $appUrl -ForegroundColor Cyan
+Write-Host "Access your app at: $appUrl" -ForegroundColor Cyan
 Write-Host ""
 
