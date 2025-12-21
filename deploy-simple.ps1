@@ -65,9 +65,12 @@ $plinkPath = Get-Command plink -ErrorAction SilentlyContinue
 
 if ($plinkPath) {
     Write-Host "[*] Using Plink for authentication..." -ForegroundColor Gray
-    # Upload script
+    # Upload script using PowerShell-compatible method
     echo y | & $plinkPath -ssh -pw $VPS_PASSWORD $VPS_USER@$VPS_IP "mkdir -p /tmp" 2>&1 | Out-Null
-    & $plinkPath -ssh -pw $VPS_PASSWORD $VPS_USER@$VPS_IP "cat > /tmp/deploy-test.sh" < $tempScript 2>&1 | Out-Null
+    
+    # Upload file content using Get-Content and pipe to plink
+    $fileContent = Get-Content $tempScript -Raw
+    $fileContent | & $plinkPath -ssh -pw $VPS_PASSWORD $VPS_USER@$VPS_IP "cat > /tmp/deploy-test.sh" 2>&1 | Out-Null
     
     # Execute
     $execCmd = "chmod +x /tmp/deploy-test.sh; bash /tmp/deploy-test.sh"
@@ -77,10 +80,10 @@ if ($plinkPath) {
     Write-Host "[*] Using SSH (you may be prompted for password)..." -ForegroundColor Yellow
     Write-Host "[*] Password: $VPS_PASSWORD" -ForegroundColor Gray
     
-    # Upload script first
+    # Upload script first using Get-Content
     Write-Host "[*] Uploading deployment script..." -ForegroundColor Cyan
     $uploadCmd = "cat > /tmp/deploy-test.sh"
-    Get-Content $tempScript | ssh -o StrictHostKeyChecking=no $VPS_USER@$VPS_IP $uploadCmd
+    Get-Content $tempScript -Raw | ssh -o StrictHostKeyChecking=no $VPS_USER@$VPS_IP $uploadCmd
     
     # Execute deployment
     Write-Host "[*] Running deployment..." -ForegroundColor Cyan
