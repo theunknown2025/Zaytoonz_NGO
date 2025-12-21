@@ -1,8 +1,8 @@
 # PowerShell script to create sub-deploy-vps.tar.gz archive
-# This creates a deployment package for the /Test subdirectory
+# This creates a deployment package for the /test subdirectory
 # Usage: .\create-sub-deploy-archive.ps1
 
-Write-Host "📦 Creating VPS Deployment Archive for /Test subdirectory..." -ForegroundColor Cyan
+Write-Host "📦 Creating VPS Deployment Archive for /test subdirectory..." -ForegroundColor Cyan
 Write-Host ""
 
 # Set base path for build
@@ -56,7 +56,7 @@ if (Test-Path "guidelines\nginx-test-subdirectory.conf") {
 }
 
 # Create .env.local template
-$envTemplate = @"
+$envTemplate = @'
 # Base path for subdirectory deployment
 NEXT_PUBLIC_BASE_PATH=/test
 
@@ -70,13 +70,13 @@ PORT=3001
 
 # Add your other environment variables here
 # OPENAI_API_KEY=your_key_here
-"@
+'@
 
 Set-Content -Path "$tempDir\.env.local.template" -Value $envTemplate
 Write-Host "  ✓ .env.local.template" -ForegroundColor Gray
 
 # Create deployment README
-$readme = @"
+$readme = @'
 # Deployment Instructions
 
 ## Quick Deploy
@@ -118,14 +118,14 @@ $readme = @"
 
 ## Access
 
-Your app will be available at: https://zaytoonz.com/Test
+Your app will be available at: https://zaytoonz.com/test
 
 ## Troubleshooting
 
 - Check PM2: pm2 status zaytoonz-test
 - View logs: pm2 logs zaytoonz-test
-- Test locally: curl http://localhost:3001/Test
-"@
+- Test locally: curl http://localhost:3001/test
+'@
 
 Set-Content -Path "$tempDir\DEPLOYMENT_README.txt" -Value $readme
 Write-Host "  ✓ DEPLOYMENT_README.txt" -ForegroundColor Gray
