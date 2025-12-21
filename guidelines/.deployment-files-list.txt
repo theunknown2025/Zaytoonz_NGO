@@ -1,0 +1,38 @@
+# Deployment Files Created for Zaytoonz NGO
+
+## Core Deployment Scripts
+1. deploy-hostinger-complete.sh - Linux/Mac deployment script
+2. deploy-hostinger-complete.ps1 - Windows PowerShell deployment script
+3. setup-vps-complete.sh - Initial VPS setup script
+
+## Configuration Files
+4. ecosystem.production.config.js - PM2 configuration for both services
+
+## Documentation
+5. HOSTINGER_DEPLOYMENT_COMPLETE.md - Complete deployment guide
+6. DEPLOYMENT_QUICK_START.md - Quick reference guide
+
+## How to Use
+
+### First Time Deployment:
+1. Run setup script on VPS: scp setup-vps-complete.sh root@168.231.87.171:/tmp/ && ssh root@168.231.87.171 '/tmp/setup-vps-complete.sh'
+2. Deploy: ./deploy-hostinger-complete.sh (Linux/Mac) or .\deploy-hostinger-complete.ps1 (Windows)
+
+### Subsequent Deployments:
+- Just run: ./deploy-hostinger-complete.sh or .\deploy-hostinger-complete.ps1
+
+## What Gets Deployed
+- Next.js application (Port 3000)
+- Python Scraper service (Port 8000)
+- Automatic PM2 process management
+- Nginx reverse proxy on port 80
+
+## Admin Scraper
+Access after deployment at: http://168.231.87.171:3000/admin/Scraper/extracted
+
+## VPS Details
+- IP: 168.231.87.171
+- Hostname: srv1182909.hstgr.cloud
+- OS: Ubuntu 24.04 LTS
+- App Directory: /var/www/zaytoonz-ngo
+

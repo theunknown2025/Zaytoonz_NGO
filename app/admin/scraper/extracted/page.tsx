@@ -21,7 +21,18 @@ import {
   ChevronLeftIcon,
   ChevronRightIcon,
   ClipboardDocumentIcon,
+  ArrowDownTrayIcon,
+  Squares2X2Icon,
 } from '@heroicons/react/24/outline';
+import { 
+  exportToExcel, 
+  getUniqueCountries, 
+  extractCountry,
+  availableColumns,
+  getColumnsByGroup,
+  getDefaultSelectedColumns,
+  type ExtractedOpportunity as ExcelExtractedOpportunity
+} from './excelExporter';
 
 interface ExtractedOpportunity {
   id: string;
@@ -60,7 +71,13 @@ export default function ExtractedOpportunitiesPage() {
   // Filters
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [countryFilter, setCountryFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
+  
+  // Excel Export
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [selectedColumns, setSelectedColumns] = useState<string[]>(getDefaultSelectedColumns());
+  const [allCountries, setAllCountries] = useState<string[]>([]);
   
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
@@ -90,8 +107,13 @@ export default function ExtractedOpportunitiesPage() {
       const result = await response.json();
       
       if (response.ok) {
-        setOpportunities(result.data || []);
+        const fetchedOpps = result.data || [];
+        setOpportunities(fetchedOpps);
         setTotalCount(result.total || 0);
+        
+        // Extract unique countries from all opportunities
+        const countries = getUniqueCountries(fetchedOpps);
+        setAllCountries(countries);
       } else {
         setError(result.error || 'Failed to fetch opportunities');
       }
@@ -135,14 +157,24 @@ export default function ExtractedOpportunitiesPage() {
   };
 
   const filteredOpportunities = opportunities.filter(opp => {
-    if (!searchQuery) return true;
-    const query = searchQuery.toLowerCase();
-    return (
-      opp.title.toLowerCase().includes(query) ||
-      opp.company?.toLowerCase().includes(query) ||
-      opp.location?.toLowerCase().includes(query) ||
-      opp.description?.toLowerCase().includes(query)
-    );
+    // Country filter
+    if (countryFilter !== 'all') {
+      const oppCountry = extractCountry(opp.location);
+      if (oppCountry !== countryFilter) return false;
+    }
+    
+    // Search filter
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      return (
+        opp.title.toLowerCase().includes(query) ||
+        opp.company?.toLowerCase().includes(query) ||
+        opp.location?.toLowerCase().includes(query) ||
+        opp.description?.toLowerCase().includes(query)
+      );
+    }
+    
+    return true;
   });
 
   const totalPages = Math.ceil(totalCount / itemsPerPage);
@@ -213,6 +245,57 @@ export default function ExtractedOpportunitiesPage() {
     return opp.location || opp.salary_range || opp.job_type || opp.company || opp.deadline;
   };
 
+  // Excel Export Functions
+  const handleExport = () => {
+    if (filteredOpportunities.length === 0) {
+      setError('No opportunities to export');
+      return;
+    }
+    setShowExportModal(true);
+  };
+
+  const handleExportConfirm = () => {
+    if (selectedColumns.length === 0) {
+      setError('Please select at least one column to export');
+      return;
+    }
+
+    exportToExcel(
+      filteredOpportunities as ExcelExtractedOpportunity[],
+      selectedColumns,
+      {
+        type: typeFilter !== 'all' ? typeFilter : undefined,
+        status: statusFilter !== 'all' ? statusFilter : undefined,
+        country: countryFilter !== 'all' ? countryFilter : undefined,
+      }
+    );
+
+    setSuccessMessage('Excel file exported successfully!');
+    setShowExportModal(false);
+  };
+
+  const toggleColumn = (columnKey: string) => {
+    setSelectedColumns(prev => 
+      prev.includes(columnKey) 
+        ? prev.filter(k => k !== columnKey)
+        : [...prev, columnKey]
+    );
+  };
+
+  const toggleGroup = (group: 'basic' | 'details' | 'content' | 'metadata') => {
+    const groupColumns = getColumnsByGroup(group).map(col => col.key);
+    const allSelected = groupColumns.every(key => selectedColumns.includes(key));
+    
+    if (allSelected) {
+      setSelectedColumns(prev => prev.filter(k => !groupColumns.includes(k as any)));
+    } else {
+      setSelectedColumns(prev => {
+        const combined = [...prev, ...groupColumns];
+        return Array.from(new Set(combined));
+      });
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 p-6 lg:p-8">
       {/* Header */}
@@ -228,6 +311,14 @@ export default function ExtractedOpportunitiesPage() {
             </div>
           </div>
           <div className="flex items-center gap-3">
+            <button
+              onClick={handleExport}
+              disabled={isLoading || filteredOpportunities.length === 0}
+              className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-green-600 border border-green-600 rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              <ArrowDownTrayIcon className="h-4 w-4" />
+              Export to Excel
+            </button>
             <a
               href="/admin/Scraper"
               className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
@@ -291,7 +382,58 @@ export default function ExtractedOpportunitiesPage() {
               <option value="processing">Processing</option>
               <option value="failed">Failed</option>
             </select>
+            
+            {/* Country Filter */}
+            <select
+              value={countryFilter}
+              onChange={(e) => { setCountryFilter(e.target.value); setCurrentPage(1); }}
+              className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+            >
+              <option value="all">All Countries</option>
+              {allCountries.map(country => (
+                <option key={country} value={country}>{country}</option>
+              ))}
+            </select>
           </div>
+          
+          {/* Active Filters Display */}
+          {(typeFilter !== 'all' || statusFilter !== 'all' || countryFilter !== 'all' || searchQuery) && (
+            <div className="flex items-center gap-2 mt-3 pt-3 border-t border-gray-200">
+              <span className="text-sm text-gray-500">Active filters:</span>
+              {typeFilter !== 'all' && (
+                <span className="inline-flex items-center gap-1 px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs">
+                  Type: {typeFilter}
+                  <button onClick={() => setTypeFilter('all')} className="hover:text-blue-900">
+                    <XMarkIcon className="h-3 w-3" />
+                  </button>
+                </span>
+              )}
+              {statusFilter !== 'all' && (
+                <span className="inline-flex items-center gap-1 px-2 py-1 bg-purple-100 text-purple-700 rounded text-xs">
+                  Status: {statusFilter}
+                  <button onClick={() => setStatusFilter('all')} className="hover:text-purple-900">
+                    <XMarkIcon className="h-3 w-3" />
+                  </button>
+                </span>
+              )}
+              {countryFilter !== 'all' && (
+                <span className="inline-flex items-center gap-1 px-2 py-1 bg-green-100 text-green-700 rounded text-xs">
+                  Country: {countryFilter}
+                  <button onClick={() => setCountryFilter('all')} className="hover:text-green-900">
+                    <XMarkIcon className="h-3 w-3" />
+                  </button>
+                </span>
+              )}
+              {searchQuery && (
+                <span className="inline-flex items-center gap-1 px-2 py-1 bg-gray-100 text-gray-700 rounded text-xs">
+                  Search: &quot;{searchQuery}&quot;
+                  <button onClick={() => setSearchQuery('')} className="hover:text-gray-900">
+                    <XMarkIcon className="h-3 w-3" />
+                  </button>
+                </span>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Messages */}
@@ -827,6 +969,211 @@ export default function ExtractedOpportunitiesPage() {
                   </>
                 )}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Excel Export Modal */}
+      {showExportModal && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 overflow-y-auto" onClick={() => setShowExportModal(false)}>
+          <div className="bg-white rounded-xl max-w-3xl w-full max-h-[90vh] overflow-hidden my-8" onClick={(e) => e.stopPropagation()}>
+            {/* Modal Header */}
+            <div className="bg-green-600 p-6 text-white">
+              <div className="flex justify-between items-start">
+                <div>
+                  <div className="flex items-center gap-3 mb-2">
+                    <ArrowDownTrayIcon className="h-6 w-6" />
+                    <h2 className="text-xl font-bold">Export to Excel</h2>
+                  </div>
+                  <p className="text-green-100 text-sm">
+                    Select the columns you want to include in the export ({filteredOpportunities.length} opportunities)
+                  </p>
+                </div>
+                <button 
+                  onClick={() => setShowExportModal(false)} 
+                  className="p-2 hover:bg-white/20 rounded-lg transition-colors"
+                >
+                  <XMarkIcon className="w-6 h-6" />
+                </button>
+              </div>
+            </div>
+
+            {/* Modal Content */}
+            <div className="p-6 overflow-y-auto max-h-[60vh]">
+              {/* Quick Actions */}
+              <div className="flex items-center justify-between mb-6 pb-4 border-b border-gray-200">
+                <span className="text-sm font-medium text-gray-700">
+                  {selectedColumns.length} of {availableColumns.length} columns selected
+                </span>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setSelectedColumns(availableColumns.map(col => col.key))}
+                    className="px-3 py-1.5 text-xs font-medium text-blue-700 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors"
+                  >
+                    Select All
+                  </button>
+                  <button
+                    onClick={() => setSelectedColumns([])}
+                    className="px-3 py-1.5 text-xs font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                  >
+                    Clear All
+                  </button>
+                  <button
+                    onClick={() => setSelectedColumns(getDefaultSelectedColumns())}
+                    className="px-3 py-1.5 text-xs font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                  >
+                    Reset to Default
+                  </button>
+                </div>
+              </div>
+
+              {/* Column Groups */}
+              <div className="space-y-6">
+                {/* Basic Info */}
+                <div>
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-sm font-semibold text-gray-900 uppercase tracking-wide flex items-center gap-2">
+                      <Squares2X2Icon className="h-4 w-4" />
+                      Basic Information
+                    </h3>
+                    <button
+                      onClick={() => toggleGroup('basic')}
+                      className="text-xs text-blue-600 hover:text-blue-800 font-medium"
+                    >
+                      {getColumnsByGroup('basic').every(col => selectedColumns.includes(col.key)) ? 'Unselect All' : 'Select All'}
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    {getColumnsByGroup('basic').map(col => (
+                      <label key={col.key} className="flex items-center gap-2 p-2 rounded-lg hover:bg-gray-50 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={selectedColumns.includes(col.key)}
+                          onChange={() => toggleColumn(col.key)}
+                          className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
+                        />
+                        <span className="text-sm text-gray-700">{col.label}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Details */}
+                <div>
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-sm font-semibold text-gray-900 uppercase tracking-wide flex items-center gap-2">
+                      <BuildingOfficeIcon className="h-4 w-4" />
+                      Details
+                    </h3>
+                    <button
+                      onClick={() => toggleGroup('details')}
+                      className="text-xs text-blue-600 hover:text-blue-800 font-medium"
+                    >
+                      {getColumnsByGroup('details').every(col => selectedColumns.includes(col.key)) ? 'Unselect All' : 'Select All'}
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    {getColumnsByGroup('details').map(col => (
+                      <label key={col.key} className="flex items-center gap-2 p-2 rounded-lg hover:bg-gray-50 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={selectedColumns.includes(col.key)}
+                          onChange={() => toggleColumn(col.key)}
+                          className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
+                        />
+                        <span className="text-sm text-gray-700">{col.label}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Content */}
+                <div>
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-sm font-semibold text-gray-900 uppercase tracking-wide flex items-center gap-2">
+                      <DocumentTextIcon className="h-4 w-4" />
+                      Content Fields
+                    </h3>
+                    <button
+                      onClick={() => toggleGroup('content')}
+                      className="text-xs text-blue-600 hover:text-blue-800 font-medium"
+                    >
+                      {getColumnsByGroup('content').every(col => selectedColumns.includes(col.key)) ? 'Unselect All' : 'Select All'}
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    {getColumnsByGroup('content').map(col => (
+                      <label key={col.key} className="flex items-center gap-2 p-2 rounded-lg hover:bg-gray-50 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={selectedColumns.includes(col.key)}
+                          onChange={() => toggleColumn(col.key)}
+                          className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
+                        />
+                        <span className="text-sm text-gray-700">{col.label}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Metadata */}
+                <div>
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-sm font-semibold text-gray-900 uppercase tracking-wide flex items-center gap-2">
+                      <CalendarIcon className="h-4 w-4" />
+                      Extraction Metadata
+                    </h3>
+                    <button
+                      onClick={() => toggleGroup('metadata')}
+                      className="text-xs text-blue-600 hover:text-blue-800 font-medium"
+                    >
+                      {getColumnsByGroup('metadata').every(col => selectedColumns.includes(col.key)) ? 'Unselect All' : 'Select All'}
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    {getColumnsByGroup('metadata').map(col => (
+                      <label key={col.key} className="flex items-center gap-2 p-2 rounded-lg hover:bg-gray-50 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={selectedColumns.includes(col.key)}
+                          onChange={() => toggleColumn(col.key)}
+                          className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
+                        />
+                        <span className="text-sm text-gray-700">{col.label}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-6 bg-gray-50 border-t border-gray-200 flex justify-between items-center">
+              <div className="text-sm text-gray-500">
+                {selectedColumns.length === 0 && (
+                  <span className="text-red-600 flex items-center gap-1">
+                    <ExclamationTriangleIcon className="h-4 w-4" />
+                    Please select at least one column
+                  </span>
+                )}
+              </div>
+              <div className="flex items-center gap-3">
+                <button 
+                  onClick={() => setShowExportModal(false)} 
+                  className="px-4 py-2 text-gray-600 hover:text-gray-900 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleExportConfirm}
+                  disabled={selectedColumns.length === 0}
+                  className="inline-flex items-center gap-2 px-6 py-2.5 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <ArrowDownTrayIcon className="w-4 h-4" />
+                  Export {filteredOpportunities.length} Opportunities
+                </button>
+              </div>
             </div>
           </div>
         </div>
