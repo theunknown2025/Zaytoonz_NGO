@@ -70,23 +70,21 @@ if ($plinkPath) {
     & $plinkPath -ssh -pw $VPS_PASSWORD $VPS_USER@$VPS_IP "cat > /tmp/deploy-test.sh" < $tempScript 2>&1 | Out-Null
     
     # Execute
-    & $plinkPath -ssh -pw $VPS_PASSWORD $VPS_USER@$VPS_IP "chmod +x /tmp/deploy-test.sh && bash /tmp/deploy-test.sh"
+    $execCmd = "chmod +x /tmp/deploy-test.sh; bash /tmp/deploy-test.sh"
+    & $plinkPath -ssh -pw $VPS_PASSWORD $VPS_USER@$VPS_IP $execCmd
 } else {
     # Use ssh with password via here-string (requires sshpass or manual entry)
     Write-Host "[*] Using SSH (you may be prompted for password)..." -ForegroundColor Yellow
     Write-Host "[*] Password: $VPS_PASSWORD" -ForegroundColor Gray
     
-    # Try using ssh with password via stdin
-    $password = $VPS_PASSWORD
-    $command = "chmod +x /tmp/deploy-test.sh && bash /tmp/deploy-test.sh"
-    
     # Upload script first
     Write-Host "[*] Uploading deployment script..." -ForegroundColor Cyan
     $uploadCmd = "cat > /tmp/deploy-test.sh"
-    $tempScript | ssh -o StrictHostKeyChecking=no $VPS_USER@$VPS_IP $uploadCmd
+    Get-Content $tempScript | ssh -o StrictHostKeyChecking=no $VPS_USER@$VPS_IP $uploadCmd
     
     # Execute deployment
     Write-Host "[*] Running deployment..." -ForegroundColor Cyan
+    $command = "chmod +x /tmp/deploy-test.sh; bash /tmp/deploy-test.sh"
     ssh -o StrictHostKeyChecking=no $VPS_USER@$VPS_IP $command
 }
 
@@ -96,6 +94,7 @@ Remove-Item $tempScript -Force -ErrorAction SilentlyContinue
 Write-Host ""
 Write-Host "[SUCCESS] Deployment process completed!" -ForegroundColor Green
 Write-Host ""
-Write-Host "Access your app at: https://zaytoonz.com/test" -ForegroundColor Cyan
+$appUrl = "https://zaytoonz.com/test"
+Write-Host "Access your app at: $appUrl" -ForegroundColor Cyan
 Write-Host ""
 
