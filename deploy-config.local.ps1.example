@@ -1,0 +1,9 @@
+# Local deployment configuration
+# Copy this file to deploy-config.local.ps1 and fill in your credentials
+# This file is gitignored and will not be committed
+
+$script:VPS_IP = "168.231.87.171"
+$script:VPS_USER = "root"
+$script:VPS_PASSWORD = "your_password_here"
+$script:SSH_KEY = ""  # Optional: path to SSH key file
+

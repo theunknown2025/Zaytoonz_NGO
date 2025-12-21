@@ -58,3 +58,6 @@ logs/
 # Vite sub-project (separate build)
 app/seeker/project/node_modules/
 app/seeker/project/dist/
+
+# Deployment config with credentials
+deploy-config.local.ps1

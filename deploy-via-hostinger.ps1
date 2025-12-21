@@ -3,11 +3,29 @@
 # Usage: .\deploy-via-hostinger.ps1
 
 param(
-    [string]$VPS_IP = "168.231.87.171",
-    [string]$VPS_USER = "root",
+    [string]$VPS_IP = "",
+    [string]$VPS_USER = "",
+    [string]$VPS_PASSWORD = "",
     [string]$SSH_KEY = "",
     [switch]$SkipBuild = $false
 )
+
+# Load local config if it exists
+$configFile = Join-Path $PSScriptRoot "deploy-config.local.ps1"
+if (Test-Path $configFile) {
+    . $configFile
+    Write-Host "[*] Loaded local deployment configuration" -ForegroundColor Gray
+}
+
+# Use config values if parameters not provided
+if ([string]::IsNullOrEmpty($VPS_IP)) { $VPS_IP = $script:VPS_IP }
+if ([string]::IsNullOrEmpty($VPS_USER)) { $VPS_USER = $script:VPS_USER }
+if ([string]::IsNullOrEmpty($VPS_PASSWORD)) { $VPS_PASSWORD = $script:VPS_PASSWORD }
+if ([string]::IsNullOrEmpty($SSH_KEY)) { $SSH_KEY = $script:SSH_KEY }
+
+# Default values if still empty
+if ([string]::IsNullOrEmpty($VPS_IP)) { $VPS_IP = "168.231.87.171" }
+if ([string]::IsNullOrEmpty($VPS_USER)) { $VPS_USER = "root" }
 
 $ErrorActionPreference = "Stop"
 
@@ -47,11 +65,34 @@ if (-not $SkipBuild) {
     Write-Success "Build completed successfully"
 }
 
+# Check if sshpass is available (for password authentication)
+$usePassword = -not [string]::IsNullOrEmpty($VPS_PASSWORD) -and [string]::IsNullOrEmpty($SSH_KEY)
+$hasSshpass = $false
+
+if ($usePassword) {
+    # Check if sshpass is available (common on Linux, can be installed on Windows via WSL or Git Bash)
+    $hasSshpass = Get-Command sshpass -ErrorAction SilentlyContinue
+    if (-not $hasSshpass) {
+        Write-Warning "sshpass not found. You'll be prompted for password manually."
+        Write-Warning "To avoid prompts, install sshpass or use SSH keys."
+    }
+}
+
 # Create SSH command
 $sshCmd = if ($SSH_KEY) {
     "ssh -i `"$SSH_KEY`" $VPS_USER@$VPS_IP"
+} elseif ($usePassword -and $hasSshpass) {
+    "sshpass -p `"$VPS_PASSWORD`" ssh -o StrictHostKeyChecking=no $VPS_USER@$VPS_IP"
 } else {
-    "ssh $VPS_USER@$VPS_IP"
+    "ssh -o StrictHostKeyChecking=no $VPS_USER@$VPS_IP"
+}
+
+$scpCmd = if ($SSH_KEY) {
+    "scp -i `"$SSH_KEY`""
+} elseif ($usePassword -and $hasSshpass) {
+    "sshpass -p `"$VPS_PASSWORD`" scp -o StrictHostKeyChecking=no"
+} else {
+    "scp -o StrictHostKeyChecking=no"
 }
 
 Write-Info "Connecting to VPS at $VPS_IP..."
@@ -175,10 +216,13 @@ $deployScript | Out-File -FilePath $tempScript -Encoding UTF8 -NoNewline
 Write-Info "Uploading deployment script to VPS..."
 
 # Upload script to VPS
-if ($SSH_KEY) {
-    scp -i $SSH_KEY $tempScript "${VPS_USER}@${VPS_IP}:/tmp/deploy-test.sh"
-} else {
-    scp $tempScript "${VPS_USER}@${VPS_IP}:/tmp/deploy-test.sh"
+Write-Info "Uploading deployment script to VPS..."
+& cmd /c "echo $VPS_PASSWORD" | & $scpCmd $tempScript "${VPS_USER}@${VPS_IP}:/tmp/deploy-test.sh" 2>&1 | Out-Null
+
+if ($LASTEXITCODE -ne 0 -and -not $hasSshpass) {
+    # If scp failed and no sshpass, try interactive
+    Write-Info "Uploading deployment script (you'll be prompted for password)..."
+    scp -o StrictHostKeyChecking=no $tempScript "${VPS_USER}@${VPS_IP}:/tmp/deploy-test.sh"
 }
 
 # Clean up local temp file
@@ -188,10 +232,16 @@ Write-Info "Running deployment script on VPS..."
 Write-Warning "You may be prompted for your VPS password"
 
 # Execute deployment script on VPS
-if ($SSH_KEY) {
-    ssh -i $SSH_KEY $VPS_USER@$VPS_IP "chmod +x /tmp/deploy-test.sh && bash /tmp/deploy-test.sh"
+Write-Info "Executing deployment on VPS..."
+if ($usePassword -and $hasSshpass) {
+    # Use sshpass for password authentication
+    $deployCommand = "chmod +x /tmp/deploy-test.sh && bash /tmp/deploy-test.sh"
+    sshpass -p $VPS_PASSWORD ssh -o StrictHostKeyChecking=no $VPS_USER@$VPS_IP $deployCommand
+} elseif ($SSH_KEY) {
+    ssh -i $SSH_KEY -o StrictHostKeyChecking=no $VPS_USER@$VPS_IP "chmod +x /tmp/deploy-test.sh && bash /tmp/deploy-test.sh"
 } else {
-    ssh $VPS_USER@$VPS_IP "chmod +x /tmp/deploy-test.sh && bash /tmp/deploy-test.sh"
+    Write-Warning "You'll be prompted for your VPS password"
+    ssh -o StrictHostKeyChecking=no $VPS_USER@$VPS_IP "chmod +x /tmp/deploy-test.sh && bash /tmp/deploy-test.sh"
 }
 
 Write-Host ""
