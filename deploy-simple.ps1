@@ -94,7 +94,7 @@ Remove-Item $tempScript -Force -ErrorAction SilentlyContinue
 Write-Host ""
 Write-Host "[SUCCESS] Deployment process completed!" -ForegroundColor Green
 Write-Host ""
-$appUrl = "https://zaytoonz.com/test"
-Write-Host "Access your app at: $appUrl" -ForegroundColor Cyan
+$appUrl = 'https://zaytoonz.com/test'
+Write-Host 'Access your app at:' $appUrl -ForegroundColor Cyan
 Write-Host ""
 
