@@ -2,27 +2,27 @@
 # This creates a deployment package for the /test subdirectory
 # Usage: .\create-sub-deploy-archive.ps1
 
-Write-Host "📦 Creating VPS Deployment Archive for /test subdirectory..." -ForegroundColor Cyan
+Write-Host "[*] Creating VPS Deployment Archive for /test subdirectory..." -ForegroundColor Cyan
 Write-Host ""
 
 # Set base path for build
 $env:NEXT_PUBLIC_BASE_PATH = "/test"
 
 # Build the application first
-Write-Host "🔨 Building Next.js application with basePath=/test..." -ForegroundColor Yellow
+Write-Host "[*] Building Next.js application with basePath=/test..." -ForegroundColor Yellow
 npm run build
 
 if ($LASTEXITCODE -ne 0) {
-    Write-Host "❌ Build failed! Please fix errors and try again." -ForegroundColor Red
+    Write-Host "[ERROR] Build failed! Please fix errors and try again." -ForegroundColor Red
     exit 1
 }
 
-Write-Host "✓ Build completed successfully" -ForegroundColor Green
+Write-Host "[OK] Build completed successfully" -ForegroundColor Green
 Write-Host ""
 
 # Create temporary directory for packaging
 $tempDir = New-TemporaryFile | ForEach-Object { Remove-Item $_; New-Item -ItemType Directory -Path $_ }
-Write-Host "📁 Creating deployment package..." -ForegroundColor Yellow
+Write-Host "[*] Creating deployment package..." -ForegroundColor Yellow
 
 # Files and directories to include
 $itemsToInclude = @(
@@ -43,16 +43,16 @@ foreach ($item in $itemsToInclude) {
         } else {
             Copy-Item -Path $item -Destination $tempDir -Force
         }
-        Write-Host "  ✓ $item" -ForegroundColor Gray
+        Write-Host "  [OK] $item" -ForegroundColor Gray
     } else {
-        Write-Host "  ⚠ $item not found (skipping)" -ForegroundColor Yellow
+        Write-Host "  [WARN] $item not found (skipping)" -ForegroundColor Yellow
     }
 }
 
 # Copy nginx config template
 if (Test-Path "guidelines\nginx-test-subdirectory.conf") {
     Copy-Item -Path "guidelines\nginx-test-subdirectory.conf" -Destination $tempDir -Force
-    Write-Host "  ✓ nginx-test-subdirectory.conf" -ForegroundColor Gray
+    Write-Host "  [OK] nginx-test-subdirectory.conf" -ForegroundColor Gray
 }
 
 # Create .env.local template
@@ -73,7 +73,7 @@ PORT=3001
 '@
 
 Set-Content -Path "$tempDir\.env.local.template" -Value $envTemplate
-Write-Host "  ✓ .env.local.template" -ForegroundColor Gray
+Write-Host "  [OK] .env.local.template" -ForegroundColor Gray
 
 # Create deployment README
 $readme = @'
@@ -128,11 +128,11 @@ Your app will be available at: https://zaytoonz.com/test
 '@
 
 Set-Content -Path "$tempDir\DEPLOYMENT_README.txt" -Value $readme
-Write-Host "  ✓ DEPLOYMENT_README.txt" -ForegroundColor Gray
+Write-Host "  [OK] DEPLOYMENT_README.txt" -ForegroundColor Gray
 
 # Create archive using tar (if available) or 7zip
 Write-Host ""
-Write-Host "📦 Creating tar.gz archive..." -ForegroundColor Yellow
+Write-Host "[*] Creating tar.gz archive..." -ForegroundColor Yellow
 
 $archiveName = "sub-deploy-vps.tar.gz"
 
@@ -146,9 +146,9 @@ try {
     # Move archive to current directory
     Move-Item -Path "$tempDir\..\$archiveName" -Destination $archiveName -Force
     
-    Write-Host "✓ Archive created: $archiveName" -ForegroundColor Green
+    Write-Host "[OK] Archive created: $archiveName" -ForegroundColor Green
 } catch {
-    Write-Host "⚠ tar command not available. Trying alternative method..." -ForegroundColor Yellow
+    Write-Host "[WARN] tar command not available. Trying alternative method..." -ForegroundColor Yellow
     
     # Alternative: Use 7zip if available
     if (Get-Command 7z -ErrorAction SilentlyContinue) {
@@ -158,9 +158,9 @@ try {
         Remove-Item "$PWD\..\sub-deploy-vps.tar"
         Pop-Location
         Move-Item -Path "$tempDir\..\$archiveName" -Destination $archiveName -Force
-        Write-Host "✓ Archive created using 7zip: $archiveName" -ForegroundColor Green
+        Write-Host "[OK] Archive created using 7zip: $archiveName" -ForegroundColor Green
     } else {
-        Write-Host "❌ Cannot create tar.gz archive. Please install tar or 7zip." -ForegroundColor Red
+        Write-Host "[ERROR] Cannot create tar.gz archive. Please install tar or 7zip." -ForegroundColor Red
         Write-Host "   You can manually create the archive from: $tempDir" -ForegroundColor Yellow
         exit 1
     }
@@ -174,17 +174,17 @@ Write-Host "  Archive size: $([math]::Round($fileSize, 2)) MB" -ForegroundColor 
 Remove-Item -Path $tempDir -Recurse -Force
 
 Write-Host ""
-Write-Host "✅ Deployment package created successfully!" -ForegroundColor Green
+Write-Host "[SUCCESS] Deployment package created successfully!" -ForegroundColor Green
 Write-Host ""
-Write-Host "📋 Files created:" -ForegroundColor Cyan
+Write-Host "[*] Files created:" -ForegroundColor Cyan
 Write-Host "  1. $archiveName - Deployment archive" -ForegroundColor White
 Write-Host "  2. vps-deploy-sub.sh - Deployment script" -ForegroundColor White
 Write-Host ""
-Write-Host "📤 Next steps:" -ForegroundColor Cyan
+Write-Host "[*] Next steps:" -ForegroundColor Cyan
 Write-Host "  1. Upload both files to your VPS /tmp/ directory using WinSCP" -ForegroundColor White
 Write-Host "  2. SSH into your VPS: ssh root@168.231.87.171" -ForegroundColor White
 Write-Host "  3. Run: chmod +x /tmp/vps-deploy-sub.sh" -ForegroundColor White
 Write-Host "  4. Run: bash /tmp/vps-deploy-sub.sh" -ForegroundColor White
 Write-Host ""
-Write-Host "🎉 Ready to deploy!" -ForegroundColor Green
+Write-Host "[SUCCESS] Ready to deploy!" -ForegroundColor Green
 
