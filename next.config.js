@@ -45,6 +45,8 @@ const nextConfig = {
     config.resolve = config.resolve || {};
     config.resolve.alias = {
       ...config.resolve.alias,
+      // Explicitly set @ alias to ensure it works during build
+      '@': require('path').resolve(__dirname),
     };
     
     // Ignore patterns for webpack watch

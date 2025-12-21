@@ -44,7 +44,25 @@ npm install --production
 echo "[OK] Dependencies installed"
 echo ""
 
-# Step 5: Build with basePath
+# Step 5: Verify files exist
+echo "[*] Verifying required files..."
+if [ ! -f "app/lib/auth.ts" ]; then
+    echo "[ERROR] app/lib/auth.ts not found! Pulling from git..."
+    git checkout app/lib/auth.ts 2>/dev/null || echo "[ERROR] File not in git!"
+fi
+
+if [ ! -f "app/components/UploadButton.tsx" ]; then
+    echo "[ERROR] app/components/UploadButton.tsx not found! Pulling from git..."
+    git checkout app/components/UploadButton.tsx 2>/dev/null || echo "[ERROR] File not in git!"
+fi
+
+# Step 6: Verify tsconfig.json
+echo "[*] Verifying tsconfig.json..."
+if ! grep -q '"@/\*": \["\./\*"\]' tsconfig.json; then
+    echo "[WARNING] Path alias may be misconfigured in tsconfig.json"
+fi
+
+# Step 7: Build with basePath
 echo "[*] Building application..."
 export NEXT_PUBLIC_BASE_PATH=/test
 npm run build
