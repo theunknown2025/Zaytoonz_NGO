@@ -5,8 +5,30 @@ import bcrypt from 'bcryptjs';
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 
+// Validate Supabase URL to prevent build errors with placeholder values
+const isValidUrl = (url: string): boolean => {
+  if (!url || url.includes('your_') || url.includes('placeholder') || url.trim() === '') {
+    return false;
+  }
+  try {
+    new URL(url);
+    return true;
+  } catch {
+    return false;
+  }
+};
+
+// Use a dummy URL during build if the real URL is not configured
+// This prevents build errors when environment variables are placeholders
+const safeSupabaseUrl = isValidUrl(supabaseUrl) 
+  ? supabaseUrl 
+  : 'https://placeholder.supabase.co';
+const safeSupabaseKey = supabaseAnonKey && !supabaseAnonKey.includes('your_') 
+  ? supabaseAnonKey 
+  : 'placeholder-key';
+
 // Create a singleton Supabase client
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+export const supabase = createClient(safeSupabaseUrl, safeSupabaseKey);
 
 // Function to check if email already exists
 export async function isEmailRegistered(email: string): Promise<boolean> {
