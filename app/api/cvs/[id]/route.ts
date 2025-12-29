@@ -1,10 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { supabase } from '@/app/lib/supabase';
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+// Force dynamic rendering since we use Supabase which requires runtime environment variables
+export const dynamic = 'force-dynamic';
 
 // GET - Retrieve CV details by ID
 export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
