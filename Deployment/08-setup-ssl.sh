@@ -16,8 +16,17 @@ YELLOW='\033[1;33m'
 NC='\033[0m'
 
 # Configuration
-DOMAIN="${DOMAIN:-zaytoonz.com}"
-SKIP_SSL="${SKIP_SSL:-false}"
+VPS_IP="${VPS_IP:-72.62.176.80}"
+DOMAIN="${DOMAIN:-$VPS_IP}"
+SKIP_SSL="${SKIP_SSL:-true}"
+
+# Check if using IP address (cannot get SSL for IP)
+if [[ "$DOMAIN" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+    echo "[*] Using IP address: $DOMAIN"
+    echo -e "${YELLOW}[INFO] SSL certificates cannot be issued for IP addresses${NC}"
+    echo "[*] SSL setup skipped (using IP address)"
+    exit 0
+fi
 
 if [ "$SKIP_SSL" = "true" ]; then
     echo "[*] SSL setup skipped (SKIP_SSL=true)"

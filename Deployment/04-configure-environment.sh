@@ -59,7 +59,7 @@ OPENAI_MODEL=gpt-4o-mini
 
 # NextAuth Configuration (if using)
 NEXTAUTH_SECRET=your_nextauth_secret_here
-NEXTAUTH_URL=https://zaytoonz.com/test
+NEXTAUTH_URL=http://72.62.176.80/test
 
 # External Scraper Configuration (if using)
 NEXT_PUBLIC_USE_EXTERNAL_SCRAPER=false

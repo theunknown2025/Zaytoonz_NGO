@@ -17,12 +17,22 @@ RED='\033[0;31m'
 NC='\033[0m'
 
 # Configuration
-DOMAIN="${DOMAIN:-zaytoonz.com}"
+VPS_IP="${VPS_IP:-72.62.176.80}"
+DOMAIN="${DOMAIN:-$VPS_IP}"
 COMING_SOON_PATH="${COMING_SOON_PATH:-/var/www/zaytoonz}"
 APP_PORT="${APP_PORT:-3001}"
-NGINX_CONFIG="/etc/nginx/sites-available/$DOMAIN"
 
-echo "[*] Domain: $DOMAIN"
+# Use IP-based config name if using IP address
+if [[ "$DOMAIN" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+    NGINX_CONFIG="/etc/nginx/sites-available/zaytoonz-ip"
+    SERVER_NAME="$DOMAIN _"
+    echo "[*] Using IP address: $DOMAIN"
+else
+    NGINX_CONFIG="/etc/nginx/sites-available/$DOMAIN"
+    SERVER_NAME="$DOMAIN www.$DOMAIN"
+    echo "[*] Using domain: $DOMAIN"
+fi
+
 echo "[*] Coming Soon path: $COMING_SOON_PATH"
 echo "[*] App port: $APP_PORT"
 echo ""
@@ -33,7 +43,7 @@ cat > "$NGINX_CONFIG" << EOF
 server {
     listen 80;
     listen [::]:80;
-    server_name $DOMAIN www.$DOMAIN;
+    server_name $SERVER_NAME;
 
     client_max_body_size 100M;
 

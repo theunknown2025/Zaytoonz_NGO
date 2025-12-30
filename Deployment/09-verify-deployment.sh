@@ -18,7 +18,8 @@ NC='\033[0m'
 
 # Configuration
 APP_NAME="${APP_NAME:-zaytoonz-test}"
-DOMAIN="${DOMAIN:-zaytoonz.com}"
+VPS_IP="${VPS_IP:-72.62.176.80}"
+DOMAIN="${DOMAIN:-$VPS_IP}"
 APP_PORT="${APP_PORT:-3001}"
 
 echo "[*] Running verification checks..."
