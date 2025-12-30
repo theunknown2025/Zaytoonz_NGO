@@ -4,7 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "node build-with-venv-exclude.js",
+    "build:safe": "next build",
     "start": "next start",
     "start:test": "node server.js",
     "lint": "next lint"

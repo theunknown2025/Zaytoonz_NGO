@@ -34,6 +34,7 @@ const nextConfig = {
     config.plugins = config.plugins || [];
     
     // Ignore venv directories and Python files completely
+    // This prevents Next.js from trying to process Python virtual environment files
     config.plugins.push(
       new webpack.IgnorePlugin({
         resourceRegExp: /.*/,
@@ -41,13 +42,40 @@ const nextConfig = {
       })
     );
     
-    // Exclude venv from module resolution
+    // Exclude venv from module resolution completely
     config.resolve = config.resolve || {};
     config.resolve.alias = {
       ...config.resolve.alias,
       // Explicitly set @ alias to ensure it works during build
       '@': require('path').resolve(__dirname),
     };
+    
+    // Add a custom plugin to exclude venv from file system scanning
+    // This prevents Next.js from trying to process Python virtual environment directories
+    const path = require('path');
+    const fs = require('fs');
+    
+    // Custom plugin to filter out venv directories during build
+    config.plugins.push({
+      apply: (compiler) => {
+        compiler.hooks.normalModuleFactory.tap('ExcludeVenvPlugin', (nmf) => {
+          nmf.hooks.beforeResolve.tap('ExcludeVenvPlugin', (data) => {
+            if (data && data.context) {
+              const contextPath = data.context;
+              // Exclude any module resolution that includes venv
+              if (
+                contextPath.includes('venv') ||
+                contextPath.includes('__pycache__') ||
+                contextPath.includes('app/admin/Scrape_Master/venv') ||
+                contextPath.includes('Scrape_Master/venv')
+              ) {
+                return false; // Skip this module
+              }
+            }
+          });
+        });
+      },
+    });
     
     // Ignore patterns for webpack watch
     config.watchOptions = {
@@ -101,6 +129,7 @@ const nextConfig = {
         '**/venv/**',
         '**/__pycache__/**',
         '**/app/admin/Scrape_Master/venv/**',
+        '**/Scrape_Master/venv/**',
         '**/app/seeker/project/**',
       ],
     },

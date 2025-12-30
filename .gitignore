@@ -54,6 +54,8 @@ logs/
 *.pyc
 *.pyo
 *.pyd
+# Build script backup directory
+**/.venv-backup/
 
 # Vite sub-project (separate build)
 app/seeker/project/node_modules/
