@@ -38,7 +38,7 @@ Write-Host ""
 $deployScript = @'
 #!/bin/bash
 set -e
-cd /var/www/zaytoonz-ngo || { mkdir -p /var/www && cd /var/www && git clone https://github.com/theunknown2025/Zaytoonz_NGO.git zaytoonz-ngo && cd zaytoonz-ngo; }
+cd /var/www/zaytoonz || { mkdir -p /var/www && cd /var/www && git clone https://github.com/theunknown2025/Zaytoonz_NGO.git zaytoonz && cd zaytoonz; }
 git fetch origin
 git reset --hard origin/main
 export NEXT_PUBLIC_BASE_PATH=/test

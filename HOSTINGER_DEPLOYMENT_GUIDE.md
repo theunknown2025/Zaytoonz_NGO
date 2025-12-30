@@ -136,7 +136,7 @@ NEXTAUTH_URL=https://zaytoonz.com/test
 
 # External Scraper Configuration (if using)
 NEXT_PUBLIC_USE_EXTERNAL_SCRAPER=false
-NEXT_PUBLIC_EXTERNAL_SCRAPER_URL=http://localhost:8000
+NEXT_PUBLIC_EXTERNAL_SCRAPER_URL=http://locaplhost:8000
 ```
 
 **To save in nano:** Press `Ctrl+X`, then `Y`, then `Enter`
