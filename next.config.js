@@ -22,26 +22,26 @@ const nextConfig = {
         undici: false,
       };
     }
-    
+
     // Exclude problematic modules from webpack processing
     config.externals = config.externals || [];
     if (!isServer) {
       config.externals.push('undici');
     }
-    
+
     // Exclude Python venv and other non-JS files from webpack processing
     // This prevents webpack from trying to process Python files
     config.plugins = config.plugins || [];
-    
+
     // Ignore venv directories and Python files completely
     // This prevents Next.js from trying to process Python virtual environment files
     config.plugins.push(
       new webpack.IgnorePlugin({
         resourceRegExp: /.*/,
-        contextRegExp: /(venv|__pycache__|app\/admin\/Scrape_Master\/venv|Scrape_Master\/venv)/,
+        contextRegExp: /(venv|__pycache__|python_scraper\/venv|Scrape_Master\/venv)/,
       })
     );
-    
+
     // Exclude venv from module resolution completely
     config.resolve = config.resolve || {};
     config.resolve.alias = {
@@ -49,12 +49,12 @@ const nextConfig = {
       // Explicitly set @ alias to ensure it works during build
       '@': require('path').resolve(__dirname),
     };
-    
+
     // Add a custom plugin to exclude venv from file system scanning
     // This prevents Next.js from trying to process Python virtual environment directories
     const path = require('path');
     const fs = require('fs');
-    
+
     // Custom plugin to filter out venv directories during build
     config.plugins.push({
       apply: (compiler) => {
@@ -66,7 +66,7 @@ const nextConfig = {
               if (
                 contextPath.includes('venv') ||
                 contextPath.includes('__pycache__') ||
-                contextPath.includes('app/admin/Scrape_Master/venv') ||
+                contextPath.includes('python_scraper/venv') ||
                 contextPath.includes('Scrape_Master/venv')
               ) {
                 return false; // Skip this module
@@ -76,7 +76,7 @@ const nextConfig = {
         });
       },
     });
-    
+
     // Ignore patterns for webpack watch
     config.watchOptions = {
       ...config.watchOptions,
@@ -87,12 +87,12 @@ const nextConfig = {
         '**/__pycache__/**',
         '**/*.py',
         '**/*.pyc',
-        '**/app/admin/Scrape_Master/venv/**',
+        '**/python_scraper/venv/**',
         '**/Scrape_Master/venv/**',
         '**/app/seeker/project/**', // Exclude Vite sub-project
       ],
     };
-    
+
     // Exclude Vite sub-project from compilation
     config.plugins.push(
       new webpack.IgnorePlugin({
@@ -100,7 +100,7 @@ const nextConfig = {
         contextRegExp: /app\/seeker\/project/,
       })
     );
-    
+
     // Handle private fields syntax for undici
     config.module.rules.push({
       test: /\.m?js$/,
@@ -128,7 +128,7 @@ const nextConfig = {
       '*': [
         '**/venv/**',
         '**/__pycache__/**',
-        '**/app/admin/Scrape_Master/venv/**',
+        '**/python_scraper/venv/**',
         '**/Scrape_Master/venv/**',
         '**/app/seeker/project/**',
       ],

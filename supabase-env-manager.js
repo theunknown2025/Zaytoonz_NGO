@@ -27,7 +27,7 @@ const NEW_VPS_SUPABASE_URL = 'http://195.35.28.149:8000';
 const NEW_VPS_SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyAgCiAgICAicm9sZSI6ICJhbm9uIiwKICAgICJpc3MiOiAic3VwYWJhc2UtZGVtbyIsCiAgICAiaWF0IjogMTY0MTc2OTIwMCwKICAgICJleHAiOiAxNzk5NTM1NjAwCn0.dc_X5iR_VP_qT0zsiyj_I_OZ2T9FtRU2BBNWN8Bu4GE';
 
 const ENV_FILES = ['.env.local', '.env'];
-const PYTHON_ENV_FILES = ['Scrape_Master/.env', 'morchid-ai-service/.env'];
+const PYTHON_ENV_FILES = ['python_scraper/.env', 'morchid-ai-service/.env'];
 
 // Colors for terminal output
 const colors = {
@@ -102,7 +102,7 @@ function updateEnvFile(filePath, url, anonKey, isPython = false) {
   }
 
   let updated = content;
-  
+
   if (isPython) {
     // Python environment files
     updated = updated.replace(
@@ -131,15 +131,15 @@ function updateEnvFile(filePath, url, anonKey, isPython = false) {
 // Check current configuration
 function checkConfiguration() {
   logHeader('Checking Current Configuration');
-  
+
   const currentUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const currentKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  
+
   logInfo('Current Supabase Configuration:');
   console.log(`  URL: ${currentUrl || 'Not set'}`);
   console.log(`  Anon Key: ${currentKey ? currentKey.substring(0, 20) + '...' : 'Not set'}`);
   console.log();
-  
+
   if (currentUrl === NEW_VPS_SUPABASE_URL) {
     logSuccess('Currently using VPS Supabase instance');
   } else if (currentUrl === OLD_SUPABASE_URL) {
@@ -147,9 +147,9 @@ function checkConfiguration() {
   } else {
     logWarning('Unknown Supabase configuration');
   }
-  
+
   console.log();
-  
+
   // Check all environment files
   logInfo('Environment Files Status:');
   [...ENV_FILES, ...PYTHON_ENV_FILES].forEach(file => {
@@ -165,21 +165,21 @@ function checkConfiguration() {
 // Test Supabase connection
 async function testConnection(url, anonKey, label) {
   logInfo(`Testing ${label}...`);
-  
+
   try {
     const supabase = createClient(url, anonKey);
-    
+
     // Try to query the users table
     const { data, error } = await supabase
       .from('users')
       .select('count')
       .limit(1);
-    
+
     if (error) {
       logError(`${label} connection failed: ${error.message}`);
       return false;
     }
-    
+
     logSuccess(`${label} connection successful!`);
     return true;
   } catch (error) {
@@ -191,11 +191,11 @@ async function testConnection(url, anonKey, label) {
 // Test both Supabase instances
 async function testBothConnections() {
   logHeader('Testing Supabase Connections');
-  
+
   const oldResult = await testConnection(OLD_SUPABASE_URL, OLD_SUPABASE_ANON_KEY, 'Old Supabase');
   console.log();
   const newResult = await testConnection(NEW_VPS_SUPABASE_URL, NEW_VPS_SUPABASE_ANON_KEY, 'VPS Supabase');
-  
+
   console.log();
   logInfo('Connection Test Summary:');
   console.log(`  Old Supabase: ${oldResult ? '✓ Connected' : '✗ Failed'}`);
@@ -205,10 +205,10 @@ async function testBothConnections() {
 // Switch to VPS Supabase
 function switchToVPS() {
   logHeader('Switching to VPS Supabase');
-  
+
   let successCount = 0;
   let failCount = 0;
-  
+
   // Update Node.js environment files
   logInfo('Updating Node.js environment files...');
   ENV_FILES.forEach(file => {
@@ -220,7 +220,7 @@ function switchToVPS() {
       failCount++;
     }
   });
-  
+
   // Update Python environment files
   logInfo('Updating Python environment files...');
   PYTHON_ENV_FILES.forEach(file => {
@@ -232,7 +232,7 @@ function switchToVPS() {
       failCount++;
     }
   });
-  
+
   // Update morchid-ai-service config.py
   logInfo('Updating morchid-ai-service config.py...');
   const configPath = 'morchid-ai-service/config.py';
@@ -247,7 +247,7 @@ function switchToVPS() {
       /SUPABASE_ANON_KEY = os\.getenv\("SUPABASE_ANON_KEY", ".*"\)/g,
       `SUPABASE_ANON_KEY = os.getenv("SUPABASE_ANON_KEY", "${NEW_VPS_SUPABASE_ANON_KEY}")`
     );
-    
+
     if (writeEnvFile(configPath, updated)) {
       logSuccess(`Updated ${configPath}`);
       successCount++;
@@ -256,12 +256,12 @@ function switchToVPS() {
       failCount++;
     }
   }
-  
+
   console.log();
   logInfo('Switch Summary:');
   console.log(`  Successful updates: ${successCount}`);
   console.log(`  Failed updates: ${failCount}`);
-  
+
   if (failCount === 0) {
     logSuccess('Successfully switched to VPS Supabase!');
     logInfo('Next steps:');
@@ -276,10 +276,10 @@ function switchToVPS() {
 // Switch back to old Supabase
 function switchBackToOld() {
   logHeader('Switching Back to Old Supabase');
-  
+
   let successCount = 0;
   let failCount = 0;
-  
+
   // Update Node.js environment files
   logInfo('Updating Node.js environment files...');
   ENV_FILES.forEach(file => {
@@ -291,7 +291,7 @@ function switchBackToOld() {
       failCount++;
     }
   });
-  
+
   // Update Python environment files
   logInfo('Updating Python environment files...');
   PYTHON_ENV_FILES.forEach(file => {
@@ -303,7 +303,7 @@ function switchBackToOld() {
       failCount++;
     }
   });
-  
+
   // Update morchid-ai-service config.py
   logInfo('Updating morchid-ai-service config.py...');
   const configPath = 'morchid-ai-service/config.py';
@@ -318,7 +318,7 @@ function switchBackToOld() {
       /SUPABASE_ANON_KEY = os\.getenv\("SUPABASE_ANON_KEY", ".*"\)/g,
       `SUPABASE_ANON_KEY = os.getenv("SUPABASE_ANON_KEY", "${OLD_SUPABASE_ANON_KEY}")`
     );
-    
+
     if (writeEnvFile(configPath, updated)) {
       logSuccess(`Updated ${configPath}`);
       successCount++;
@@ -327,12 +327,12 @@ function switchBackToOld() {
       failCount++;
     }
   }
-  
+
   console.log();
   logInfo('Switch Summary:');
   console.log(`  Successful updates: ${successCount}`);
   console.log(`  Failed updates: ${failCount}`);
-  
+
   if (failCount === 0) {
     logSuccess('Successfully switched back to old Supabase!');
     logInfo('Next steps:');
@@ -346,10 +346,10 @@ function switchBackToOld() {
 // Show configuration info
 function showInfo() {
   logHeader('Supabase Environment Manager');
-  
+
   console.log('This tool helps manage the transition between Supabase instances.');
   console.log();
-  
+
   logInfo('Available Commands:');
   console.log('  check          - Check current configuration');
   console.log('  test           - Test Supabase connections');
@@ -357,7 +357,7 @@ function showInfo() {
   console.log('  switch-back    - Switch back to old Supabase');
   console.log('  info           - Show this help message');
   console.log();
-  
+
   logInfo('Supabase Instances:');
   console.log('  Old Supabase:');
   console.log(`    URL: ${OLD_SUPABASE_URL}`);
@@ -367,7 +367,7 @@ function showInfo() {
   console.log(`    URL: ${NEW_VPS_SUPABASE_URL}`);
   console.log(`    Anon Key: ${NEW_VPS_SUPABASE_ANON_KEY.substring(0, 20)}...`);
   console.log();
-  
+
   logInfo('Files That Will Be Updated:');
   [...ENV_FILES, ...PYTHON_ENV_FILES, 'morchid-ai-service/config.py'].forEach(file => {
     console.log(`  - ${file}`);
@@ -377,7 +377,7 @@ function showInfo() {
 // Main function
 async function main() {
   const command = process.argv[2];
-  
+
   switch (command) {
     case 'check':
       checkConfiguration();
