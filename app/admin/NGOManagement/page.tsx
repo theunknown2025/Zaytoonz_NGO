@@ -1,5 +1,7 @@
 "use client";
 
+export const dynamic = 'force-dynamic';
+
 import { useFetchNGOs } from "./FetchNGOs";
 import DisplayNGOs from "./DisplayNGOs";
 

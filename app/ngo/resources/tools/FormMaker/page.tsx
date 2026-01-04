@@ -1,5 +1,7 @@
 'use client';
 
+export const dynamic = 'force-dynamic';
+
 import { useState, useEffect } from 'react';
 import { 
   DocumentTextIcon,
@@ -25,10 +27,12 @@ import NewForm from './NewForm';
 import ZaytoonzTemplates from './ZaytoonzTemplates';
 import { useAuth } from '@/app/lib/auth';
 
-// Initialize Supabase client
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL as string;
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY as string;
-const supabase = createClient(supabaseUrl, supabaseKey);
+// Lazy Supabase client initialization
+function getSupabaseClient() {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL as string;
+  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY as string;
+  return createClient(supabaseUrl, supabaseKey);
+}
 
 // Implement a simple toast function if there's no toast library available
 const toast = {
@@ -259,6 +263,7 @@ export default function FormMakerTool() {
         return;
       }
       
+      const supabase = getSupabaseClient();
       const { data, error } = await supabase.from('forms_templates').select('count').limit(1);
       
       if (error) {
@@ -378,6 +383,8 @@ export default function FormMakerTool() {
     setIsSaving(true);
     
     try {
+      const supabase = getSupabaseClient();
+      
       // First check if form exists
       const { data: checkData, error: checkError } = await supabase
         .from('forms_templates')

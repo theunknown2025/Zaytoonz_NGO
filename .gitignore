@@ -63,3 +63,4 @@ app/seeker/project/dist/
 
 # Deployment config with credentials
 deploy-config.local.ps1
+sub-deploy-vps.tar.gz

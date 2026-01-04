@@ -1,5 +1,7 @@
 'use client';
 
+export const dynamic = 'force-dynamic';
+
 import { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
@@ -19,10 +21,12 @@ import ListOpportunities from '../liste/ListOpportunities';
 import { createInitialOpportunity as createOpportunityService, type OpportunityType, getOpportunityById, saveOpportunityProgress } from '../services/opportunityService';
 import { createClient } from '@supabase/supabase-js';
 
-// Initialize Supabase client
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
+// Lazy Supabase client initialization
+function getSupabaseClient() {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+  return createClient(supabaseUrl, supabaseAnonKey);
+}
 
 interface OpportunityFormData {
   title: string;
@@ -160,6 +164,7 @@ export default function NewOpportunityPage() {
       
       // Load description data
       try {
+        const supabase = getSupabaseClient();
         const { data: descriptionData } = await supabase
           .from('opportunity_description')
           .select('*')
@@ -182,6 +187,7 @@ export default function NewOpportunityPage() {
       
       // Load form choice data
       try {
+        const supabase = getSupabaseClient();
         const { data: formChoiceData } = await supabase
           .from('opportunity_form_choice')
           .select('*, form:form_id(*)')
@@ -205,6 +211,7 @@ export default function NewOpportunityPage() {
       
       // Load form email data
       try {
+        const supabase = getSupabaseClient();
         const { data: formEmailData } = await supabase
           .from('opportunity_form_email')
           .select('*')
