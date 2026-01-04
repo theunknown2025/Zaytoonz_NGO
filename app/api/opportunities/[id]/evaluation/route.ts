@@ -1,10 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+// Force runtime execution - don't execute during build
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+
+// Lazy initialization of Supabase client to avoid build-time execution
+function getSupabaseClient() {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  
+  if (!supabaseUrl || !supabaseKey) {
+    throw new Error('Supabase credentials are not configured');
+  }
+  
+  return createClient(supabaseUrl, supabaseKey);
+}
 
 // GET /api/opportunities/[id]/evaluation - Get evaluation template for an opportunity
 export async function GET(
@@ -12,6 +23,7 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
+    const supabase = getSupabaseClient();
     const opportunityId = params.id;
     
     // Query the database for the evaluation template linked to this opportunity
@@ -69,6 +81,7 @@ export async function POST(
   { params }: { params: { id: string } }
 ) {
   try {
+    const supabase = getSupabaseClient();
     const opportunityId = params.id;
     const body = await request.json();
     const { evaluationId } = body;

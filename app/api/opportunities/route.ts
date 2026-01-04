@@ -1,13 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
-
-// Force dynamic rendering since we use request.url
+// Force runtime execution - don't execute during build
+export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
+
+// Lazy initialization of Supabase client to avoid build-time execution
+function getSupabaseClient() {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  
+  if (!supabaseUrl || !supabaseAnonKey) {
+    throw new Error('Supabase credentials are not configured');
+  }
+  
+  return createClient(supabaseUrl, supabaseAnonKey);
+}
 
 export async function GET(request: NextRequest) {
   try {
@@ -45,6 +53,7 @@ export async function GET(request: NextRequest) {
 
 async function getInternalOpportunities(type: string | null) {
   try {
+    const supabase = getSupabaseClient();
     // Build the query to get opportunities with their descriptions and application counts
     let query = supabase
       .from('opportunities')
@@ -129,6 +138,7 @@ async function getInternalOpportunities(type: string | null) {
 
 async function getScrapedOpportunities(type: string | null) {
   try {
+    const supabase = getSupabaseClient();
     // Build the query to get scraped opportunities with their details
     let query = supabase
       .from('scraped_opportunities')

@@ -1,20 +1,28 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
+// Force runtime execution - don't execute during build
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+
+// Lazy initialization of Supabase client to avoid build-time execution
+function getSupabaseClient() {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  
+  if (!supabaseUrl || !supabaseKey) {
+    throw new Error('Supabase credentials are not configured');
+  }
+  
+  return createClient(supabaseUrl, supabaseKey);
+}
+
 export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
-    // Initialize Supabase client
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL as string;
-    const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY as string;
-
-    if (!supabaseUrl || !supabaseKey) {
-      return NextResponse.json({ error: 'Missing Supabase environment variables' }, { status: 500 });
-    }
-
-    const supabase = createClient(supabaseUrl, supabaseKey);
+    const supabase = getSupabaseClient();
 
     const { id } = params;
 

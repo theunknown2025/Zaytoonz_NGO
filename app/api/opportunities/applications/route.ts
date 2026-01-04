@@ -1,14 +1,26 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+// Force runtime execution - don't execute during build
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+
+// Lazy initialization of Supabase client to avoid build-time execution
+function getSupabaseClient() {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  
+  if (!supabaseUrl || !supabaseKey) {
+    throw new Error('Supabase credentials are not configured');
+  }
+  
+  return createClient(supabaseUrl, supabaseKey);
+}
 
 // POST - Submit an application
 export async function POST(request: NextRequest) {
   try {
+    const supabase = getSupabaseClient();
     const body = await request.json();
     const { opportunityId, seekerUserId, formId, applicationData, selectedCVId, selectedCVName, notes } = body;
 
@@ -72,6 +84,7 @@ export async function POST(request: NextRequest) {
 // GET - Retrieve applications for a user
 export async function GET(request: NextRequest) {
   try {
+    const supabase = getSupabaseClient();
     const { searchParams } = new URL(request.url);
     const seekerUserId = searchParams.get('seekerUserId');
 

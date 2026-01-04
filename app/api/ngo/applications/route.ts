@@ -2,14 +2,26 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { getUserId } from '@/app/lib/auth-utils';
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+// Force runtime execution - don't execute during build
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+
+// Lazy initialization of Supabase client to avoid build-time execution
+function getSupabaseClient() {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  
+  if (!supabaseUrl || !supabaseKey) {
+    throw new Error('Supabase credentials are not configured');
+  }
+  
+  return createClient(supabaseUrl, supabaseKey);
+}
 
 // GET - Retrieve all applications for NGO's published opportunities
 export async function GET(request: NextRequest) {
   try {
+    const supabase = getSupabaseClient();
     // Get the authenticated user ID
     const ngoUserId = await getUserId(request);
 
@@ -218,6 +230,7 @@ export async function GET(request: NextRequest) {
 // PUT - Update application status
 export async function PUT(request: NextRequest) {
   try {
+    const supabase = getSupabaseClient();
     const body = await request.json();
     const { applicationId, status, notes } = body;
 
@@ -261,6 +274,7 @@ export async function PUT(request: NextRequest) {
 // PATCH - Publish opportunity
 export async function PATCH(request: NextRequest) {
   try {
+    const supabase = getSupabaseClient();
     const body = await request.json();
     const { opportunityId, action } = body;
 

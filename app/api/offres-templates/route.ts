@@ -1,8 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+// Force runtime execution - don't execute during build
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+
+// Lazy initialization of Supabase client to avoid build-time execution
+function getSupabaseClient() {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  
+  if (!supabaseUrl || !supabaseKey) {
+    throw new Error('Supabase credentials are not configured');
+  }
+  
+  return createClient(supabaseUrl, supabaseKey);
+}
 
 // Generate a UUID v4
 function generateUUID() {
@@ -15,7 +28,7 @@ function generateUUID() {
 
 export async function GET(request: NextRequest) {
   try {
-    const supabase = createClient(supabaseUrl, supabaseKey);
+    const supabase = getSupabaseClient();
     
     // Fetch both NGO templates and published admin templates
     const { data: templates, error } = await supabase
@@ -38,7 +51,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = createClient(supabaseUrl, supabaseKey);
+    const supabase = getSupabaseClient();
     const body = await request.json();
     
     // Validate required fields
@@ -76,7 +89,7 @@ export async function POST(request: NextRequest) {
 
 export async function PATCH(request: NextRequest) {
   try {
-    const supabase = createClient(supabaseUrl, supabaseKey);
+    const supabase = getSupabaseClient();
     const body = await request.json();
     const { id, ...updates } = body;
 
@@ -122,7 +135,7 @@ export async function PATCH(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
-    const supabase = createClient(supabaseUrl, supabaseKey);
+    const supabase = getSupabaseClient();
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
 
