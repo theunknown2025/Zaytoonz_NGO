@@ -108,6 +108,14 @@ if ! check_and_install "Git" \
     exit 1
 fi
 
+# Check and install Python 3 (required for scraper)
+if ! check_and_install "Python 3" \
+    "apt install -y python3 python3-pip python3-venv" \
+    "python3"; then
+    echo -e "${RED}[ERROR] Failed to install Python 3${NC}"
+    exit 1
+fi
+
 echo ""
 if [ $MISSING_PACKAGES -eq 0 ]; then
     if [ $INSTALLED_PACKAGES -gt 0 ]; then
@@ -123,6 +131,7 @@ if [ $MISSING_PACKAGES -eq 0 ]; then
     echo "  PM2: $(pm2 --version)"
     echo "  Nginx: $(nginx -v 2>&1 | cut -d'/' -f2)"
     echo "  Git: $(git --version | cut -d' ' -f3)"
+    echo "  Python: $(python3 --version)"
     
     exit 0
 else

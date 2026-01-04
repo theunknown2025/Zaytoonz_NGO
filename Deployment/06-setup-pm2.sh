@@ -33,16 +33,20 @@ echo "[*] Setting up PM2 logs..."
 mkdir -p /var/log/pm2
 chmod 755 /var/log/pm2
 
-# Stop existing instance if running
-echo "[*] Stopping existing PM2 instance (if any)..."
+# Stop existing instances if running
+echo "[*] Stopping existing PM2 instances (if any)..."
 pm2 delete "$APP_NAME" 2>/dev/null || true
+pm2 delete "python-scraper" 2>/dev/null || true
 
-# Start with ecosystem config if exists, otherwise use server.js
-if [ -f "ecosystem.test.config.js" ]; then
+# Check for ecosystem configs (prefer production config with scraper, fallback to test)
+if [ -f "ecosystem.production.config.js" ]; then
+    echo "[*] Starting with ecosystem.production.config.js (includes scraper)..."
+    pm2 start ecosystem.production.config.js
+elif [ -f "ecosystem.test.config.js" ]; then
     echo "[*] Starting with ecosystem.test.config.js..."
     pm2 start ecosystem.test.config.js
 else
-    echo "[*] Starting with server.js..."
+    echo "[*] Starting Next.js app with server.js..."
     pm2 start server.js \
         --name "$APP_NAME" \
         --update-env \
@@ -51,6 +55,19 @@ else
         NODE_ENV=production \
         PORT="$PORT" \
         NEXT_PUBLIC_BASE_PATH="$BASE_PATH"
+    
+    # Try to start Python scraper if directory exists
+    SCRAPER_DIR="$APP_DIR/python_scraper"
+    if [ -d "$SCRAPER_DIR" ] && [ -f "$SCRAPER_DIR/venv/bin/uvicorn" ]; then
+        echo "[*] Starting Python scraper..."
+        cd "$SCRAPER_DIR"
+        pm2 start venv/bin/uvicorn \
+            --name "python-scraper" \
+            --interpreter none \
+            -- \
+            api_wrapper:app --host 0.0.0.0 --port 8000 --workers 2
+        cd "$APP_DIR"
+    fi
 fi
 
 # Save PM2 configuration
@@ -62,7 +79,7 @@ echo -e "${GREEN}[SUCCESS] PM2 configured${NC}"
 # Show PM2 status
 echo ""
 echo "[*] PM2 Status:"
-pm2 status "$APP_NAME"
+pm2 status
 
 # Setup PM2 startup (if not already done)
 echo ""

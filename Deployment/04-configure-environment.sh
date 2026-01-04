@@ -61,9 +61,10 @@ OPENAI_MODEL=gpt-4o-mini
 NEXTAUTH_SECRET=your_nextauth_secret_here
 NEXTAUTH_URL=http://72.62.176.80/test
 
-# External Scraper Configuration (if using)
-NEXT_PUBLIC_USE_EXTERNAL_SCRAPER=false
+# External Scraper Configuration
+NEXT_PUBLIC_USE_EXTERNAL_SCRAPER=true
 NEXT_PUBLIC_EXTERNAL_SCRAPER_URL=http://localhost:8000
+NEXT_PUBLIC_FALLBACK_TO_LOCAL=true
 EOF
     echo -e "${YELLOW}[WARNING] Created .env.local template. Please update with your actual values!${NC}"
 fi

@@ -222,3 +222,8 @@ echo "  systemctl status nginx          # Check Nginx status"
 echo "  tail -f /var/log/nginx/error.log  # View Nginx errors"
 echo ""
 
+
+
+
+
+
