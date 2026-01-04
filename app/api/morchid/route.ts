@@ -1,10 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
-// Initialize Supabase client
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-const supabase = createClient(supabaseUrl, supabaseKey);
+// Force runtime execution - don't execute during build
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+
+// Lazy initialization of Supabase client to avoid build-time execution
+function getSupabaseClient() {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  
+  if (!supabaseUrl || !supabaseKey) {
+    throw new Error('Supabase credentials are not configured');
+  }
+  
+  return createClient(supabaseUrl, supabaseKey);
+}
 
 // LLM Configuration
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
@@ -142,6 +153,7 @@ function detectIntent(message: string): string {
 
 async function getUserCVs(userId: string): Promise<CVData[]> {
   try {
+    const supabase = getSupabaseClient();
     // Fetch all CVs for the user
     const { data: cvs, error: cvsError } = await supabase
       .from('cvs')
@@ -272,6 +284,7 @@ async function searchAllOpportunities(
   }
 
   try {
+    const supabase = getSupabaseClient();
     // ========== 1. INTERNAL NGO OPPORTUNITIES ==========
     let internalQuery = supabase
       .from('opportunities')
@@ -899,6 +912,7 @@ async function saveConversation(
   context: ConversationContext
 ): Promise<void> {
   try {
+    const supabase = getSupabaseClient();
     await supabase
       .from('morchid_conversations')
       .insert({
@@ -1029,6 +1043,7 @@ export async function POST(request: NextRequest) {
 
 export async function GET(request: NextRequest) {
   try {
+    const supabase = getSupabaseClient();
     const { searchParams } = new URL(request.url);
     const userId = searchParams.get('userId');
 

@@ -1,14 +1,27 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
-// Initialize Supabase client
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-const supabase = createClient(supabaseUrl, supabaseKey);
+// Force runtime execution - don't execute during build
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+
+// Lazy initialization of Supabase client to avoid build-time execution
+function getSupabaseClient() {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  
+  if (!supabaseUrl || !supabaseKey) {
+    throw new Error('Supabase credentials are not configured');
+  }
+  
+  return createClient(supabaseUrl, supabaseKey);
+}
 
 // GET handler - Fetch specific conversation
 export async function GET(request: NextRequest) {
   try {
+    // Initialize Supabase client at runtime, not build time
+    const supabase = getSupabaseClient();
     const { searchParams } = new URL(request.url);
     const conversationId = searchParams.get('id');
     const userId = searchParams.get('userId');
@@ -79,6 +92,8 @@ export async function GET(request: NextRequest) {
 // DELETE handler - Delete conversation
 export async function DELETE(request: NextRequest) {
   try {
+    // Initialize Supabase client at runtime, not build time
+    const supabase = getSupabaseClient();
     const { searchParams } = new URL(request.url);
     const conversationId = searchParams.get('id');
     const userId = searchParams.get('userId');
