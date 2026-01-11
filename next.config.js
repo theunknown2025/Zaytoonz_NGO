@@ -3,7 +3,7 @@ const nextConfig = {
   reactStrictMode: true,
   // Remove 'output: export' for Netlify deployment with API routes
   trailingSlash: true,
-  // Configure basePath for subdirectory deployment (zaytoonz.com/test)
+  // Configure basePath for deployment (empty for root deployment)
   basePath: process.env.NEXT_PUBLIC_BASE_PATH || '',
   images: {
     unoptimized: true
