@@ -1,9 +1,15 @@
 import streamlit as st
 import os
+from pathlib import Path
 from dotenv import load_dotenv
 from supabase import create_client
 from assets import MODELS_USED
 
+# Load .env file from the python_scraper directory
+# This ensures it works whether running from the project root or python_scraper directory
+env_path = Path(__file__).parent / '.env'
+load_dotenv(dotenv_path=env_path)
+# Also try loading from current directory (for PM2/uvicorn)
 load_dotenv()
 def get_api_key(model):
     """
