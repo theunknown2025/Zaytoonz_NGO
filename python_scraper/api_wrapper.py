@@ -14,12 +14,12 @@ import sys
 from datetime import datetime
 
 # Fix event loop policy for Windows and nested async
+# Only apply nest_asyncio on Windows - it conflicts with uvloop on Linux
 if sys.platform.startswith('win'):
     asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
-
-# Allow nested event loops
-import nest_asyncio
-nest_asyncio.apply()
+    # Allow nested event loops (Windows only - conflicts with uvloop on Linux)
+    import nest_asyncio
+    nest_asyncio.apply()
 
 # Import your existing scraper modules
 from scraper import scrape_urls

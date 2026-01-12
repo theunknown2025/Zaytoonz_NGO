@@ -1,14 +1,16 @@
 # markdown.py
 
 import asyncio
+import sys
 from typing import List
 from api_management import get_supabase_client
 from utils import generate_unique_name
 from crawl4ai import AsyncWebCrawler
 
-# Apply nest_asyncio globally to handle nested event loops
-import nest_asyncio
-nest_asyncio.apply()
+# Apply nest_asyncio only on Windows - it conflicts with uvloop on Linux
+if sys.platform.startswith('win'):
+    import nest_asyncio
+    nest_asyncio.apply()
 
 supabase = get_supabase_client()
 

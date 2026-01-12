@@ -9,11 +9,12 @@ import asyncio
 import argparse
 
 # Apply event loop fixes for Windows and nested loops
+# Only apply nest_asyncio on Windows - it conflicts with uvloop on Linux
 if sys.platform.startswith('win'):
     asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
-
-import nest_asyncio
-nest_asyncio.apply()
+    # Allow nested event loops (Windows only - conflicts with uvloop on Linux)
+    import nest_asyncio
+    nest_asyncio.apply()
 
 def launch_streamlit():
     """Launch the Streamlit application"""
