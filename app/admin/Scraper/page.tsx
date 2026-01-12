@@ -129,6 +129,7 @@ export default function ScraperPage() {
   });
 
   // Use relative path for Nginx proxy, or fallback to env var, or localhost for dev
+  // Nginx proxies /api/scraper/ to http://localhost:8000/
   const SCRAPER_URL = process.env.NEXT_PUBLIC_EXTERNAL_SCRAPER_URL || 
     (typeof window !== 'undefined' ? '/api/scraper' : 'http://localhost:8000');
 

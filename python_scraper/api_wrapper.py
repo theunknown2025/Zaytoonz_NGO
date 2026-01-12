@@ -32,16 +32,24 @@ from api_management import get_supabase_client
 app = FastAPI(title="Scrape Master API", version="1.0.0")
 
 # Configure CORS to allow your Next.js frontend
+# Build allowed origins list
+allowed_origins = [
+    "http://localhost:3000",  # Local Next.js development
+    "http://localhost:3001",  # Local Next.js production port
+    "http://72.62.26.162",     # VPS IP address
+    "https://*.netlify.app",   # Netlify deployments
+    "https://*.vercel.app",    # Vercel deployments (if needed)
+]
+
+# In production, allow all origins (restrict this for better security)
+if os.getenv("ENVIRONMENT") == "production":
+    allowed_origins = ["*"]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",  # Local Next.js development
-        "https://*.netlify.app",  # Netlify deployments
-        "https://*.vercel.app",   # Vercel deployments (if needed)
-        # Add your specific frontend domain here
-    ],
+    allow_origins=allowed_origins,
     allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "DELETE"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],
 )
 
