@@ -841,14 +841,14 @@ export async function getOpportunityById(id: string): Promise<{ opportunity: Opp
     }
 
     // Filter for published description - only show published opportunities to public
-    let description = null;
+    let description: any = null;
     if (data.opportunity_description && Array.isArray(data.opportunity_description)) {
       // Only return published descriptions for public access
       description = data.opportunity_description.find((desc: any) => desc.status === 'published');
     } else if (data.opportunity_description) {
       // Single object case - check if it's published
-      const desc = data.opportunity_description;
-      if (desc.status === 'published') {
+      const desc = data.opportunity_description as any;
+      if (desc && desc.status === 'published') {
         description = desc;
       }
     }
