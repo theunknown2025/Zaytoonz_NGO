@@ -11,6 +11,7 @@ import { CheckCircleIcon, ClockIcon, XCircleIcon } from '@heroicons/react/24/out
 interface NGOApprovalStatus {
   approval_status: 'pending' | 'approved' | 'rejected';
   admin_notes?: string;
+  launchingstatus?: 'not_shown' | 'shown';
 }
 
 export default function NGOLayout({
@@ -49,12 +50,12 @@ export default function NGOLayout({
           console.log('Approval status API response:', data);
           setApprovalStatus(data);
           
-          // Show success message only if newly approved and not already shown
-          if (data.approval_status === 'approved') {
-            console.log('Setting showSuccessMessage to true');
+          // Show success message only if approved AND launchingstatus is 'not_shown'
+          if (data.approval_status === 'approved' && data.launchingstatus === 'not_shown') {
+            console.log('Setting showSuccessMessage to true - approval screen not shown yet');
             setShowSuccessMessage(true);
           } else {
-            console.log('Not showing success message. Status:', data.approval_status);
+            console.log('Not showing success message. Status:', data.approval_status, 'Launching status:', data.launchingstatus);
           }
         }
       } catch (error) {
@@ -72,30 +73,55 @@ export default function NGOLayout({
   const isPending = approvalStatus?.approval_status === 'pending';
   const isRejected = approvalStatus?.approval_status === 'rejected';
   
-  // Debug logging
-  console.log('Layout state:', {
-    approvalStatus: approvalStatus?.approval_status,
-    isApproved,
-    isPending,
-    isRejected,
-    showSuccessMessage,
-    localStorageFlag: authUser?.id ? localStorage.getItem(`success_shown_${authUser.id}`) : 'no user id'
-  });
-  
   // Handle dismissing the success message
-  const handleDismissSuccess = () => {
+  const handleDismissSuccess = async () => {
     setShowSuccessMessage(false);
-    // Mark as shown for this user only after they dismiss it
+    // Mark as shown in database
     if (authUser?.id) {
-      localStorage.setItem(`success_shown_${authUser.id}`, 'true');
+      try {
+        const response = await fetch(`/api/ngo/mark-launching-shown?userId=${authUser.id}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ userId: authUser.id }),
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          console.log('Launching status marked as shown:', data);
+          // Update local state
+          if (approvalStatus) {
+            setApprovalStatus({
+              ...approvalStatus,
+              launchingstatus: 'shown'
+            });
+          }
+        } else {
+          console.error('Failed to mark launching status as shown');
+        }
+      } catch (error) {
+        console.error('Error marking launching status as shown:', error);
+      }
     }
   };
   
-  // Temporary function to reset localStorage flag for testing
-  const resetSuccessFlag = () => {
+  // Temporary function to reset launching status for testing
+  const resetSuccessFlag = async () => {
     if (authUser?.id) {
-      localStorage.removeItem(`success_shown_${authUser.id}`);
-      setShowSuccessMessage(true);
+      try {
+        // This would require a separate API endpoint to reset, but for now we'll just show it again
+        // In production, you might want to remove this function or create an admin endpoint
+        setShowSuccessMessage(true);
+        if (approvalStatus) {
+          setApprovalStatus({
+            ...approvalStatus,
+            launchingstatus: 'not_shown'
+          });
+        }
+      } catch (error) {
+        console.error('Error resetting success flag:', error);
+      }
     }
   };
   

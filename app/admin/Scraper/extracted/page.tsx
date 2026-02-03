@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   DocumentTextIcon,
   ArrowPathIcon,
@@ -33,6 +33,7 @@ import {
   getDefaultSelectedColumns,
   type ExtractedOpportunity as ExcelExtractedOpportunity
 } from './excelExporter';
+import { polishOpportunityContent, polishOpportunityContentWithAI, type CleanedOpportunityContent } from './contentHandler';
 
 interface ExtractedOpportunity {
   id: string;
@@ -60,6 +61,7 @@ interface ExtractedOpportunity {
   extraction_cost: number | null;
   created_at: string;
   updated_at: string;
+  content_polished_at: string | null;
 }
 
 export default function ExtractedOpportunitiesPage() {
@@ -87,10 +89,15 @@ export default function ExtractedOpportunitiesPage() {
   // Selected opportunity for detail view
   const [selectedOpportunity, setSelectedOpportunity] = useState<ExtractedOpportunity | null>(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
+  const [polishedContent, setPolishedContent] = useState<CleanedOpportunityContent | null>(null);
+  const [isPolishingContent, setIsPolishingContent] = useState(false);
   
   // Delete confirmation
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  
+  // Update content state
+  const [isUpdatingContent, setIsUpdatingContent] = useState(false);
 
   const fetchOpportunities = useCallback(async () => {
     setIsLoading(true);
@@ -150,11 +157,120 @@ export default function ExtractedOpportunitiesPage() {
     }
   };
 
+  const handleUpdateContent = async () => {
+    if (!selectedOpportunity || !polishedContent) {
+      setError('No polished content available to update');
+      return;
+    }
+
+    setIsUpdatingContent(true);
+    setError(null);
+
+    try {
+      // Map polished content to database fields
+      const updateData = {
+        description: polishedContent.overview || null,
+        responsibilities: polishedContent.responsibilities || null,
+        requirements: polishedContent.requirements || null,
+        qualifications: polishedContent.qualifications || null,
+        benefits: polishedContent.benefits || null,
+        application_instructions: polishedContent.howToApply || null,
+        contact_info: polishedContent.contactInfo || null,
+        raw_content: polishedContent.combinedPlainText || null, // Store cleaned version
+        content_polished_at: new Date().toISOString(), // Mark as polished
+      };
+
+      const response = await fetch(`/api/admin/extract-opportunity/${selectedOpportunity.id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(updateData),
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        setSuccessMessage('Content updated successfully with polished version!');
+        
+        // Update the local opportunity state with the new content
+        setSelectedOpportunity({
+          ...selectedOpportunity,
+          ...updateData,
+          content_polished_at: new Date().toISOString(),
+        });
+        
+        // Refresh the list to show updated content
+        setTimeout(() => {
+          fetchOpportunities();
+        }, 1000);
+      } else {
+        const result = await response.json();
+        setError(result.error || 'Failed to update content');
+      }
+    } catch (err) {
+      setError('Failed to update content: ' + (err instanceof Error ? err.message : 'Unknown error'));
+    } finally {
+      setIsUpdatingContent(false);
+    }
+  };
+
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
     setSuccessMessage('Copied to clipboard!');
     setTimeout(() => setSuccessMessage(null), 2000);
   };
+
+  // Polish content with AI when modal opens (only if not already polished)
+  useEffect(() => {
+    if (showDetailModal && selectedOpportunity) {
+      // Check if content has already been polished
+      if (selectedOpportunity.content_polished_at) {
+        // Content is already polished - use existing database content
+        const polishedFromDB: CleanedOpportunityContent = {
+          overview: selectedOpportunity.description || null,
+          responsibilities: selectedOpportunity.responsibilities || null,
+          requirements: selectedOpportunity.requirements || null,
+          qualifications: selectedOpportunity.qualifications || null,
+          benefits: selectedOpportunity.benefits || null,
+          howToApply: selectedOpportunity.application_instructions || null,
+          contactInfo: selectedOpportunity.contact_info || null,
+          extra: null,
+          combinedPlainText: [
+            selectedOpportunity.description,
+            selectedOpportunity.responsibilities,
+            selectedOpportunity.requirements,
+            selectedOpportunity.qualifications,
+            selectedOpportunity.benefits,
+            selectedOpportunity.application_instructions,
+            selectedOpportunity.contact_info,
+          ]
+            .filter(Boolean)
+            .join('\n\n')
+            .trim() || selectedOpportunity.raw_content || '',
+        };
+        setPolishedContent(polishedFromDB);
+        setIsPolishingContent(false);
+      } else {
+        // Content not polished yet - use AI to polish it
+        setIsPolishingContent(true);
+        setPolishedContent(null);
+        
+        polishOpportunityContentWithAI(selectedOpportunity)
+          .then((polished) => {
+            setPolishedContent(polished);
+            setIsPolishingContent(false);
+          })
+          .catch((error) => {
+            console.error('Error polishing content:', error);
+            // Fallback to rule-based cleaner on error
+            setPolishedContent(polishOpportunityContent(selectedOpportunity));
+            setIsPolishingContent(false);
+          });
+      }
+    } else {
+      setPolishedContent(null);
+    }
+  }, [showDetailModal, selectedOpportunity]);
 
   const filteredOpportunities = opportunities.filter(opp => {
     // Country filter
@@ -490,13 +606,18 @@ export default function ExtractedOpportunitiesPage() {
                         <td className="px-4 py-4 align-top">
                           <div className="max-w-[200px]">
                             <h4 className="font-semibold text-gray-900 line-clamp-2 leading-tight">{opp.title}</h4>
-                            <div className="flex items-center gap-2 mt-2">
+                            <div className="flex items-center gap-2 mt-2 flex-wrap">
                               <span className={`inline-flex px-2 py-0.5 text-xs font-medium rounded-full border capitalize ${getTypeBadge(opp.opportunity_type)}`}>
                                 {opp.opportunity_type}
                               </span>
                               <span className={`inline-flex px-2 py-0.5 text-xs font-medium rounded-full border capitalize ${getStatusBadge(opp.extraction_status)}`}>
                                 {opp.extraction_status}
                               </span>
+                              {opp.content_polished_at && (
+                                <span className="inline-flex px-2 py-0.5 text-xs font-medium rounded-full border bg-green-100 text-green-700 border-green-200" title={`Polished on ${new Date(opp.content_polished_at).toLocaleDateString()}`}>
+                                  ✨ Polished
+                                </span>
+                              )}
                             </div>
                           </div>
                         </td>
@@ -674,13 +795,18 @@ export default function ExtractedOpportunitiesPage() {
             <div className="bg-blue-600 p-6 text-white">
               <div className="flex justify-between items-start">
                 <div className="flex-1 min-w-0 pr-4">
-                  <div className="flex items-center gap-3 mb-2">
+                  <div className="flex items-center gap-3 mb-2 flex-wrap">
                     <span className={`inline-flex px-2.5 py-1 text-xs font-medium rounded-full border capitalize bg-white/20 border-white/30`}>
                       {selectedOpportunity.opportunity_type}
                     </span>
                     <span className={`inline-flex px-2.5 py-1 text-xs font-medium rounded-full border capitalize bg-white/20 border-white/30`}>
                       {selectedOpportunity.extraction_status}
                     </span>
+                    {selectedOpportunity.content_polished_at && (
+                      <span className="inline-flex px-2.5 py-1 text-xs font-medium rounded-full border bg-green-500/30 border-green-400/50 text-white" title={`Content was polished on ${new Date(selectedOpportunity.content_polished_at).toLocaleString()}`}>
+                        ✨ Already Polished
+                      </span>
+                    )}
                   </div>
                   <h2 className="text-xl font-bold">{selectedOpportunity.title}</h2>
                 </div>
@@ -776,74 +902,98 @@ export default function ExtractedOpportunitiesPage() {
                   </h3>
                   {hasContent(selectedOpportunity) && (
                     <span className="text-xs text-gray-400 bg-gray-100 px-2 py-1 rounded">
-                      {getContentWordCount(selectedOpportunity).toLocaleString()} words
+                      {polishedContent?.combinedPlainText 
+                        ? polishedContent.combinedPlainText.split(/\s+/).filter(w => w.length > 0).length.toLocaleString()
+                        : getContentWordCount(selectedOpportunity).toLocaleString()} words
+                      {isPolishingContent && ' (cleaning...)'}
                     </span>
                   )}
                 </div>
                 <div className="bg-gray-50 rounded-lg border border-gray-200 max-h-[400px] overflow-y-auto">
-                  {hasContent(selectedOpportunity) ? (
+                  {isPolishingContent ? (
+                    <div className="flex flex-col items-center justify-center py-12">
+                      <div className="w-8 h-8 border-4 border-gray-200 border-t-blue-600 rounded-full animate-spin mb-3"></div>
+                      <p className="text-sm text-gray-500">Cleaning content with AI...</p>
+                    </div>
+                  ) : polishedContent && polishedContent.combinedPlainText ? (
                     <div className="divide-y divide-gray-200">
-                      {/* Description */}
-                      {selectedOpportunity.description && (
+                      {/* Overview / Description */}
+                      {polishedContent.overview && (
                         <div className="p-4">
                           <h4 className="text-xs font-semibold text-blue-600 uppercase mb-2">Description</h4>
-                          <p className="text-gray-700 whitespace-pre-wrap leading-relaxed text-sm">{selectedOpportunity.description}</p>
+                          <p className="text-gray-700 whitespace-pre-wrap leading-relaxed text-sm">
+                            {polishedContent.overview}
+                          </p>
                         </div>
                       )}
 
                       {/* Responsibilities */}
-                      {selectedOpportunity.responsibilities && (
+                      {polishedContent.responsibilities && (
                         <div className="p-4">
                           <h4 className="text-xs font-semibold text-blue-600 uppercase mb-2">Responsibilities / Scope of Work</h4>
-                          <p className="text-gray-700 whitespace-pre-wrap leading-relaxed text-sm">{selectedOpportunity.responsibilities}</p>
+                          <p className="text-gray-700 whitespace-pre-wrap leading-relaxed text-sm">
+                            {polishedContent.responsibilities}
+                          </p>
                         </div>
                       )}
 
                       {/* Requirements */}
-                      {selectedOpportunity.requirements && (
+                      {polishedContent.requirements && (
                         <div className="p-4">
                           <h4 className="text-xs font-semibold text-blue-600 uppercase mb-2">Requirements</h4>
-                          <p className="text-gray-700 whitespace-pre-wrap leading-relaxed text-sm">{selectedOpportunity.requirements}</p>
+                          <p className="text-gray-700 whitespace-pre-wrap leading-relaxed text-sm">
+                            {polishedContent.requirements}
+                          </p>
                         </div>
                       )}
 
                       {/* Qualifications */}
-                      {selectedOpportunity.qualifications && (
+                      {polishedContent.qualifications && (
                         <div className="p-4">
                           <h4 className="text-xs font-semibold text-blue-600 uppercase mb-2">Qualifications</h4>
-                          <p className="text-gray-700 whitespace-pre-wrap leading-relaxed text-sm">{selectedOpportunity.qualifications}</p>
+                          <p className="text-gray-700 whitespace-pre-wrap leading-relaxed text-sm">
+                            {polishedContent.qualifications}
+                          </p>
                         </div>
                       )}
 
                       {/* Benefits */}
-                      {selectedOpportunity.benefits && (
+                      {polishedContent.benefits && (
                         <div className="p-4">
                           <h4 className="text-xs font-semibold text-blue-600 uppercase mb-2">Benefits</h4>
-                          <p className="text-gray-700 whitespace-pre-wrap leading-relaxed text-sm">{selectedOpportunity.benefits}</p>
+                          <p className="text-gray-700 whitespace-pre-wrap leading-relaxed text-sm">
+                            {polishedContent.benefits}
+                          </p>
                         </div>
                       )}
 
                       {/* Application Instructions */}
-                      {selectedOpportunity.application_instructions && (
+                      {polishedContent.howToApply && (
                         <div className="p-4">
                           <h4 className="text-xs font-semibold text-blue-600 uppercase mb-2">How to Apply</h4>
-                          <p className="text-gray-700 whitespace-pre-wrap leading-relaxed text-sm">{selectedOpportunity.application_instructions}</p>
+                          <p className="text-gray-700 whitespace-pre-wrap leading-relaxed text-sm">
+                            {polishedContent.howToApply}
+                          </p>
                         </div>
                       )}
 
                       {/* Contact Info */}
-                      {selectedOpportunity.contact_info && (
+                      {polishedContent.contactInfo && (
                         <div className="p-4">
                           <h4 className="text-xs font-semibold text-blue-600 uppercase mb-2">Contact Information</h4>
-                          <p className="text-gray-700 whitespace-pre-wrap leading-relaxed text-sm">{selectedOpportunity.contact_info}</p>
+                          <p className="text-gray-700 whitespace-pre-wrap leading-relaxed text-sm">
+                            {polishedContent.contactInfo}
+                          </p>
                         </div>
                       )}
 
-                      {/* Raw Content (combined) - show if no individual sections but has raw_content */}
-                      {selectedOpportunity.raw_content && !selectedOpportunity.description && !selectedOpportunity.responsibilities && (
+                      {/* Additional Details */}
+                      {polishedContent.extra && (
                         <div className="p-4">
-                          <h4 className="text-xs font-semibold text-blue-600 uppercase mb-2">Full Content</h4>
-                          <p className="text-gray-700 whitespace-pre-wrap leading-relaxed text-sm">{selectedOpportunity.raw_content}</p>
+                          <h4 className="text-xs font-semibold text-blue-600 uppercase mb-2">Additional Details</h4>
+                          <p className="text-gray-700 whitespace-pre-wrap leading-relaxed text-sm">
+                            {polishedContent.extra}
+                          </p>
                         </div>
                       )}
                     </div>
@@ -902,15 +1052,35 @@ export default function ExtractedOpportunitiesPage() {
               <div className="flex items-center gap-3">
                 <button
                   onClick={() => {
-                    const content = getFullContent(selectedOpportunity);
+                    // Use polished AI-cleaned content for copying
+                    const content = polishedContent?.combinedPlainText || getFullContent(selectedOpportunity);
                     copyToClipboard(content);
                   }}
-                  disabled={!selectedOpportunity.raw_content && !selectedOpportunity.description}
+                  disabled={!polishedContent?.combinedPlainText && !selectedOpportunity.raw_content && !selectedOpportunity.description}
                   className="inline-flex items-center gap-2 px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
                   <ClipboardDocumentIcon className="w-4 h-4" />
                   Copy Full Content
                 </button>
+                {polishedContent && polishedContent.combinedPlainText && (
+                  <button
+                    onClick={handleUpdateContent}
+                    disabled={isUpdatingContent || isPolishingContent}
+                    className="inline-flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    {isUpdatingContent ? (
+                      <>
+                        <ArrowPathIcon className="w-4 h-4 animate-spin" />
+                        Updating...
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircleIcon className="w-4 h-4" />
+                        Update Content
+                      </>
+                    )}
+                  </button>
+                )}
                 <a 
                   href={selectedOpportunity.source_url} 
                   target="_blank" 

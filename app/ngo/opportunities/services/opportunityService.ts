@@ -1,10 +1,6 @@
-import { createClient } from '@supabase/supabase-js';
 import { toast } from 'react-hot-toast';
-
-// Initialize Supabase client
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
+import { supabase } from '@/app/lib/supabase';
+import { AuthService } from '@/app/lib/auth';
 
 // Types
 export type OpportunityType = 'job' | 'funding' | 'training';
@@ -44,15 +40,51 @@ export interface UpdateOpportunityResponse {
  */
 export const createInitialOpportunity = async (
   opportunityId: string,
-  opportunityType: OpportunityType
+  opportunityType: OpportunityType,
+  userId?: string // Optional userId parameter
 ): Promise<CreateOpportunityResponse> => {
   try {
+    // Get the current authenticated user from localStorage (custom auth)
+    let user_id = userId;
+    
+    if (!user_id) {
+      // Try to get user from AuthService (localStorage)
+      if (typeof window !== 'undefined') {
+        const { user, error: authError } = await AuthService.getUser();
+        if (authError || !user) {
+          console.error('Error getting authenticated user:', authError);
+          return {
+            success: false,
+            error: 'User not authenticated. Please sign in and try again.'
+          };
+        }
+        user_id = user.id;
+      } else {
+        // Server-side: fall back to getValidUserId
+        user_id = await getValidUserId();
+        if (!user_id) {
+          return {
+            success: false,
+            error: 'User not authenticated. Please sign in and try again.'
+          };
+        }
+      }
+    }
+    
+    if (!user_id) {
+      return {
+        success: false,
+        error: 'User not authenticated. Please sign in and try again.'
+      };
+    }
+    
     const { data, error } = await supabase
       .from('opportunities')
       .insert({
         id: opportunityId,
         title: 'Draft Opportunity', // Placeholder title that will be updated later
         opportunity_type: opportunityType,
+        user_id: user_id, // Include user_id from authenticated user
       })
       .select()
       .single();
@@ -371,13 +403,14 @@ export async function saveOpportunityProgress(data: OpportunityProgressData) {
       
       if (!opportunity) {
         console.log('Opportunity does not exist, creating it first...');
-        // Create the opportunity first
+        // Create the opportunity first with user_id
         const { data: newOpportunity, error: createError } = await supabase
           .from('opportunities')
           .insert({
             id: data.opportunity_id,
             title: data.title || 'Draft Opportunity',
             opportunity_type: 'job', // Default type, will be updated later
+            user_id: userId, // Include user_id
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString()
           })

@@ -120,6 +120,14 @@ export const translations = {
       visionTitle: 'Vision',
       visionText: 'A world where every young professional has access to meaningful career opportunities that align with their values, and every Organization has the talented workforce needed to maximize their social impact.'
     },
+    // Our Partners Section
+    partners: {
+      title: 'Our Partners',
+      subtitle: 'Meet the organizations making a difference',
+      viewProfile: 'View Profile',
+      opportunities: 'Opportunities',
+      noPartners: 'No partners available at the moment'
+    },
     // Contact Section
     contact: {
       title: 'Get in Touch',
@@ -262,6 +270,14 @@ export const translations = {
       visionTitle: 'Vision',
       visionText: "Un monde où chaque jeune professionnel a accès à des opportunités de carrière significatives qui s'alignent sur ses valeurs, et chaque organisation dispose de la main-d'œuvre talentueuse nécessaire pour maximiser son impact social."
     },
+    // Our Partners Section
+    partners: {
+      title: 'Nos Partenaires',
+      subtitle: 'Découvrez les organisations qui font la différence',
+      viewProfile: 'Voir le Profil',
+      opportunities: 'Opportunités',
+      noPartners: 'Aucun partenaire disponible pour le moment'
+    },
     // Contact Section
     contact: {
       title: 'Contactez-Nous',
@@ -403,6 +419,14 @@ export const translations = {
       missionText: 'إلهام وتمكين المهنيين المهرة للتعاون مع المنظمات غير الربحية الملتزمة بالرسالة حول العالم، وبناء مسارات مهنية ذات معنى تولد تغييراً اجتماعياً دائماً وتعزز المجتمعات عالمياً.',
       visionTitle: 'الرؤية',
       visionText: 'عالم يحصل فيه كل مهني شاب على فرص عمل ذات معنى تتوافق مع قيمه، وتمتلك فيه كل منظمة القوى العاملة الموهوبة اللازمة لتعظيم تأثيرها الاجتماعي.'
+    },
+    // Our Partners Section
+    partners: {
+      title: 'شركاؤنا',
+      subtitle: 'تعرف على المنظمات التي تحدث فرقاً',
+      viewProfile: 'عرض الملف الشخصي',
+      opportunities: 'الفرص',
+      noPartners: 'لا يوجد شركاء متاحون في الوقت الحالي'
     },
     // Contact Section
     contact: {

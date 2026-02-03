@@ -7,7 +7,8 @@ import {
   CurrencyDollarIcon, 
   AcademicCapIcon,
   GlobeAltIcon,
-  ChartBarIcon
+  ChartBarIcon,
+  PencilSquareIcon
 } from '@heroicons/react/24/outline';
 
 export default function ExternalOpportunitiesPage() {
@@ -95,7 +96,7 @@ export default function ExternalOpportunitiesPage() {
         </div>
 
         {/* Opportunity Types Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {opportunityTypes.map((opportunity) => {
             const IconComponent = opportunity.icon;
             return (
@@ -129,6 +130,35 @@ export default function ExternalOpportunitiesPage() {
               </Link>
             );
           })}
+          
+          {/* Manual Creation Card */}
+          <Link
+            href="/admin/ExternalOpportunities/Manual"
+            className="group block"
+          >
+            <div className="bg-white rounded-xl shadow-sm border-2 border-dashed border-[#556B2F] hover:shadow-md hover:border-solid transition-all duration-200 overflow-hidden">
+              <div className="h-32 bg-gradient-to-br from-[#556B2F] to-[#6B8E23] relative">
+                <div className="absolute inset-0 bg-black/10"></div>
+                <div className="absolute bottom-4 left-4">
+                  <PencilSquareIcon className="w-8 h-8 text-white" />
+                </div>
+              </div>
+              <div className="p-6">
+                <h3 className="text-xl font-bold text-gray-900 mb-2 group-hover:text-[#556B2F] transition-colors">
+                  Manual Creation
+                </h3>
+                <p className="text-gray-600 text-sm leading-relaxed">
+                  Create and manage opportunities manually with rich text editor
+                </p>
+                <div className="mt-4 flex items-center text-[#556B2F] text-sm font-medium">
+                  <span>Create Manually</span>
+                  <svg className="w-4 h-4 ml-1 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </div>
+              </div>
+            </div>
+          </Link>
         </div>
 
         {/* Quick Actions */}
@@ -136,6 +166,20 @@ export default function ExternalOpportunitiesPage() {
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
             <h2 className="text-lg font-bold text-gray-900 mb-4">Quick Actions</h2>
             <div className="flex flex-wrap gap-3">
+              <Link
+                href="/admin/ExternalOpportunities/Manual/new"
+                className="px-4 py-2 border border-transparent text-white bg-gradient-to-r from-[#556B2F] to-[#6B8E23] hover:shadow-md font-medium rounded-lg transition-all duration-200 flex items-center space-x-2"
+              >
+                <PencilSquareIcon className="w-4 h-4" />
+                <span>Create Manual Opportunity</span>
+              </Link>
+              <Link
+                href="/admin/ExternalOpportunities/Manual"
+                className="px-4 py-2 border border-[#556B2F] text-[#556B2F] hover:bg-[#556B2F]/10 font-medium rounded-lg transition-colors duration-200 flex items-center space-x-2"
+              >
+                <PencilSquareIcon className="w-4 h-4" />
+                <span>View Manual Opportunities</span>
+              </Link>
               <Link
                 href="/admin/ExternalOpportunities/Jobs"
                 className="px-4 py-2 border border-[#556B2F] text-[#556B2F] hover:bg-[#556B2F]/10 font-medium rounded-lg transition-colors duration-200 flex items-center space-x-2"

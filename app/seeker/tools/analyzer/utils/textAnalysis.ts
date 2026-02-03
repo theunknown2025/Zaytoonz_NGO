@@ -171,3 +171,15 @@ export const compareCV = async (cv: string, requirements: JobRequirement[]): Pro
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+

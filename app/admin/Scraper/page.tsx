@@ -1358,7 +1358,7 @@ export default function ScraperPage() {
                 </h2>
                 <button
                   onClick={() => setShowSourceModal(false)}
-                  className="p-2 hover:bg-white/20 rounded-lg transition-colors"
+                  className="p-2 hover:bg-white/20 rounded-lg transistion-colors"
                 >
                   <XMarkIcon className="w-6 h-6" />
                 </button>

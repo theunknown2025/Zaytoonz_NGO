@@ -23,23 +23,27 @@ export async function PATCH(
     const body = await request.json();
     const { role, status } = body;
 
-    // Verify the current user has permission to update this team member
+    // Get the NGO profile for the current user
+    const { data: ngoProfile, error: profileError } = await supabase
+      .from('ngo_profile')
+      .select('id')
+      .eq('user_id', userId)
+      .single();
+
+    if (profileError || !ngoProfile) {
+      return NextResponse.json({ error: 'NGO profile not found' }, { status: 404 });
+    }
+
+    // Verify the team member belongs to this NGO profile
     const { data: teamMember, error: fetchError } = await supabase
       .from('ngo_users')
-      .select(`
-        *,
-        ngo_profile!inner(user_id)
-      `)
+      .select('*')
       .eq('user_id', id)
+      .eq('ngo_profile_id', ngoProfile.id)
       .single();
 
     if (fetchError || !teamMember) {
-      return NextResponse.json({ error: 'Team member not found' }, { status: 404 });
-    }
-
-    // Check if current user is the NGO admin
-    if (teamMember.ngo_profile.user_id !== userId) {
-      return NextResponse.json({ error: 'Unauthorized to update this team member' }, { status: 403 });
+      return NextResponse.json({ error: 'Team member not found or unauthorized' }, { status: 404 });
     }
 
     // Update team member
@@ -51,6 +55,7 @@ export async function PATCH(
       .from('ngo_users')
       .update(updateData)
       .eq('user_id', id)
+      .eq('ngo_profile_id', ngoProfile.id)
       .select()
       .single();
 
@@ -89,30 +94,35 @@ export async function DELETE(
 
     const { id } = params;
 
-    // Verify the current user has permission to delete this team member
+    // Get the NGO profile for the current user
+    const { data: ngoProfile, error: profileError } = await supabase
+      .from('ngo_profile')
+      .select('id')
+      .eq('user_id', userId)
+      .single();
+
+    if (profileError || !ngoProfile) {
+      return NextResponse.json({ error: 'NGO profile not found' }, { status: 404 });
+    }
+
+    // Verify the team member belongs to this NGO profile
     const { data: teamMember, error: fetchError } = await supabase
       .from('ngo_users')
-      .select(`
-        *,
-        ngo_profile!inner(user_id)
-      `)
+      .select('*')
       .eq('user_id', id)
+      .eq('ngo_profile_id', ngoProfile.id)
       .single();
 
     if (fetchError || !teamMember) {
-      return NextResponse.json({ error: 'Team member not found' }, { status: 404 });
-    }
-
-    // Check if current user is the NGO admin
-    if (teamMember.ngo_profile.user_id !== userId) {
-      return NextResponse.json({ error: 'Unauthorized to delete this team member' }, { status: 403 });
+      return NextResponse.json({ error: 'Team member not found or unauthorized' }, { status: 404 });
     }
 
     // Delete team member from ngo_users table
     const { error: deleteError } = await supabase
       .from('ngo_users')
       .delete()
-      .eq('user_id', id);
+      .eq('user_id', id)
+      .eq('ngo_profile_id', ngoProfile.id);
 
     if (deleteError) {
       console.error('Error deleting team member:', deleteError);

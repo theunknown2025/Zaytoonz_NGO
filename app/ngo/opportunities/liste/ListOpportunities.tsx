@@ -26,12 +26,8 @@ import {
 import { getOpportunities, deleteOpportunity } from '../services/opportunityService';
 import { getOpportunityProcess } from '../../resources/tools/ProcessMakers/services/opportunityProcessService';
 import { Toaster, toast } from 'react-hot-toast';
-import { createClient } from '@supabase/supabase-js';
-
-// Initialize Supabase client
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
+import { supabase } from '@/app/lib/supabase';
+import { useAuth } from '@/app/lib/auth';
 
 interface Opportunity {
   id: string;
@@ -83,6 +79,7 @@ interface OpportunityDetail {
 
 export default function ListOpportunities() {
   const router = useRouter();
+  const { user } = useAuth();
   const [opportunities, setOpportunities] = useState<Opportunity[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedOpportunity, setExpandedOpportunity] = useState<string | null>(null);
@@ -101,8 +98,12 @@ export default function ListOpportunities() {
   const [publishedOpportunityList, setPublishedOpportunityList] = useState<Opportunity[]>([]);
 
   useEffect(() => {
-    fetchOpportunities();
-  }, []);
+    if (user?.id) {
+      fetchOpportunities();
+    } else {
+      setLoading(false);
+    }
+  }, [user?.id]);
 
   useEffect(() => {
     // Check published status for all opportunities
@@ -160,7 +161,17 @@ export default function ListOpportunities() {
     try {
       setLoading(true);
       
-      // Fetch opportunities with their description status
+      // Check if user is logged in
+      if (!user?.id) {
+        console.error('No user ID available');
+        toast.error('Please log in to view your opportunities');
+        setOpportunities([]);
+        setLoading(false);
+        return;
+      }
+
+      // Fetch opportunities filtered by the current NGO's user_id
+      // Now using the user_id column directly from opportunities table
       const { data: opportunitiesData, error: oppError } = await supabase
         .from('opportunities')
         .select(`
@@ -168,10 +179,13 @@ export default function ListOpportunities() {
           title,
           created_at,
           updated_at,
+          user_id,
           opportunity_description (
-            status
+            status,
+            title
           )
         `)
+        .eq('user_id', user.id)
         .order('created_at', { ascending: false });
       
       if (oppError) {
@@ -181,14 +195,20 @@ export default function ListOpportunities() {
         return;
       }
       
-      // Transform the data to include status from opportunity_description
-      const transformedOpportunities = opportunitiesData?.map(opp => ({
-        id: opp.id,
-        title: opp.title,
-        created_at: opp.created_at,
-        updated_at: opp.updated_at,
-        status: opp.opportunity_description?.[0]?.status || 'draft' // Default to draft if no description
-      })) || [];
+      // Transform the data to include status and title from opportunity_description
+      const transformedOpportunities = opportunitiesData?.map(opp => {
+        const description = Array.isArray(opp.opportunity_description) 
+          ? opp.opportunity_description[0] 
+          : opp.opportunity_description;
+        
+        return {
+          id: opp.id,
+          title: description?.title || opp.title || 'Draft Opportunity',
+          created_at: opp.created_at,
+          updated_at: opp.updated_at,
+          status: description?.status || 'draft'
+        };
+      }) || [];
       
       setOpportunities(transformedOpportunities);
       

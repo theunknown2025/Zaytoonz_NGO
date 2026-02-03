@@ -12,6 +12,9 @@ export interface NGOProfile {
   legal_rep_phone: string;
   legal_rep_function: string;
   profile_image_url?: string;
+  banner_url?: string;
+  logo_url?: string;
+  mission_statement?: string;
   additional_info?: AdditionalInfo[];
   documents?: Document[];
   created_at?: string;
@@ -88,6 +91,9 @@ export async function saveNGOProfile(profileData: NGOProfile) {
           legal_rep_phone: profileData.legal_rep_phone,
           legal_rep_function: profileData.legal_rep_function,
           profile_image_url: profileData.profile_image_url,
+          banner_url: profileData.banner_url,
+          logo_url: profileData.logo_url,
+          mission_statement: profileData.mission_statement,
           updated_at: new Date().toISOString()
         })
         .eq('id', profileData.id);
@@ -104,7 +110,10 @@ export async function saveNGOProfile(profileData: NGOProfile) {
           legal_rep_email: profileData.legal_rep_email,
           legal_rep_phone: profileData.legal_rep_phone,
           legal_rep_function: profileData.legal_rep_function,
-          profile_image_url: profileData.profile_image_url
+          profile_image_url: profileData.profile_image_url,
+          banner_url: profileData.banner_url,
+          logo_url: profileData.logo_url,
+          mission_statement: profileData.mission_statement
         });
     }
 
@@ -209,9 +218,20 @@ export async function saveDocuments(profileId: string, documents: Document[]) {
 /**
  * Uploads a file to Supabase storage
  */
-export async function uploadFile(file: File, bucket: string, path?: string) {
+export async function uploadFile(file: File, bucket: string, path?: string, userId?: string) {
   try {
-    const filePath = path ? `${path}/${file.name}` : file.name;
+    // Generate unique filename to avoid conflicts
+    const fileExt = file.name.split('.').pop();
+    const timestamp = Date.now();
+    const randomStr = Math.random().toString(36).substring(2, 15);
+    const uniqueFileName = userId 
+      ? `${userId}/${timestamp}-${randomStr}.${fileExt}`
+      : `${timestamp}-${randomStr}.${fileExt}`;
+    
+    const filePath = path ? `${path}/${uniqueFileName}` : uniqueFileName;
+    
+    console.log('Uploading file to bucket:', bucket, 'path:', filePath);
+    
     const { data, error } = await supabase.storage
       .from(bucket)
       .upload(filePath, file, {
@@ -224,10 +244,54 @@ export async function uploadFile(file: File, bucket: string, path?: string) {
       return { url: null, error: error.message };
     }
 
-    // Get the public URL
+    if (!data) {
+      console.error('Upload succeeded but no data returned');
+      return { url: null, error: 'Upload succeeded but no data returned' };
+    }
+
+    console.log('File uploaded successfully, path:', data.path);
+
+    // Verify the file exists by trying to list it
+    const { data: listData, error: listError } = await supabase.storage
+      .from(bucket)
+      .list(data.path.split('/').slice(0, -1).join('/') || '', {
+        limit: 100,
+        search: data.path.split('/').pop()
+      });
+
+    if (listError) {
+      console.warn('Could not verify file existence:', listError);
+    } else {
+      console.log('File verified in storage');
+    }
+
+    // Get the public URL - use the path from the upload response
     const { data: publicURLData } = supabase.storage
       .from(bucket)
       .getPublicUrl(data.path);
+
+    console.log('Generated public URL:', publicURLData.publicUrl);
+
+    // Verify the URL is valid
+    if (!publicURLData || !publicURLData.publicUrl) {
+      console.error('Failed to generate public URL');
+      return { url: null, error: 'Failed to generate public URL' };
+    }
+
+    // Test if the URL is accessible (this will help identify if bucket is public)
+    try {
+      const testResponse = await fetch(publicURLData.publicUrl, { method: 'HEAD' });
+      if (!testResponse.ok && testResponse.status === 403) {
+        console.warn('⚠️ URL generated but bucket may not be public (403 Forbidden)');
+        console.warn('Please make the bucket public in Supabase Dashboard → Storage → Settings');
+      } else if (!testResponse.ok) {
+        console.warn('⚠️ URL generated but returned status:', testResponse.status);
+      } else {
+        console.log('✅ URL is accessible and file exists');
+      }
+    } catch (fetchError) {
+      console.warn('Could not test URL accessibility (this is normal for CORS):', fetchError);
+    }
 
     return { url: publicURLData.publicUrl, error: null };
   } catch (error: any) {

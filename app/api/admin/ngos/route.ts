@@ -132,6 +132,11 @@ export async function POST(request: NextRequest) {
       legal_rep_function: body.legal_rep_function,
       profile_image_url: body.profile_image_url,
       user_id: body.user_id,
+      // Allow admin to explicitly set approval fields, defaulting to approved
+      approval_status: body.approval_status || 'approved',
+      approved_at: body.approval_status === 'approved' || !body.approval_status
+        ? new Date().toISOString()
+        : null,
     };
 
     const { data: ngoProfile, error } = await supabase

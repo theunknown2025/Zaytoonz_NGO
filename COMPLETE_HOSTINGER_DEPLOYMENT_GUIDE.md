@@ -140,8 +140,8 @@ Copy and paste the following, then update with your actual values:
 NEXT_PUBLIC_BASE_PATH=
 
 # Supabase Configuration
-NEXT_PUBLIC_SUPABASE_URL=https://uroirdudxkfppocqcorm.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVyb2lyZHVkeGtmcHBvY3Fjb3JtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDU3MDA4MzMsImV4cCI6MjA2MTI3NjgzM30.6sFQhGrngaFTnsDS7EqjUI2F86iKefTfCn_M1BitcPM
+NEXT_PUBLIC_SUPABASE_URL=your_supabase_url_here
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key_here
 
 # Node Environment
 NODE_ENV=production
@@ -171,15 +171,15 @@ NEXTAUTH_URL=http://72.62.26.162
 
 ### 4.3 Create Environment File for Python Scraper
 ```bash
-cd /var/www/zaytoonz-ngo/python_scraper
+
 nano .env
 ```
 
 Add the following:
 ```env
 # Supabase Configuration
-NEXT_PUBLIC_SUPABASE_URL=https://uroirdudxkfppocqcorm.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVyb2lyZHVkeGtmcHBvY3Fjb3JtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDU3MDA4MzMsImV4cCI6MjA2MTI3NjgzM30.6sFQhGrngaFTnsDS7EqjUI2F86iKefTfCn_M1BitcPM
+NEXT_PUBLIC_SUPABASE_URL=your_supabase_url_here
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key_here
 
 # OpenAI Configuration
 OPENAI_API_KEY=your_openai_api_key_here
@@ -195,9 +195,9 @@ nano .env
 Add the following:
 ```env
 # Supabase Configuration
-SUPABASE_URL=https://uroirdudxkfppocqcorm.supabase.co
+SUPABASE_URL=your_supabase_url_here
 SUPABASE_SERVICE_KEY=your_supabase_service_key_here
-SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVyb2lyZHVkeGtmcHBvY3Fjb3JtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDU3MDA4MzMsImV4cCI6MjA2MTI3NjgzM30.6sFQhGrngaFTnsDS7EqjUI2F86iKefTfCn_M1BitcPM
+SUPABASE_ANON_KEY=your_supabase_anon_key_here
 
 # Service Configuration
 SERVICE_HOST=0.0.0.0
@@ -521,14 +521,447 @@ systemctl reload nginx
 
 ---
 
-## 🔒 Step 10: SSL/HTTPS Note
+## 🔒 Step 10: Setup SSL/HTTPS (Secure Your Application)
 
-**Note:** SSL certificates cannot be issued for IP addresses using Let's Encrypt. If you need HTTPS:
-- Use a domain name pointing to your IP address
-- Or use a self-signed certificate (not recommended for production)
-- Or use a service that provides SSL for IP addresses
+### ⚠️ Important Prerequisites
 
-For now, the application will be accessible via HTTP at `http://72.62.26.162`.
+**SSL certificates cannot be issued for IP addresses using Let's Encrypt.** You need:
+- ✅ A domain name (e.g., `yourdomain.com`)
+- ✅ Domain pointing to your VPS IP address (`72.62.26.162`)
+- ✅ DNS A record configured correctly
+
+**To check if your domain points to your IP:**
+```bash
+# From your local machine
+nslookup yourdomain.com
+# or
+dig yourdomain.com
+```
+
+The result should show your VPS IP address (`72.62.26.162`).
+
+---
+
+### 10.1 Install Certbot
+
+Certbot is a free, automated tool for obtaining SSL certificates from Let's Encrypt.
+
+```bash
+# Update package list
+apt update
+
+# Install Certbot and Nginx plugin
+apt install -y certbot python3-certbot-nginx
+
+# Verify installation
+certbot --version
+```
+
+---
+
+### 10.2 Configure DNS (If Not Already Done)
+
+Before obtaining an SSL certificate, ensure your domain DNS is configured:
+
+1. **Go to your domain registrar** (where you bought the domain)
+2. **Add/Update DNS A Record:**
+   - **Type:** A
+   - **Name:** @ (or leave blank for root domain)
+   - **Value:** `72.62.26.162`
+   - **TTL:** 3600 (or default)
+
+3. **Optional - Add WWW subdomain:**
+   - **Type:** A
+   - **Name:** www
+   - **Value:** `72.62.26.162`
+   - **TTL:** 3600
+
+4. **Wait for DNS propagation** (can take 5 minutes to 48 hours, usually 15-30 minutes)
+
+5. **Verify DNS is working:**
+   ```bash
+   # From your VPS
+   nslookup yourdomain.com
+   ping yourdomain.com
+   ```
+
+---
+
+### 10.3 Update Nginx Configuration for Domain
+
+Before obtaining SSL, update your Nginx config to use your domain name:
+
+```bash
+# Edit Nginx configuration
+nano /etc/nginx/sites-available/zaytoonz-ngo
+```
+
+**Update the `server_name` line:**
+```nginx
+server {
+    listen 80;
+    listen [::]:80;
+    server_name yourdomain.com www.yourdomain.com;  # ← Change this line
+    
+    # ... rest of configuration stays the same
+}
+```
+
+**Replace `yourdomain.com` with your actual domain name.**
+
+Save and test:
+```bash
+# Test Nginx configuration
+nginx -t
+
+# If successful, reload Nginx
+systemctl reload nginx
+```
+
+---
+
+### 10.4 Obtain SSL Certificate
+
+Now obtain your free SSL certificate from Let's Encrypt:
+
+```bash
+# Replace 'yourdomain.com' with your actual domain
+certbot --nginx -d yourdomain.com -d www.yourdomain.com
+```
+
+**During the process, you'll be asked:**
+
+1. **Email address:** Enter your email (for renewal reminders)
+   ```
+   Enter email address (used for urgent renewal and security notices)
+   ```
+
+2. **Terms of Service:** Type `A` to agree
+   ```
+   (A)gree/(C)ancel: A
+   ```
+
+3. **Share email with EFF:** Choose `Y` or `N` (optional)
+   ```
+   (Y)es/(N)o: Y or N
+   ```
+
+4. **Redirect HTTP to HTTPS:** Choose `2` (recommended)
+   ```
+   Please choose whether or not to redirect HTTP traffic to HTTPS, removing HTTP access.
+   1: No redirect
+   2: Redirect - Make all requests redirect to secure HTTPS access
+   Select the appropriate number [1-2] then [enter]: 2
+   ```
+
+**Certbot will automatically:**
+- ✅ Obtain the SSL certificate
+- ✅ Update your Nginx configuration
+- ✅ Set up automatic renewal
+- ✅ Configure HTTP to HTTPS redirect
+
+---
+
+### 10.5 Verify SSL Certificate
+
+After installation, verify everything is working:
+
+```bash
+# Check certificate status
+certbot certificates
+
+# Test SSL configuration
+curl -I https://yourdomain.com
+
+# Check Nginx configuration
+nginx -t
+```
+
+**You should see:**
+- Certificate files in `/etc/letsencrypt/live/yourdomain.com/`
+- Nginx listening on port 443 (HTTPS)
+- HTTP automatically redirecting to HTTPS
+
+---
+
+### 10.6 Test Auto-Renewal
+
+Let's Encrypt certificates expire every 90 days. Certbot sets up auto-renewal, but test it:
+
+```bash
+# Test renewal process (dry run)
+certbot renew --dry-run
+```
+
+**Expected output:**
+```
+Congratulations, all renewals succeeded. The following certs have been renewed:
+  /etc/letsencrypt/live/yourdomain.com/fullchain.pem (success)
+```
+
+If successful, auto-renewal is working! Certbot will automatically renew certificates before expiration.
+
+---
+
+### 10.7 Verify HTTPS is Working
+
+**From your browser:**
+1. Visit `https://yourdomain.com`
+2. You should see a padlock icon 🔒 in the address bar
+3. HTTP should automatically redirect to HTTPS
+
+**From command line:**
+```bash
+# Test HTTPS connection
+curl -I https://yourdomain.com
+
+# Should return HTTP/2 200 or similar
+```
+
+---
+
+### 10.8 Update Environment Variables (If Needed)
+
+If your application uses absolute URLs, update environment variables:
+
+```bash
+# Edit Next.js environment file
+nano /var/www/zaytoonz-ngo/.env.local
+```
+
+**Update URLs to use HTTPS:**
+```env
+# Change from HTTP to HTTPS
+NEXTAUTH_URL=https://yourdomain.com
+NEXT_PUBLIC_SUPABASE_URL=your_supabase_url_here
+# ... other variables
+```
+
+**Restart the application:**
+```bash
+pm2 restart zaytoonz-app
+```
+
+---
+
+## 🔄 Alternative: Manual SSL Configuration (Advanced)
+
+If you prefer to configure SSL manually or Certbot didn't update your config correctly:
+
+### 10.9 Manual Nginx SSL Configuration
+
+```bash
+nano /etc/nginx/sites-available/zaytoonz-ngo
+```
+
+**Replace with this configuration:**
+
+```nginx
+# HTTP Server - Redirect to HTTPS
+server {
+    listen 80;
+    listen [::]:80;
+    server_name yourdomain.com www.yourdomain.com;
+
+    # Redirect all HTTP to HTTPS
+    return 301 https://$server_name$request_uri;
+}
+
+# HTTPS Server
+server {
+    listen 443 ssl http2;
+    listen [::]:443 ssl http2;
+    server_name yourdomain.com www.yourdomain.com;
+
+    # SSL Certificate Configuration
+    ssl_certificate /etc/letsencrypt/live/yourdomain.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/yourdomain.com/privkey.pem;
+    
+    # SSL Security Settings
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_prefer_server_ciphers on;
+    ssl_ciphers ECDHE-RSA-AES128-GCM-SHA256:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-RSA-AES128-SHA256:ECDHE-RSA-AES256-SHA384;
+    ssl_session_cache shared:SSL:10m;
+    ssl_session_timeout 10m;
+    
+    # Security Headers
+    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-XSS-Protection "1; mode=block" always;
+
+    client_max_body_size 100M;
+
+    # Root - Next.js application
+    location / {
+        proxy_pass http://localhost:3001;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_cache_bypass $http_upgrade;
+        proxy_read_timeout 300s;
+        proxy_connect_timeout 75s;
+    }
+
+    # Handle Next.js static files
+    location /_next/static/ {
+        proxy_pass http://localhost:3001/_next/static/;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        add_header Cache-Control "public, max-age=31536000, immutable";
+    }
+
+    # Handle Next.js API routes
+    location /api/ {
+        proxy_pass http://localhost:3001/api/;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_read_timeout 300s;
+        proxy_connect_timeout 75s;
+    }
+
+    # Python Scraper API (if exposed externally)
+    location /api/scraper/ {
+        proxy_pass http://localhost:8000/;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_read_timeout 300s;
+        proxy_connect_timeout 75s;
+    }
+
+    # Morchid AI Service API (if exposed externally)
+    location /api/morchid/ {
+        proxy_pass http://localhost:8001/;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_read_timeout 300s;
+        proxy_connect_timeout 75s;
+    }
+}
+```
+
+**Important:** Replace `yourdomain.com` with your actual domain name in all places.
+
+**Test and reload:**
+```bash
+nginx -t
+systemctl reload nginx
+```
+
+---
+
+## 🛠️ Troubleshooting SSL Issues
+
+### Issue: "Failed to obtain certificate" or "Connection refused"
+
+**Possible causes:**
+1. DNS not pointing to your IP
+2. Firewall blocking port 80
+3. Nginx not running
+
+**Solutions:**
+```bash
+# Check DNS
+nslookup yourdomain.com
+
+# Check if port 80 is open
+netstat -tulpn | grep :80
+
+# Check Nginx status
+systemctl status nginx
+
+# Check firewall
+ufw status
+# If port 80 is blocked, allow it:
+ufw allow 80/tcp
+ufw allow 443/tcp
+```
+
+### Issue: "Certificate already exists"
+
+If you need to renew or reinstall:
+```bash
+# Renew existing certificate
+certbot renew
+
+# Or delete and reinstall
+certbot delete --cert-name yourdomain.com
+certbot --nginx -d yourdomain.com -d www.yourdomain.com
+```
+
+### Issue: "Too many requests" error
+
+Let's Encrypt has rate limits. If you hit the limit:
+- Wait 1 week before trying again
+- Or use `--staging` flag for testing (not valid for production)
+
+### Issue: Mixed content warnings
+
+If your site loads but shows "Not Secure" or mixed content:
+- Ensure all internal URLs use HTTPS
+- Update environment variables to use HTTPS
+- Check browser console for HTTP resources
+
+### Issue: Certificate expires soon
+
+```bash
+# Check expiration date
+certbot certificates
+
+# Renew manually (if auto-renewal failed)
+certbot renew
+
+# Force renewal (even if not expired)
+certbot renew --force-renewal
+```
+
+---
+
+## 📋 SSL Setup Checklist
+
+Before considering SSL setup complete:
+
+- [ ] Domain name purchased and configured
+- [ ] DNS A record pointing to VPS IP (`72.62.26.162`)
+- [ ] DNS propagation verified (`nslookup yourdomain.com`)
+- [ ] Certbot installed (`certbot --version`)
+- [ ] Nginx configuration updated with domain name
+- [ ] SSL certificate obtained (`certbot --nginx`)
+- [ ] HTTPS accessible (`https://yourdomain.com`)
+- [ ] HTTP redirects to HTTPS automatically
+- [ ] Auto-renewal tested (`certbot renew --dry-run`)
+- [ ] Environment variables updated to HTTPS
+- [ ] Application restarted with new settings
+- [ ] Browser shows padlock icon 🔒
+
+---
+
+## 🎉 Success!
+
+Your application is now secured with HTTPS! 
+
+**Access your application:**
+- ✅ **HTTPS:** `https://yourdomain.com`
+- ✅ **HTTP:** `http://yourdomain.com` (automatically redirects to HTTPS)
+
+**Certificate Details:**
+- ✅ Free SSL certificate from Let's Encrypt
+- ✅ Auto-renewal configured (expires every 90 days, auto-renews)
+- ✅ Strong security headers enabled
+- ✅ HTTP to HTTPS redirect active
 
 ---
 

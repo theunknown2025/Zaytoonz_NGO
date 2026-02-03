@@ -30,6 +30,7 @@ interface SidebarProps {
 interface NGOApprovalStatus {
   approval_status: 'pending' | 'approved' | 'rejected';
   admin_notes?: string;
+  launchingstatus?: 'not_shown' | 'shown';
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({ user }) => {

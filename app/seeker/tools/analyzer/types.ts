@@ -57,3 +57,15 @@ export interface JobAnalysis {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+

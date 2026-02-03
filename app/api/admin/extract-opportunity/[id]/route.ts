@@ -85,7 +85,8 @@ export async function PATCH(
     const allowedFields = [
       'title', 'description', 'company', 'location', 'salary_range',
       'job_type', 'deadline', 'requirements', 'benefits', 'responsibilities',
-      'qualifications', 'application_instructions', 'contact_info'
+      'qualifications', 'application_instructions', 'contact_info', 'raw_content',
+      'content_polished_at'
     ];
 
     const updates: Record<string, unknown> = {};
@@ -98,6 +99,9 @@ export async function PATCH(
     if (Object.keys(updates).length === 0) {
       return NextResponse.json({ error: 'No valid fields to update' }, { status: 400 });
     }
+
+    // Add updated_at timestamp
+    updates.updated_at = new Date().toISOString();
 
     const { data, error } = await supabase
       .from('extracted_opportunity_content')

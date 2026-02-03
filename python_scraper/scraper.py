@@ -50,14 +50,32 @@ def generate_system_message(listing_model: BaseModel) -> str:
     schema_structure = ",\n           ".join(field_descriptions)
 
     final_prompt = SYSTEM_MESSAGE + "\n" + f"""
-CRITICAL: Extract ALL real opportunities found on the page. Do NOT limit the number of results.
-- Only include items that are actual opportunities/jobs/funding/training entries.
-- IGNORE navigation, filters, footers, cookie banners, hero text, category lists, pagination widgets.
-- Each opportunity MUST include a title AND a URL/link to its detail page (relative or absolute).
-- Prefer the URL that points to the specific opportunity detail page (often inside [Text](URL)).
-- Include a short description/summary of the opportunity itself, not the whole page text.
+CRITICAL GOAL: Extract ONLY the **main information for each opportunity**, NOT the whole page or site chrome.
 
-Output strictly follows this JSON schema:
+WHAT TO EXTRACT FOR EACH OPPORTUNITY (AS AVAILABLE):
+- A clear **title** of the opportunity (job / grant / call / training / etc.)
+- The **organization / company / NGO / institution** offering it
+- The **location** (city / country / remote)
+- The **application deadline / closing date**
+- The **type** (job / internship / volunteer / grant / fellowship / training, etc.)
+- A **short description/summary** of the opportunity itself (key responsibilities, main mission, and important requirements ONLY)
+- The **direct URL/link** to the detailed opportunity page (relative or absolute)
+
+WHAT TO IGNORE COMPLETELY:
+- Global navigation, menus, sidebars, filters, category lists, footers, cookie banners, headers.
+- Long legal text, privacy policies, terms & conditions, generic site descriptions.
+- Unrelated news, blog articles, or promotional sections that are not the specific opportunity.
+- Any cookie banners, navigation menus, “search jobs” widgets, subscription forms, or sharing buttons.
+
+IMPORTANT:
+- Extract **ALL real opportunities** found on the page (no artificial limit on count).
+- Each item in "listings" MUST be a real opportunity entry, not a filter, button, or category.
+- The "description" field MUST describe ONLY the opportunity (role, responsibilities, requirements, how to apply) and MUST NOT include navigation text, cookie notices, footer text, or generic organization boilerplate.
+- The "description" content MUST be reasonably short and focused (roughly 1–6 short paragraphs, not the entire page content).
+- If information is missing on the page, leave that field as null or empty string.
+- Handle French, Arabic, or other languages as-is; do not translate.
+
+OUTPUT FORMAT – STRICT JSON SHAPE:
 {{
    "listings": [
      {{
@@ -74,13 +92,6 @@ CRITICAL URL EXTRACTION (MARKDOWN FORMAT):
 - Correct extraction: url = "/en-us/job/588505/consultancy-position"
 - Do NOT extract the link text, extract the actual URL path
 - Relative URLs starting with "/" are valid - extract them as-is
-
-IMPORTANT NOTES:
-- Extract EVERY opportunity you find - there is no maximum limit.
-- For "description": use only the opportunity-specific snippet/summary, not the full page.
-- Ignore any rows/entries that are clearly not individual opportunities (e.g., filter options).
-- If a field is not available, use null or empty string.
-- Handle French, Arabic, or other languages - extract data as-is.
 """
 
     return final_prompt

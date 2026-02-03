@@ -34,6 +34,7 @@ import {
   Zap
 } from 'lucide-react';
 import RecentOpportunities from './components/RecentOpportunities';
+import OurPartners from './components/OurPartners';
 import { languages, getTranslations, getLanguageByCode, type LanguageCode, type Language } from './translations';
 
 export default function LandingPage() {
@@ -748,6 +749,9 @@ export default function LandingPage() {
           </div>
         </div>
       </section>
+
+      {/* Our Partners Section */}
+      <OurPartners translations={t.partners} />
 
       {/* About Section */}
       <section id="about" className="py-12 bg-olive-100">

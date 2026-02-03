@@ -19,14 +19,7 @@ import Recap from './Recap';
 import { toast } from 'react-hot-toast';
 import ListOpportunities from '../liste/ListOpportunities';
 import { createInitialOpportunity as createOpportunityService, type OpportunityType, getOpportunityById, saveOpportunityProgress } from '../services/opportunityService';
-import { createClient } from '@supabase/supabase-js';
-
-// Lazy Supabase client initialization
-function getSupabaseClient() {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
-  return createClient(supabaseUrl, supabaseAnonKey);
-}
+import { supabase } from '@/app/lib/supabase';
 
 interface OpportunityFormData {
   title: string;
@@ -164,7 +157,6 @@ export default function NewOpportunityPage() {
       
       // Load description data
       try {
-        const supabase = getSupabaseClient();
         const { data: descriptionData } = await supabase
           .from('opportunity_description')
           .select('*')
@@ -187,7 +179,6 @@ export default function NewOpportunityPage() {
       
       // Load form choice data
       try {
-        const supabase = getSupabaseClient();
         const { data: formChoiceData } = await supabase
           .from('opportunity_form_choice')
           .select('*, form:form_id(*)')
@@ -211,7 +202,6 @@ export default function NewOpportunityPage() {
       
       // Load form email data
       try {
-        const supabase = getSupabaseClient();
         const { data: formEmailData } = await supabase
           .from('opportunity_form_email')
           .select('*')

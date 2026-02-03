@@ -33,23 +33,27 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'NGO profile not found' }, { status: 404 });
     }
 
-    // Get team members from users table who are assistant_ngo and belong to this NGO
-    const { data: teamMembers, error } = await supabase
-      .from('users')
+    // Get team members from ngo_users table that belong to this specific NGO profile
+    const { data: ngoUsers, error } = await supabase
+      .from('ngo_users')
       .select(`
         id,
         full_name,
         email,
-        user_type,
+        role,
+        status,
         created_at,
-        ngo_users!ngo_users_user_id_fkey(
-          role,
-          status,
-          created_by
+        created_by,
+        user_id,
+        users!ngo_users_user_id_fkey(
+          id,
+          full_name,
+          email,
+          user_type,
+          created_at
         )
       `)
-      .eq('user_type', 'assistant_ngo')
-      .eq('ngo_users.ngo_profile_id', ngoProfile.id)
+      .eq('ngo_profile_id', ngoProfile.id)
       .order('created_at', { ascending: false });
 
     if (error) {
@@ -58,14 +62,14 @@ export async function GET(request: NextRequest) {
     }
 
     // Transform the data to match the expected format
-    const transformedMembers = teamMembers?.map(member => ({
-      id: member.id,
-      full_name: member.full_name,
-      email: member.email,
-      role: member.ngo_users[0]?.role || 'member',
-      status: member.ngo_users[0]?.status || 'active',
-      created_at: member.created_at,
-      created_by: member.ngo_users[0]?.created_by
+    const transformedMembers = ngoUsers?.map(ngoUser => ({
+      id: ngoUser.user_id || ngoUser.id,
+      full_name: ngoUser.full_name,
+      email: ngoUser.email,
+      role: ngoUser.role || 'member',
+      status: ngoUser.status || 'active',
+      created_at: ngoUser.created_at,
+      created_by: ngoUser.created_by
     })) || [];
 
     return NextResponse.json({ teamMembers: transformedMembers });

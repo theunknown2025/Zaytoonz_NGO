@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import Image from "next/image";
 import { UploadButton } from "@/app/components/UploadButton";
 import { 
   PencilIcon, 
@@ -19,7 +18,8 @@ import {
   PlusIcon,
   ArrowDownTrayIcon,
   CheckCircleIcon,
-  ExclamationCircleIcon
+  ExclamationCircleIcon,
+  EyeIcon
 } from "@heroicons/react/24/outline";
 import { 
   saveNGOProfile, 
@@ -31,6 +31,7 @@ import {
   AdditionalInfo,
   Document as DocumentType
 } from "@/app/lib/ngoProfile";
+import NGOPreview from "./NGOPreview";
 
 // Define user interface to match auth context
 interface User {
@@ -67,6 +68,17 @@ const Profile: React.FC<ProfileProps> = ({ currentUser }) => {
     message: string;
   }>({ status: 'idle', message: '' });
   const [profileData, setProfileData] = useState<NGOProfileType | null>(null);
+  const [showPreview, setShowPreview] = useState(false);
+  const [bannerUploadStatus, setBannerUploadStatus] = useState<{
+    uploading: boolean;
+    progress: number;
+    error: string | null;
+  }>({ uploading: false, progress: 0, error: null });
+  const [logoUploadStatus, setLogoUploadStatus] = useState<{
+    uploading: boolean;
+    progress: number;
+    error: string | null;
+  }>({ uploading: false, progress: 0, error: null });
   
   // Add form state for user details
   const [formData, setFormData] = useState({
@@ -76,7 +88,8 @@ const Profile: React.FC<ProfileProps> = ({ currentUser }) => {
     legalRepName: "",
     legalRepEmail: "",
     legalRepPhone: "",
-    legalRepFunction: ""
+    legalRepFunction: "",
+    missionStatement: ""
   });
 
   // Fetch profile data on mount
@@ -104,7 +117,8 @@ const Profile: React.FC<ProfileProps> = ({ currentUser }) => {
           legalRepName: profile.legal_rep_name || "",
           legalRepEmail: profile.legal_rep_email || "",
           legalRepPhone: profile.legal_rep_phone || "",
-          legalRepFunction: profile.legal_rep_function || ""
+          legalRepFunction: profile.legal_rep_function || "",
+          missionStatement: profile.mission_statement || ""
         });
         
         // Set additional info if available
@@ -125,7 +139,8 @@ const Profile: React.FC<ProfileProps> = ({ currentUser }) => {
           legalRepName: "",
           legalRepEmail: "",
           legalRepPhone: "",
-          legalRepFunction: ""
+          legalRepFunction: "",
+          missionStatement: ""
         });
       }
     } catch (error) {
@@ -133,7 +148,7 @@ const Profile: React.FC<ProfileProps> = ({ currentUser }) => {
     }
   };
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({
       ...prev,
@@ -164,7 +179,7 @@ const Profile: React.FC<ProfileProps> = ({ currentUser }) => {
       
       try {
         // Upload file to Supabase storage
-        const { url, error } = await uploadFile(file, 'ngo-profile-pictures');
+        const { url, error } = await uploadFile(file, 'ngo-profile-pictures', undefined, currentUser?.id);
         
         if (error) {
           console.error("Error uploading profile picture:", error);
@@ -189,6 +204,162 @@ const Profile: React.FC<ProfileProps> = ({ currentUser }) => {
       setProfileData({ ...profileData, profile_image_url: undefined });
     }
     setShowAvatarOptions(false);
+  };
+
+  const handleUpdateBanner = async () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.onchange = async (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (!file) return;
+      
+      setBannerUploadStatus({ uploading: true, progress: 0, error: null });
+      
+      try {
+        // Simulate progress (since Supabase doesn't provide progress callbacks)
+        const progressInterval = setInterval(() => {
+          setBannerUploadStatus(prev => ({
+            ...prev,
+            progress: Math.min(prev.progress + 10, 90)
+          }));
+        }, 200);
+
+        const { url, error } = await uploadFile(
+          file, 
+          'ngo-profile-pictures', 
+          undefined, 
+          currentUser?.id
+        );
+        
+        clearInterval(progressInterval);
+        
+        if (error) {
+          console.error("Error uploading banner:", error);
+          setBannerUploadStatus({ uploading: false, progress: 0, error: error });
+          setTimeout(() => {
+            setBannerUploadStatus({ uploading: false, progress: 0, error: null });
+          }, 5000);
+          return;
+        }
+        
+        if (url) {
+          console.log("Banner uploaded successfully, URL:", url);
+          setBannerUploadStatus({ uploading: false, progress: 100, error: null });
+          // Ensure profileData exists before updating
+          if (profileData) {
+            setProfileData({ ...profileData, banner_url: url });
+          } else {
+            // If profileData doesn't exist, create it with minimal required fields
+            setProfileData({
+              user_id: currentUser.id,
+              name: formData.name || currentUser.fullName || "",
+              email: formData.email || currentUser.email || "",
+              year_created: formData.yearCreated || "",
+              legal_rep_name: formData.legalRepName || "",
+              legal_rep_email: formData.legalRepEmail || "",
+              legal_rep_phone: formData.legalRepPhone || "",
+              legal_rep_function: formData.legalRepFunction || "",
+              banner_url: url
+            });
+          }
+          setTimeout(() => {
+            setBannerUploadStatus({ uploading: false, progress: 0, error: null });
+          }, 2000);
+        }
+      } catch (error: any) {
+        console.error("Error uploading banner:", error);
+        setBannerUploadStatus({ uploading: false, progress: 0, error: error.message || 'Upload failed' });
+        setTimeout(() => {
+          setBannerUploadStatus({ uploading: false, progress: 0, error: null });
+        }, 5000);
+      }
+    };
+    input.click();
+  };
+
+  const handleUpdateLogo = async () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.onchange = async (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (!file) return;
+      
+      setLogoUploadStatus({ uploading: true, progress: 0, error: null });
+      
+      try {
+        // Simulate progress (since Supabase doesn't provide progress callbacks)
+        const progressInterval = setInterval(() => {
+          setLogoUploadStatus(prev => ({
+            ...prev,
+            progress: Math.min(prev.progress + 10, 90)
+          }));
+        }, 200);
+
+        const { url, error } = await uploadFile(
+          file, 
+          'ngo-profile-pictures', 
+          undefined, 
+          currentUser?.id
+        );
+        
+        clearInterval(progressInterval);
+        
+        if (error) {
+          console.error("Error uploading logo:", error);
+          setLogoUploadStatus({ uploading: false, progress: 0, error: error });
+          setTimeout(() => {
+            setLogoUploadStatus({ uploading: false, progress: 0, error: null });
+          }, 5000);
+          return;
+        }
+        
+        if (url) {
+          console.log("Logo uploaded successfully, URL:", url);
+          setLogoUploadStatus({ uploading: false, progress: 100, error: null });
+          // Ensure profileData exists before updating
+          if (profileData) {
+            setProfileData({ ...profileData, logo_url: url });
+          } else {
+            // If profileData doesn't exist, create it with minimal required fields
+            setProfileData({
+              user_id: currentUser.id,
+              name: formData.name || currentUser.fullName || "",
+              email: formData.email || currentUser.email || "",
+              year_created: formData.yearCreated || "",
+              legal_rep_name: formData.legalRepName || "",
+              legal_rep_email: formData.legalRepEmail || "",
+              legal_rep_phone: formData.legalRepPhone || "",
+              legal_rep_function: formData.legalRepFunction || "",
+              logo_url: url
+            });
+          }
+          setTimeout(() => {
+            setLogoUploadStatus({ uploading: false, progress: 0, error: null });
+          }, 2000);
+        }
+      } catch (error: any) {
+        console.error("Error uploading logo:", error);
+        setLogoUploadStatus({ uploading: false, progress: 0, error: error.message || 'Upload failed' });
+        setTimeout(() => {
+          setLogoUploadStatus({ uploading: false, progress: 0, error: null });
+        }, 5000);
+      }
+    };
+    input.click();
+  };
+
+  const handleDeleteBanner = () => {
+    if (profileData) {
+      setProfileData({ ...profileData, banner_url: undefined });
+    }
+  };
+
+  const handleDeleteLogo = () => {
+    if (profileData) {
+      setProfileData({ ...profileData, logo_url: undefined });
+    }
   };
 
   const handleAddDocument = async () => {
@@ -276,7 +447,10 @@ const Profile: React.FC<ProfileProps> = ({ currentUser }) => {
         legal_rep_email: formData.legalRepEmail,
         legal_rep_phone: formData.legalRepPhone,
         legal_rep_function: formData.legalRepFunction,
-        profile_image_url: profileData?.profile_image_url
+        profile_image_url: profileData?.profile_image_url,
+        banner_url: profileData?.banner_url,
+        logo_url: profileData?.logo_url,
+        mission_statement: formData.missionStatement
       };
       
       // Save profile data
@@ -308,8 +482,9 @@ const Profile: React.FC<ProfileProps> = ({ currentUser }) => {
           message: 'Profile data saved successfully!'
         });
         
-        // Clear editing state
+        // Clear editing state and show preview
         setIsEditing(false);
+        setShowPreview(true);
       }
     } catch (error: any) {
       console.error("Error saving data:", error);
@@ -331,6 +506,25 @@ const Profile: React.FC<ProfileProps> = ({ currentUser }) => {
     return <div>Please log in to view your profile</div>;
   }
 
+  // Show preview if enabled
+  if (showPreview && profileData) {
+    return (
+      <div className="container mx-auto p-6">
+        <div className="mb-6 flex justify-between items-center">
+          <h2 className="text-2xl font-bold text-gray-900">Profile Preview</h2>
+          <button
+            onClick={() => setShowPreview(false)}
+            className="flex items-center px-4 py-2 text-sm font-medium rounded-lg bg-gradient-to-r from-[#556B2F] to-[#6B8E23] text-white hover:shadow-md transition-all duration-200"
+          >
+            <PencilIcon className="h-4 w-4 mr-2" />
+            Edit Profile
+          </button>
+        </div>
+        <NGOPreview profileData={profileData} isLoading={false} />
+      </div>
+    );
+  }
+
   return (
     <div className="container mx-auto p-6">
       {/* General Information */}
@@ -341,6 +535,15 @@ const Profile: React.FC<ProfileProps> = ({ currentUser }) => {
             General Information
           </h3>
           <div className="flex gap-2">
+            {profileData && (
+              <button 
+                onClick={() => setShowPreview(true)}
+                className="flex items-center px-4 py-2 text-sm font-medium rounded-lg border border-[#556B2F] text-[#556B2F] hover:bg-[#556B2F]/10 transition-all duration-200"
+              >
+                <EyeIcon className="h-4 w-4 mr-2" />
+                Preview
+              </button>
+            )}
             <button 
               onClick={() => setShowAddInfo(!showAddInfo)}
               className="flex items-center px-4 py-2 text-sm font-medium rounded-lg border border-[#556B2F] text-[#556B2F] hover:bg-[#556B2F]/10 transition-all duration-200"
@@ -368,11 +571,14 @@ const Profile: React.FC<ProfileProps> = ({ currentUser }) => {
                 className="relative w-28 h-28 rounded-full overflow-hidden bg-gradient-to-r from-[#556B2F]/20 to-[#6B8E23]/20 border-4 border-white shadow flex-shrink-0 cursor-pointer"
               >
                 {profileData?.profile_image_url ? (
-                  <Image
+                  <img
                     src={profileData.profile_image_url}
                     alt="Profile picture"
-                    fill
-                    className="object-cover"
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      console.error("Error loading profile image:", profileData.profile_image_url);
+                      e.currentTarget.style.display = 'none';
+                    }}
                   />
                 ) : (
                   <div className="flex items-center justify-center h-full text-[#556B2F]">
@@ -537,6 +743,307 @@ const Profile: React.FC<ProfileProps> = ({ currentUser }) => {
               </div>
             </div>
           )}
+        </div>
+      </div>
+
+      {/* Banner, Logo, and Mission Statement */}
+      <div className="mb-10 bg-white rounded-xl shadow-sm overflow-hidden">
+        <div className="px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-[#556B2F]/5 to-[#6B8E23]/5">
+          <h3 className="text-lg font-semibold text-gray-800 flex items-center">
+            <PhotoIcon className="h-5 w-5 mr-2 text-[#556B2F]" />
+            Branding & Mission
+          </h3>
+        </div>
+        <div className="p-6">
+          <div className="space-y-6">
+            {/* Banner Section */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Banner Image
+              </label>
+              <div className="relative">
+                {profileData?.banner_url ? (
+                  <div className="relative w-full h-48 rounded-lg overflow-hidden border-2 border-gray-200 bg-gray-100">
+                    <img
+                      src={profileData.banner_url}
+                      alt="Banner"
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        console.error("Error loading banner image:", profileData.banner_url);
+                        const target = e.currentTarget;
+                        const parent = target.parentElement;
+                        if (!parent) return;
+                        
+                        target.style.display = 'none';
+                        
+                        // Remove any existing error message
+                        const existingError = parent.querySelector('.image-error-message');
+                        if (existingError) existingError.remove();
+                        
+                        // Show error message with instructions
+                        const errorDiv = document.createElement('div');
+                        errorDiv.className = 'image-error-message absolute inset-0 flex items-center justify-center bg-red-50 border-2 border-red-200 rounded-lg p-4 z-10';
+                        errorDiv.innerHTML = `
+                          <div class="text-center max-w-md">
+                            <p class="text-sm text-red-800 font-medium mb-2">⚠️ Failed to load image</p>
+                            <p class="text-xs text-red-600 break-all mb-3">${profileData.banner_url}</p>
+                            <div class="text-xs text-gray-700 text-left bg-white p-3 rounded border border-gray-200">
+                              <p class="font-medium mb-1">To fix this:</p>
+                              <ol class="list-decimal list-inside space-y-1">
+                                <li>Go to Supabase Dashboard</li>
+                                <li>Storage → ngo-profile-pictures</li>
+                                <li>Settings → Make bucket public</li>
+                                <li>Or add a public read policy</li>
+                              </ol>
+                            </div>
+                            <a href="${profileData.banner_url}" target="_blank" rel="noopener noreferrer" class="mt-2 inline-block text-xs text-blue-600 hover:underline">
+                              Test URL in new tab →
+                            </a>
+                          </div>
+                        `;
+                        parent.appendChild(errorDiv);
+                      }}
+                      onLoad={() => {
+                        console.log("✅ Banner image loaded successfully:", profileData.banner_url);
+                        // Remove any error messages if image loads
+                        const parent = e.currentTarget.parentElement;
+                        const errorMsg = parent?.querySelector('.image-error-message');
+                        if (errorMsg) errorMsg.remove();
+                      }}
+                    />
+                    <div className="absolute inset-0 bg-black/50 opacity-0 hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                      <button
+                        onClick={handleUpdateBanner}
+                        disabled={bannerUploadStatus.uploading}
+                        className="px-4 py-2 bg-white text-gray-800 rounded-lg hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        <PhotoIcon className="h-4 w-4 inline mr-1" />
+                        Change
+                      </button>
+                      <button
+                        onClick={handleDeleteBanner}
+                        disabled={bannerUploadStatus.uploading}
+                        className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        <TrashIcon className="h-4 w-4 inline mr-1" />
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="w-full h-48 rounded-lg border-2 border-dashed border-gray-300 flex items-center justify-center bg-gray-50">
+                    <button
+                      onClick={handleUpdateBanner}
+                      disabled={bannerUploadStatus.uploading}
+                      className="flex flex-col items-center gap-2 text-gray-600 hover:text-[#556B2F] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <PhotoIcon className="h-8 w-8" />
+                      <span className="text-sm font-medium">Upload Banner Image</span>
+                    </button>
+                  </div>
+                )}
+                
+                {/* Upload Status Bar for Banner */}
+                {bannerUploadStatus.uploading && (
+                  <div className="mt-3">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-sm text-gray-700">Uploading banner...</span>
+                      <span className="text-sm text-gray-600">{bannerUploadStatus.progress}%</span>
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div 
+                        className="bg-gradient-to-r from-[#556B2F] to-[#6B8E23] h-2 rounded-full transition-all duration-300"
+                        style={{ width: `${bannerUploadStatus.progress}%` }}
+                      ></div>
+                    </div>
+                  </div>
+                )}
+                
+                {bannerUploadStatus.error && (
+                  <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg">
+                    <p className="text-sm text-red-800 mb-2">
+                      <ExclamationCircleIcon className="h-4 w-4 inline mr-1" />
+                      {bannerUploadStatus.error}
+                    </p>
+                    <p className="text-xs text-red-600">
+                      If upload succeeded but image doesn't load, check that the "ngo-profile-pictures" bucket is set to public in Supabase Storage settings.
+                    </p>
+                  </div>
+                )}
+                
+                {bannerUploadStatus.progress === 100 && !bannerUploadStatus.uploading && !bannerUploadStatus.error && (
+                  <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded-lg">
+                    <p className="text-sm text-green-800">
+                      <CheckCircleIcon className="h-4 w-4 inline mr-1" />
+                      Banner uploaded successfully! {profileData?.banner_url && (
+                        <a 
+                          href={profileData.banner_url} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="ml-2 text-green-600 hover:underline text-xs"
+                        >
+                          (View URL)
+                        </a>
+                      )}
+                    </p>
+                  </div>
+                )}
+              </div>
+              <p className="mt-2 text-xs text-gray-500">
+                Recommended size: 1200x300px. This will be displayed at the top of your profile.
+              </p>
+            </div>
+
+            {/* Logo Section */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Logo
+              </label>
+              <div className="flex items-start gap-6">
+                <div className="relative">
+                  {profileData?.logo_url ? (
+                    <div className="relative w-32 h-32 rounded-lg overflow-hidden border-2 border-gray-200 bg-white">
+                      <img
+                        src={profileData.logo_url}
+                        alt="Logo"
+                        className="w-full h-full object-contain p-2"
+                        onError={(e) => {
+                          console.error("Error loading logo image:", profileData.logo_url);
+                          const target = e.currentTarget;
+                          const parent = target.parentElement;
+                          if (!parent) return;
+                          
+                          target.style.display = 'none';
+                          
+                          // Remove any existing error message
+                          const existingError = parent.querySelector('.image-error-message');
+                          if (existingError) existingError.remove();
+                          
+                          // Show error message
+                          const errorDiv = document.createElement('div');
+                          errorDiv.className = 'image-error-message absolute inset-0 flex items-center justify-center bg-red-50 border-2 border-red-200 rounded-lg p-2 z-10';
+                          errorDiv.innerHTML = `
+                            <div class="text-center">
+                              <p class="text-xs text-red-800 font-medium">⚠️ Failed to load</p>
+                              <p class="text-[10px] text-red-600 mt-1">Bucket may not be public</p>
+                              <a href="${profileData.logo_url}" target="_blank" rel="noopener noreferrer" class="text-[10px] text-blue-600 hover:underline mt-1 block">
+                                Test URL →
+                              </a>
+                            </div>
+                          `;
+                          parent.appendChild(errorDiv);
+                        }}
+                        onLoad={() => {
+                          console.log("✅ Logo image loaded successfully:", profileData.logo_url);
+                          // Remove any error messages if image loads
+                          const parent = e.currentTarget.parentElement;
+                          const errorMsg = parent?.querySelector('.image-error-message');
+                          if (errorMsg) errorMsg.remove();
+                        }}
+                      />
+                      <div className="absolute inset-0 bg-black/50 opacity-0 hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                        <button
+                          onClick={handleUpdateLogo}
+                          disabled={logoUploadStatus.uploading}
+                          className="px-3 py-1 bg-white text-gray-800 rounded text-xs hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          Change
+                        </button>
+                        <button
+                          onClick={handleDeleteLogo}
+                          disabled={logoUploadStatus.uploading}
+                          className="px-3 py-1 bg-red-500 text-white rounded text-xs hover:bg-red-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="w-32 h-32 rounded-lg border-2 border-dashed border-gray-300 flex items-center justify-center bg-gray-50">
+                      <button
+                        onClick={handleUpdateLogo}
+                        disabled={logoUploadStatus.uploading}
+                        className="flex flex-col items-center gap-1 text-gray-600 hover:text-[#556B2F] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        <PhotoIcon className="h-6 w-6" />
+                        <span className="text-xs font-medium">Upload Logo</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
+                <div className="flex-1">
+                  <p className="text-xs text-gray-500 mb-3">
+                    Recommended size: 200x200px. Square logo with transparent background works best.
+                  </p>
+                  
+                  {/* Upload Status Bar for Logo */}
+                  {logoUploadStatus.uploading && (
+                    <div className="mt-2">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-sm text-gray-700">Uploading logo...</span>
+                        <span className="text-sm text-gray-600">{logoUploadStatus.progress}%</span>
+                      </div>
+                      <div className="w-full bg-gray-200 rounded-full h-2">
+                        <div 
+                          className="bg-gradient-to-r from-[#556B2F] to-[#6B8E23] h-2 rounded-full transition-all duration-300"
+                          style={{ width: `${logoUploadStatus.progress}%` }}
+                        ></div>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {logoUploadStatus.error && (
+                    <div className="mt-2 p-3 bg-red-50 border border-red-200 rounded-lg">
+                      <p className="text-sm text-red-800 mb-2">
+                        <ExclamationCircleIcon className="h-4 w-4 inline mr-1" />
+                        {logoUploadStatus.error}
+                      </p>
+                      <p className="text-xs text-red-600">
+                        If upload succeeded but image doesn't load, check that the "ngo-profile-pictures" bucket is set to public in Supabase Storage settings.
+                      </p>
+                    </div>
+                  )}
+                  
+                  {logoUploadStatus.progress === 100 && !logoUploadStatus.uploading && !logoUploadStatus.error && (
+                    <div className="mt-2 p-3 bg-green-50 border border-green-200 rounded-lg">
+                      <p className="text-sm text-green-800">
+                        <CheckCircleIcon className="h-4 w-4 inline mr-1" />
+                        Logo uploaded successfully! {profileData?.logo_url && (
+                          <a 
+                            href={profileData.logo_url} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="ml-2 text-green-600 hover:underline text-xs"
+                          >
+                            (View URL)
+                          </a>
+                        )}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Mission Statement Section */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Mission Statement
+              </label>
+              <textarea
+                name="missionStatement"
+                rows={6}
+                className={`block w-full rounded-lg border ${isEditing ? 'border-[#6B8E23]' : 'border-gray-200'} shadow-sm focus:border-[#6B8E23] focus:ring-[#6B8E23] ${isEditing ? 'bg-white' : 'bg-gray-50'} py-2.5 px-4 transition-all duration-200 resize-none`}
+                value={formData.missionStatement}
+                onChange={handleInputChange}
+                disabled={!isEditing}
+                placeholder="Enter your organization's mission statement..."
+              />
+              <p className="mt-2 text-xs text-gray-500">
+                Describe your organization's purpose, goals, and impact. This will be displayed prominently on your profile.
+              </p>
+            </div>
+          </div>
         </div>
       </div>
       

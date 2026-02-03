@@ -7,12 +7,7 @@ import { Template as OffreTemplate, TemplateField } from '../../resources/tools/
 import dynamic from 'next/dynamic';
 import { saveOpportunityProgress, getLatestOpportunityProgress } from '../services/opportunityService';
 import { toast } from 'react-hot-toast';
-import { createClient } from '@supabase/supabase-js';
-
-// Create a Supabase client
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
-const supabase = createClient(supabaseUrl, supabaseKey);
+import { supabase } from '@/app/lib/supabase';
 
 // Define our extended field type that supports all the field types we want to render
 interface ExtendedField {

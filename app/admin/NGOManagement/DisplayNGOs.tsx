@@ -24,6 +24,7 @@ import {
 import { type NGOProfile, type NGOProfileWithDetails } from "./supabaseService";
 import toast from "react-hot-toast";
 import * as XLSX from 'xlsx';
+import AddNGOModal from "./AddNGOModal";
 
 interface DisplayNGOsProps {
   ngos: NGOProfile[];
@@ -59,6 +60,7 @@ export default function DisplayNGOs({
   const [localSearchTerm, setLocalSearchTerm] = useState(searchTerm);
   const [selectedNGO, setSelectedNGO] = useState<NGOProfileWithDetails | null>(null);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   
   // Selection state
   const [selectedNGOs, setSelectedNGOs] = useState<Set<string>>(new Set());
@@ -66,6 +68,7 @@ export default function DisplayNGOs({
   const [selectedColumns, setSelectedColumns] = useState<Set<string>>(new Set([
     'name', 'email', 'approval_status', 'legal_rep_name', 'year_created'
   ]));
+
 
   const handleSearch = () => {
     if (localSearchTerm.trim()) {
@@ -282,6 +285,11 @@ export default function DisplayNGOs({
   const approvedCount = stats?.approvalCounts?.approved || 0;
   const rejectedCount = stats?.approvalCounts?.rejected || 0;
 
+  const handleNGOAdded = () => {
+    // Refresh list to include the newly created NGO
+    fetchPaginatedNGOs(1);
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 p-6">
       <div className="max-w-7xl mx-auto">
@@ -296,6 +304,15 @@ export default function DisplayNGOs({
               <p className="text-gray-600 mt-2">
                 Manage and monitor all registered NGOs and their approval status
               </p>
+            </div>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => setIsAddModalOpen(true)}
+                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg shadow-sm text-white bg-[#556B2F] hover:bg-[#4A5D28] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#556B2F]"
+              >
+                <span className="mr-2 text-lg">+</span>
+                Add NGO
+              </button>
             </div>
           </div>
         </div>
@@ -760,6 +777,13 @@ export default function DisplayNGOs({
             </div>
           </div>
         )}
+
+        {/* Add NGO Modal */}
+        <AddNGOModal
+          isOpen={isAddModalOpen}
+          onClose={() => setIsAddModalOpen(false)}
+          onSuccess={handleNGOAdded}
+        />
 
         {/* NGO View Modal */}
         {isViewModalOpen && selectedNGO && (
