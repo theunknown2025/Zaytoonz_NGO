@@ -789,8 +789,8 @@ function getTypeLabel(opportunityType: string): string {
 // Dedicated function to fetch a single opportunity by ID with detailed debugging
 export async function getOpportunityById(id: string): Promise<{ opportunity: Opportunity | null, error: string | null }> {
   try {
-    // Get the opportunity with basic relationships that work
-    const { data, error } = await supabase
+    // First, try to get the opportunity with published status
+    let { data, error } = await supabase
       .from('opportunities')
       .select(`
         id,
@@ -798,7 +798,7 @@ export async function getOpportunityById(id: string): Promise<{ opportunity: Opp
         opportunity_type,
         created_at,
         updated_at,
-        opportunity_description!inner (
+        opportunity_description (
           id,
           title,
           description,
@@ -828,12 +828,37 @@ export async function getOpportunityById(id: string): Promise<{ opportunity: Opp
         )
       `)
       .eq('id', id)
-      .eq('opportunity_description.status', 'published')
-      .single();
+      .maybeSingle();
 
-    if (error) {
+    // If not found or error, return early
+    if (error && error.code !== 'PGRST116') {
       console.error('Error fetching opportunity:', error);
       return { opportunity: null, error: error.message };
+    }
+
+    if (!data) {
+      return { opportunity: null, error: 'Opportunity not found' };
+    }
+
+    // Filter for published description - only show published opportunities to public
+    let description = null;
+    if (data.opportunity_description && Array.isArray(data.opportunity_description)) {
+      // Only return published descriptions for public access
+      description = data.opportunity_description.find((desc: any) => desc.status === 'published');
+    } else if (data.opportunity_description) {
+      // Single object case - check if it's published
+      const desc = data.opportunity_description;
+      if (desc.status === 'published') {
+        description = desc;
+      }
+    }
+
+    // If no published description found, the opportunity is not available
+    if (!description) {
+      return { 
+        opportunity: null, 
+        error: 'Opportunity not found or not published yet.' 
+      };
     }
 
     // Separately fetch form choices to avoid relationship conflicts
@@ -852,7 +877,7 @@ export async function getOpportunityById(id: string): Promise<{ opportunity: Opp
         )
       `)
       .eq('opportunity_id', id)
-      .single();
+      .maybeSingle();
 
     let formData = null;
     if (!formChoiceError && formChoiceData) {
@@ -861,11 +886,18 @@ export async function getOpportunityById(id: string): Promise<{ opportunity: Opp
     }
 
     // Transform the data
-    const description = data.opportunity_description[0];
     const metadata = description?.metadata || {};
-    const user = description?.users?.[0];
-    const ngoProfile = user?.ngo_profile?.[0];
-    const emailData = data.opportunity_form_email?.[0];
+    // Handle both array and single object cases for users
+    const user = Array.isArray(description?.users) 
+      ? description?.users[0] 
+      : description?.users;
+    // Handle both array and single object cases for ngo_profile
+    const ngoProfile = Array.isArray(user?.ngo_profile) 
+      ? user?.ngo_profile[0] 
+      : user?.ngo_profile;
+    const emailData = Array.isArray(data.opportunity_form_email) 
+      ? data.opportunity_form_email[0] 
+      : data.opportunity_form_email;
 
     const opportunity: Opportunity = {
       id: data.id,
