@@ -823,7 +823,7 @@ const Profile: React.FC<ProfileProps> = ({ currentUser }) => {
                         `;
                         parent.appendChild(errorDiv);
                       }}
-                      onLoad={() => {
+                      onLoad={(e) => {
                         console.log("✅ Banner image loaded successfully:", profileData.banner_url);
                         // Remove any error messages if image loads
                         const parent = e.currentTarget.parentElement;
@@ -953,7 +953,7 @@ const Profile: React.FC<ProfileProps> = ({ currentUser }) => {
                           `;
                           parent.appendChild(errorDiv);
                         }}
-                        onLoad={() => {
+                        onLoad={(e) => {
                           console.log("✅ Logo image loaded successfully:", profileData.logo_url);
                           // Remove any error messages if image loads
                           const parent = e.currentTarget.parentElement;
