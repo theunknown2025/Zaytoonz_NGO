@@ -207,6 +207,11 @@ const Profile: React.FC<ProfileProps> = ({ currentUser }) => {
   };
 
   const handleUpdateBanner = async () => {
+    if (!currentUser) {
+      console.error("Cannot update banner: user not authenticated");
+      return;
+    }
+    
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = 'image/*';
@@ -244,12 +249,17 @@ const Profile: React.FC<ProfileProps> = ({ currentUser }) => {
         }
         
         if (url) {
+          if (!currentUser) {
+            console.error("Cannot set banner: user not authenticated");
+            return;
+          }
+          
           console.log("Banner uploaded successfully, URL:", url);
           setBannerUploadStatus({ uploading: false, progress: 100, error: null });
           // Ensure profileData exists before updating
           if (profileData) {
             setProfileData({ ...profileData, banner_url: url });
-          } else if (currentUser) {
+          } else {
             // If profileData doesn't exist, create it with minimal required fields
             setProfileData({
               user_id: currentUser.id,
@@ -279,6 +289,11 @@ const Profile: React.FC<ProfileProps> = ({ currentUser }) => {
   };
 
   const handleUpdateLogo = async () => {
+    if (!currentUser) {
+      console.error("Cannot update logo: user not authenticated");
+      return;
+    }
+    
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = 'image/*';
@@ -316,12 +331,17 @@ const Profile: React.FC<ProfileProps> = ({ currentUser }) => {
         }
         
         if (url) {
+          if (!currentUser) {
+            console.error("Cannot set logo: user not authenticated");
+            return;
+          }
+          
           console.log("Logo uploaded successfully, URL:", url);
           setLogoUploadStatus({ uploading: false, progress: 100, error: null });
           // Ensure profileData exists before updating
           if (profileData) {
             setProfileData({ ...profileData, logo_url: url });
-          } else if (currentUser) {
+          } else {
             // If profileData doesn't exist, create it with minimal required fields
             setProfileData({
               user_id: currentUser.id,
