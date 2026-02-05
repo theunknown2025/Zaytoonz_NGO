@@ -121,7 +121,12 @@ echo ""
 
 # Step 5: Update Nginx to handle redirects properly
 echo "=== Step 5: Updating Nginx Configuration ==="
-cp "$NGINX_CONFIG" "$NGINX_CONFIG.backup.$(date +%Y%m%d_%H%M%S)"
+if [ -f "$NGINX_CONFIG" ]; then
+    cp "$NGINX_CONFIG" "$NGINX_CONFIG.backup.$(date +%Y%m%d_%H%M%S)"
+    echo "[*] Backup created"
+else
+    echo "[*] No existing config to backup, creating new one"
+fi
 
 cat > "$NGINX_CONFIG" << EOF
 server {
