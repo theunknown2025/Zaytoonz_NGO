@@ -61,7 +61,8 @@ export const createInitialOpportunity = async (
         user_id = user.id;
       } else {
         // Server-side: fall back to getValidUserId
-        user_id = await getValidUserId();
+        const validUserId = await getValidUserId();
+        user_id = validUserId ?? undefined;
         if (!user_id) {
           return {
             success: false,
