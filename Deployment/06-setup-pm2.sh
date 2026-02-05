@@ -19,7 +19,7 @@ NC='\033[0m'
 APP_DIR="${APP_DIR:-/var/www/zaytoonz-ngo}"
 APP_NAME="${APP_NAME:-zaytoonz-test}"
 PORT="${PORT:-3001}"
-BASE_PATH="${BASE_PATH:-/test}"
+BASE_PATH="${BASE_PATH:-/beta}"
 
 cd "$APP_DIR"
 

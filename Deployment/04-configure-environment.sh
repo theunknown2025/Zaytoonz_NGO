@@ -36,13 +36,13 @@ if [ -f "$ENV_FILE" ]; then
         echo -e "${YELLOW}  !${NC} Adding NEXT_PUBLIC_BASE_PATH..."
         echo "" >> "$ENV_FILE"
         echo "# Base path for subdirectory deployment" >> "$ENV_FILE"
-        echo "NEXT_PUBLIC_BASE_PATH=/test" >> "$ENV_FILE"
+        echo "NEXT_PUBLIC_BASE_PATH=/beta" >> "$ENV_FILE"
     fi
 else
     echo "[*] Creating .env.local file..."
     cat > "$ENV_FILE" << EOF
 # Base path for subdirectory deployment
-NEXT_PUBLIC_BASE_PATH=/test
+NEXT_PUBLIC_BASE_PATH=/beta
 
 # Supabase Configuration
 NEXT_PUBLIC_SUPABASE_URL=your_supabase_url_here
@@ -59,7 +59,7 @@ OPENAI_MODEL=gpt-4o-mini
 
 # NextAuth Configuration (if using)
 NEXTAUTH_SECRET=your_nextauth_secret_here
-NEXTAUTH_URL=http://72.62.176.80/test
+NEXTAUTH_URL=https://zaytoonz.com/beta
 
 # External Scraper Configuration
 NEXT_PUBLIC_USE_EXTERNAL_SCRAPER=true

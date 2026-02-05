@@ -36,10 +36,10 @@ if [ -f ".env.local" ]; then
     
     # Update NEXTAUTH_URL if it exists
     if grep -q "NEXTAUTH_URL" .env.local; then
-        sed -i "s|NEXTAUTH_URL=.*|NEXTAUTH_URL=http://$VPS_IP/test|g" .env.local
+        sed -i "s|NEXTAUTH_URL=.*|NEXTAUTH_URL=http://$VPS_IP/beta|g" .env.local
         echo -e "${GREEN}✓${NC} Updated NEXTAUTH_URL to use IP"
     else
-        echo "NEXTAUTH_URL=http://$VPS_IP/test" >> .env.local
+        echo "NEXTAUTH_URL=http://$VPS_IP/beta" >> .env.local
         echo -e "${GREEN}✓${NC} Added NEXTAUTH_URL"
     fi
 else
@@ -65,15 +65,15 @@ server {
         try_files \$uri /index.html;
     }
 
-    # Serve other static files from Coming Soon directory (except /test)
-    location ~ ^/(?!test)(.*)\$ {
+    # Serve other static files from Coming Soon directory (except /beta)
+    location ~ ^/(?!beta)(.*)\$ {
         root $COMING_SOON_PATH;
         try_files \$uri =404;
     }
 
-    # /test - Next.js application
-    location /test {
-        proxy_pass http://localhost:3001/test;
+    # /beta - Next.js application
+    location /beta {
+        proxy_pass http://localhost:3001/beta;
         proxy_http_version 1.1;
         proxy_set_header Upgrade \$http_upgrade;
         proxy_set_header Connection 'upgrade';
@@ -84,20 +84,20 @@ server {
         proxy_cache_bypass \$http_upgrade;
         proxy_read_timeout 300s;
         proxy_connect_timeout 75s;
-        proxy_set_header X-Forwarded-Prefix /test;
+        proxy_set_header X-Forwarded-Prefix /beta;
     }
 
     # Handle Next.js static files
-    location /test/_next/static/ {
-        proxy_pass http://localhost:3001/test/_next/static/;
+    location /beta/_next/static/ {
+        proxy_pass http://localhost:3001/beta/_next/static/;
         proxy_http_version 1.1;
         proxy_set_header Host \$host;
         add_header Cache-Control "public, max-age=31536000, immutable";
     }
 
     # Handle Next.js API routes
-    location /test/api/ {
-        proxy_pass http://localhost:3001/test/api/;
+    location /beta/api/ {
+        proxy_pass http://localhost:3001/beta/api/;
         proxy_http_version 1.1;
         proxy_set_header Host \$host;
         proxy_set_header X-Real-IP \$remote_addr;
@@ -131,7 +131,7 @@ fi
 # Step 3: Rebuild application
 echo ""
 echo "[*] Step 3: Rebuilding application with new configuration..."
-export NEXT_PUBLIC_BASE_PATH=/test
+export NEXT_PUBLIC_BASE_PATH=/beta
 rm -rf .next node_modules/.cache
 npm run build
 
@@ -156,7 +156,7 @@ echo "================================================================"
 echo ""
 echo "Access your application:"
 echo "  Coming Soon: http://$VPS_IP"
-echo "  Your App:    http://$VPS_IP/test"
+echo "  Your App:    http://$VPS_IP/beta"
 echo ""
 echo -e "${YELLOW}Note:${NC} SSL/HTTPS is not available for IP addresses."
 echo "      For production, consider using a domain name."

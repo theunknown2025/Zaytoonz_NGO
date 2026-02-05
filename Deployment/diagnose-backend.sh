@@ -64,8 +64,8 @@ echo ""
 
 # 3. Test local API endpoint
 echo "=== 3. Local API Test ==="
-echo "[*] Testing: http://localhost:$APP_PORT/test/api/opportunities"
-HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "http://localhost:$APP_PORT/test/api/opportunities" --max-time 5 || echo "000")
+echo "[*] Testing: http://localhost:$APP_PORT/beta/api/opportunities"
+HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "http://localhost:$APP_PORT/beta/api/opportunities" --max-time 5 || echo "000")
 
 if [ "$HTTP_CODE" = "200" ] || [ "$HTTP_CODE" = "301" ] || [ "$HTTP_CODE" = "302" ]; then
     echo -e "${GREEN}✓${NC} API responds locally (HTTP $HTTP_CODE)"
@@ -75,7 +75,7 @@ elif [ "$HTTP_CODE" = "000" ]; then
 else
     echo -e "${YELLOW}!${NC} API returned HTTP $HTTP_CODE"
     echo "  Testing with verbose output..."
-    curl -v "http://localhost:$APP_PORT/test/api/opportunities" --max-time 5 2>&1 | head -20
+    curl -v "http://localhost:$APP_PORT/beta/api/opportunities" --max-time 5 2>&1 | head -20
 fi
 echo ""
 
@@ -104,10 +104,10 @@ if [ -f ".env.local" ]; then
     echo -e "${GREEN}✓${NC} .env.local exists"
     
     # Check critical variables
-    if grep -q "NEXT_PUBLIC_BASE_PATH=/test" .env.local; then
+    if grep -q "NEXT_PUBLIC_BASE_PATH=/beta" .env.local; then
         echo -e "${GREEN}✓${NC} NEXT_PUBLIC_BASE_PATH is set"
     else
-        echo -e "${RED}✗${NC} NEXT_PUBLIC_BASE_PATH not set to /test"
+        echo -e "${RED}✗${NC} NEXT_PUBLIC_BASE_PATH not set to /beta"
     fi
     
     if grep -q "NEXT_PUBLIC_SUPABASE_URL" .env.local && ! grep -q "your_supabase_url_here" .env.local; then
@@ -133,15 +133,15 @@ if systemctl is-active --quiet nginx; then
     echo -e "${GREEN}✓${NC} Nginx is running"
     
     # Check if API route is configured
-    if grep -q "/test/api/" /etc/nginx/sites-enabled/* 2>/dev/null; then
-        echo -e "${GREEN}✓${NC} Nginx has /test/api/ route configured"
+    if grep -q "/beta/api/" /etc/nginx/sites-enabled/* 2>/dev/null; then
+        echo -e "${GREEN}✓${NC} Nginx has /beta/api/ route configured"
     else
-        echo -e "${RED}✗${NC} Nginx missing /test/api/ route configuration"
+        echo -e "${RED}✗${NC} Nginx missing /beta/api/ route configuration"
     fi
     
     # Test external access
     echo "[*] Testing external API access..."
-    EXTERNAL_CODE=$(curl -s -o /dev/null -w "%{http_code}" "http://$VPS_IP/test/api/opportunities" --max-time 5 || echo "000")
+    EXTERNAL_CODE=$(curl -s -o /dev/null -w "%{http_code}" "http://$VPS_IP/beta/api/opportunities" --max-time 5 || echo "000")
     if [ "$EXTERNAL_CODE" = "200" ] || [ "$EXTERNAL_CODE" = "301" ] || [ "$EXTERNAL_CODE" = "302" ]; then
         echo -e "${GREEN}✓${NC} API accessible externally (HTTP $EXTERNAL_CODE)"
     else
@@ -203,7 +203,7 @@ fi
 
 if [ ! -d ".next" ]; then
     echo -e "${RED}[ISSUE]${NC} Application not built"
-    echo "  Fix: export NEXT_PUBLIC_BASE_PATH=/test && npm run build"
+    echo "  Fix: export NEXT_PUBLIC_BASE_PATH=/beta && npm run build"
     echo ""
 fi
 
@@ -217,7 +217,7 @@ echo "Useful commands:"
 echo "  pm2 logs $APP_NAME              # View application logs"
 echo "  pm2 restart $APP_NAME           # Restart the app"
 echo "  pm2 status                      # Check PM2 status"
-echo "  curl http://localhost:$APP_PORT/test/api/opportunities  # Test API locally"
+echo "  curl http://localhost:$APP_PORT/beta/api/opportunities  # Test API locally"
 echo "  systemctl status nginx          # Check Nginx status"
 echo "  tail -f /var/log/nginx/error.log  # View Nginx errors"
 echo ""

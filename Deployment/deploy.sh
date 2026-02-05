@@ -24,7 +24,7 @@ export DOMAIN="${DOMAIN:-$VPS_IP}"
 export COMING_SOON_PATH="${COMING_SOON_PATH:-/var/www/zaytoonz}"
 export APP_NAME="${APP_NAME:-zaytoonz-test}"
 export PORT="${PORT:-3001}"
-export BASE_PATH="${BASE_PATH:-/test}"
+export BASE_PATH="${BASE_PATH:-/beta}"
 export SKIP_SSL="${SKIP_SSL:-true}"  # Default to true for IP addresses
 export INSTALL_MODE="${INSTALL_MODE:-production}"
 
@@ -129,7 +129,7 @@ else
     echo ""
     echo "Your application should now be accessible at:"
     echo "  Coming Soon: http://$DOMAIN"
-    echo "  Your App:    http://$DOMAIN/test"
+    echo "  Your App:    http://$DOMAIN/beta"
     echo ""
     exit 0
 fi

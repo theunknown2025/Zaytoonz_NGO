@@ -49,19 +49,19 @@ echo ""
 
 # Check if app responds locally
 echo "[*] Testing local application..."
-if curl -s -o /dev/null -w "%{http_code}" "http://localhost:$APP_PORT/test" | grep -q "200\|301\|302"; then
-    echo -e "${GREEN}  ✓${NC} Application responds on localhost:$APP_PORT/test"
+if curl -s -o /dev/null -w "%{http_code}" "http://localhost:$APP_PORT/beta" | grep -q "200\|301\|302"; then
+    echo -e "${GREEN}  ✓${NC} Application responds on localhost:$APP_PORT/beta"
 else
     echo -e "${YELLOW}  !${NC} Application may not be responding correctly"
-    echo "[*] Test manually: curl http://localhost:$APP_PORT/test"
+    echo "[*] Test manually: curl http://localhost:$APP_PORT/beta"
 fi
 
 echo ""
 
 # Check if domain responds (if accessible)
 echo "[*] Testing domain (if accessible)..."
-if curl -s -o /dev/null -w "%{http_code}" "http://$DOMAIN/test" | grep -q "200\|301\|302"; then
-    echo -e "${GREEN}  ✓${NC} Domain responds: http://$DOMAIN/test"
+if curl -s -o /dev/null -w "%{http_code}" "http://$DOMAIN/beta" | grep -q "200\|301\|302"; then
+    echo -e "${GREEN}  ✓${NC} Domain responds: http://$DOMAIN/beta"
 else
     echo -e "${YELLOW}  !${NC} Domain may not be accessible yet"
     echo "[*] This is normal if DNS hasn't propagated"
@@ -74,7 +74,7 @@ echo "================================================================"
 echo ""
 echo "Access your application:"
 echo "  Coming Soon: http://$DOMAIN"
-echo "  Your App:    http://$DOMAIN/test"
+echo "  Your App:    http://$DOMAIN/beta"
 echo ""
 echo "Useful commands:"
 echo "  pm2 logs $APP_NAME          # View application logs"

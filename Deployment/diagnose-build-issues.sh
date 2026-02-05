@@ -171,7 +171,7 @@ echo ""
 # 10. Test build with verbose output
 echo "=== 10. Attempting Build (Dry Run) ==="
 echo "[*] Setting environment variables..."
-export NEXT_PUBLIC_BASE_PATH=/test
+export NEXT_PUBLIC_BASE_PATH=/beta
 export NODE_ENV=production
 
 echo "[*] Running: npm run build"

@@ -49,7 +49,7 @@ export APP_DIR="/var/www/zaytoonz-ngo"
 export DOMAIN="zaytoonz.com"
 export COMING_SOON_PATH="/var/www/zaytoonz"
 export PORT="3001"
-export BASE_PATH="/test"
+export BASE_PATH="/beta"
 export SKIP_SSL="false"  # Set to "true" to skip SSL setup
 
 # Then run
@@ -86,7 +86,7 @@ Verifies installation of:
 
 ### Step 4: Configure Environment
 - Creates `.env.local` file
-- Sets up `NEXT_PUBLIC_BASE_PATH=/test`
+- Sets up `NEXT_PUBLIC_BASE_PATH=/beta`
 - **Important**: You must edit `.env.local` with your actual values
 
 ### Step 5: Build Application
@@ -102,7 +102,7 @@ Verifies installation of:
 
 ### Step 7: Configure Nginx
 - Creates Nginx configuration
-- Sets up reverse proxy for `/test`
+- Sets up reverse proxy for `/beta`
 - Configures static file serving
 - Reloads Nginx
 
@@ -218,5 +218,5 @@ If you encounter issues:
 1. Check PM2 logs: `pm2 logs zaytoonz-test`
 2. Check Nginx logs: `tail -f /var/log/nginx/error.log`
 3. Verify files exist: `bash Deployment/verify-files-on-vps.sh`
-4. Test locally: `curl http://localhost:3001/test`
+4. Test locally: `curl http://localhost:3001/beta`
 

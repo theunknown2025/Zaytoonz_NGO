@@ -18,7 +18,7 @@ NC='\033[0m'
 
 # Configuration
 APP_DIR="${APP_DIR:-/var/www/zaytoonz-ngo}"
-BASE_PATH="${BASE_PATH:-/test}"
+BASE_PATH="${BASE_PATH:-/beta}"
 
 cd "$APP_DIR"
 

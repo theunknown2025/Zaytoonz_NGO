@@ -51,7 +51,7 @@ if [ -f "$ENV_FILE" ]; then
         echo "Required values to update:"
         echo "  1. NEXT_PUBLIC_SUPABASE_URL - Your Supabase project URL"
         echo "  2. NEXT_PUBLIC_SUPABASE_ANON_KEY - Your Supabase anon key"
-        echo "  3. NEXT_PUBLIC_BASE_PATH=/test (should already be correct)"
+        echo "  3. NEXT_PUBLIC_BASE_PATH=/beta (should already be correct)"
         echo ""
         echo "Example format:"
         echo "  NEXT_PUBLIC_SUPABASE_URL=https://xxxxx.supabase.co"
@@ -68,7 +68,7 @@ if [ -f "$ENV_FILE" ]; then
         if [ "$create_template" = "y" ] || [ "$create_template" = "Y" ]; then
             cat > "$ENV_FILE.template" << 'EOF'
 # Base path for subdirectory deployment
-NEXT_PUBLIC_BASE_PATH=/test
+NEXT_PUBLIC_BASE_PATH=/beta
 
 # Supabase Configuration
 # REPLACE THESE WITH YOUR ACTUAL VALUES:
@@ -86,7 +86,7 @@ OPENAI_MODEL=gpt-4o-mini
 
 # NextAuth Configuration (if using)
 NEXTAUTH_SECRET=your-nextauth-secret-here
-NEXTAUTH_URL=https://zaytoonz.com/test
+NEXTAUTH_URL=https://zaytoonz.com/beta
 
 # External Scraper Configuration (if using)
 NEXT_PUBLIC_USE_EXTERNAL_SCRAPER=false
@@ -130,7 +130,7 @@ else
     
     cat > "$ENV_FILE" << 'EOF'
 # Base path for subdirectory deployment
-NEXT_PUBLIC_BASE_PATH=/test
+NEXT_PUBLIC_BASE_PATH=/beta
 
 # Supabase Configuration
 # ⚠️ REPLACE THESE WITH YOUR ACTUAL VALUES:
@@ -148,7 +148,7 @@ OPENAI_MODEL=gpt-4o-mini
 
 # NextAuth Configuration (if using)
 NEXTAUTH_SECRET=your-nextauth-secret-here
-NEXTAUTH_URL=https://zaytoonz.com/test
+NEXTAUTH_URL=https://zaytoonz.com/beta
 
 # External Scraper Configuration (if using)
 NEXT_PUBLIC_USE_EXTERNAL_SCRAPER=false
