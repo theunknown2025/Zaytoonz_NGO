@@ -11,7 +11,8 @@ module.exports = {
       max_memory_restart: '1G',
       env: {
         NODE_ENV: 'production',
-        PORT: 3000,
+        PORT: 3001,
+        NEXT_PUBLIC_BASE_PATH: '/beta',
       },
       error_file: '/var/log/pm2/zaytoonz-ngo-error.log',
       out_file: '/var/log/pm2/zaytoonz-ngo-out.log',
