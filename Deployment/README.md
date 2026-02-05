@@ -56,6 +56,22 @@ export SKIP_SSL="false"  # Set to "true" to skip SSL setup
 bash Deployment/deploy.sh
 ```
 
+## Important: Separate Repositories
+
+**The landing page and web app are in separate repositories:**
+
+- **Landing Page**: Located at `/var/www/zaytoonz` (or `$COMING_SOON_PATH`)
+  - This is a **separate git repository** 
+  - **NOT modified** by these deployment scripts
+  - Only read by nginx configuration to serve static files
+  
+- **Web App**: Located at `/var/www/zaytoonz-ngo` (or `$APP_DIR`)
+  - This is the `Zaytoonz_NGO` repository
+  - **WILL be cloned/updated** by deployment scripts
+  - Served at `https://zaytoonz.com/beta`
+
+The deployment scripts **only** modify the web app directory. Your landing page repository remains untouched.
+
 ## Prerequisites
 
 Before running the deployment, ensure you have:
@@ -63,7 +79,8 @@ Before running the deployment, ensure you have:
 - SSH access to your VPS
 - Root or sudo access
 - Domain pointing to your VPS IP
-- Code pushed to GitHub
+- Web app code pushed to GitHub (Zaytoonz_NGO repository)
+- Landing page already deployed in its own directory (separate repository)
 
 ## Step Details
 
@@ -85,9 +102,10 @@ Verifies installation of:
 - Uses production mode by default
 
 ### Step 4: Configure Environment
-- Creates `.env.local` file
+- Creates `.env.local` file in the **web app directory only**
 - Sets up `NEXT_PUBLIC_BASE_PATH=/beta`
 - **Important**: You must edit `.env.local` with your actual values
+- **Note**: Landing page directory is NOT modified
 
 ### Step 5: Build Application
 - Clears previous build cache
@@ -102,8 +120,9 @@ Verifies installation of:
 
 ### Step 7: Configure Nginx
 - Creates Nginx configuration
-- Sets up reverse proxy for `/beta`
-- Configures static file serving
+- Sets up reverse proxy for `/beta` (web app)
+- Configures root path to serve landing page from `$COMING_SOON_PATH`
+- **Note**: Only reads from landing page directory, does NOT modify it
 - Reloads Nginx
 
 ### Step 8: Setup SSL (Optional)

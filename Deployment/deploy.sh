@@ -43,6 +43,10 @@ echo "  Port:          $PORT"
 echo "  Base Path:     $BASE_PATH"
 echo "  Skip SSL:      $SKIP_SSL"
 echo ""
+echo "Important:"
+echo "  - Web App:     $APP_DIR (this repository - WILL be updated)"
+echo "  - Landing Page: $COMING_SOON_PATH (separate repo - NOT modified)"
+echo ""
 read -p "Press Enter to continue or Ctrl+C to cancel..."
 
 # Array of deployment steps

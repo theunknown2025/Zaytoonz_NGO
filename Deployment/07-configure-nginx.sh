@@ -37,6 +37,22 @@ echo "[*] Coming Soon path: $COMING_SOON_PATH"
 echo "[*] App port: $APP_PORT"
 echo ""
 
+# Safety check: Verify landing page directory exists but don't modify it
+if [ ! -d "$COMING_SOON_PATH" ]; then
+    echo -e "${YELLOW}[WARNING] Landing page directory not found: $COMING_SOON_PATH${NC}"
+    echo "[*] This directory should contain your landing page (separate repository)"
+    echo "[*] Nginx will still be configured, but root path may not work"
+    read -p "Continue anyway? (y/n): " continue_choice
+    if [ "$continue_choice" != "y" ] && [ "$continue_choice" != "Y" ]; then
+        exit 1
+    fi
+else
+    echo -e "${GREEN}[OK] Landing page directory exists${NC}"
+    echo "[*] Note: This directory is NOT modified by deployment scripts"
+    echo "[*] It should be managed by its own separate repository"
+fi
+echo ""
+
 # Create Nginx configuration
 echo "[*] Creating Nginx configuration..."
 cat > "$NGINX_CONFIG" << EOF

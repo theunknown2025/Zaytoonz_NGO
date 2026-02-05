@@ -25,6 +25,9 @@ echo "[*] Repository URL: $REPO_URL"
 echo "[*] Target directory: $APP_DIR"
 echo "[*] Branch: $BRANCH"
 echo ""
+echo "[*] Note: This script only handles the WEB APP repository"
+echo "[*] The landing page is in a separate directory/repository and is NOT modified"
+echo ""
 
 # Check if directory exists
 if [ -d "$APP_DIR" ]; then
