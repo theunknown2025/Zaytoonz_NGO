@@ -17,7 +17,7 @@ RED='\033[0;31m'
 NC='\033[0m'
 
 # Configuration
-APP_NAME="${APP_NAME:-zaytoonz-test}"
+APP_NAME="${APP_NAME:-zaytoonz-ngo}"
 VPS_IP="${VPS_IP:-72.62.176.80}"
 DOMAIN="${DOMAIN:-$VPS_IP}"
 APP_PORT="${APP_PORT:-3001}"
