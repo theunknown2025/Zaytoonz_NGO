@@ -106,7 +106,7 @@ if [ ! -f ".env.local" ]; then
     echo -e "${YELLOW}[*] Creating .env.local template...${NC}"
     cat > .env.local << 'EOF'
 # Base path for subdirectory deployment
-NEXT_PUBLIC_BASE_PATH=/test
+NEXT_PUBLIC_BASE_PATH=/beta
 
 # Supabase Configuration
 NEXT_PUBLIC_SUPABASE_URL=your_supabase_url_here
@@ -222,7 +222,7 @@ echo -e "${GREEN}[OK] Frontend dependencies installed${NC}"
 
 # Step 12: Build Frontend
 echo -e "${YELLOW}[*] Building Next.js application...${NC}"
-export NEXT_PUBLIC_BASE_PATH=/test
+export NEXT_PUBLIC_BASE_PATH=/beta
 npm run build
 echo -e "${GREEN}[OK] Frontend built successfully${NC}"
 

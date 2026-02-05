@@ -39,24 +39,24 @@ echo -e "${GREEN}[OK] Dependencies updated${NC}"
 
 # Build application
 echo -e "${YELLOW}[*] Building Next.js application...${NC}"
-export NEXT_PUBLIC_BASE_PATH=/test
+export NEXT_PUBLIC_BASE_PATH=/beta
 npm run build
 echo -e "${GREEN}[OK] Build completed${NC}"
 
 # Restart PM2
 echo -e "${YELLOW}[*] Restarting application...${NC}"
-pm2 restart zaytoonz-test --update-env
+pm2 restart zaytoonz-ngo --update-env
 pm2 save
 echo -e "${GREEN}[OK] Application restarted${NC}"
 
 # Check status
 echo ""
 echo -e "${GREEN}Deployment Status:${NC}"
-pm2 status zaytoonz-test
+pm2 status zaytoonz-ngo
 
 echo ""
 echo -e "${GREEN}[SUCCESS] Update complete!${NC}"
 echo ""
-echo "View logs: pm2 logs zaytoonz-test"
+echo "View logs: pm2 logs zaytoonz-ngo"
 echo "Check status: pm2 status"
 

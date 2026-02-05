@@ -10,7 +10,7 @@ module.exports = {
         NODE_ENV: 'production',
         PORT: 3001,
         HOSTNAME: 'localhost',
-        NEXT_PUBLIC_BASE_PATH: '/test',
+        NEXT_PUBLIC_BASE_PATH: '/beta',
         // Add your other environment variables here
         // NEXT_PUBLIC_SUPABASE_URL: 'your_supabase_url',
         // NEXT_PUBLIC_SUPABASE_ANON_KEY: 'your_supabase_key',
