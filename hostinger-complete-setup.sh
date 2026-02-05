@@ -243,7 +243,7 @@ module.exports = {
         NODE_ENV: 'production',
         PORT: 3001,
         HOSTNAME: 'localhost',
-        NEXT_PUBLIC_BASE_PATH: '/test',
+        NEXT_PUBLIC_BASE_PATH: '/beta',
       },
       error_file: '/var/log/pm2/zaytoonz-test-error.log',
       out_file: '/var/log/pm2/zaytoonz-test-out.log',
