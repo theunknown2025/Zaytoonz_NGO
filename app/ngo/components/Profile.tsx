@@ -249,7 +249,7 @@ const Profile: React.FC<ProfileProps> = ({ currentUser }) => {
           // Ensure profileData exists before updating
           if (profileData) {
             setProfileData({ ...profileData, banner_url: url });
-          } else {
+          } else if (currentUser) {
             // If profileData doesn't exist, create it with minimal required fields
             setProfileData({
               user_id: currentUser.id,
@@ -321,7 +321,7 @@ const Profile: React.FC<ProfileProps> = ({ currentUser }) => {
           // Ensure profileData exists before updating
           if (profileData) {
             setProfileData({ ...profileData, logo_url: url });
-          } else {
+          } else if (currentUser) {
             // If profileData doesn't exist, create it with minimal required fields
             setProfileData({
               user_id: currentUser.id,
