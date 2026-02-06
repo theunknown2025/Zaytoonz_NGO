@@ -1,3 +1,4 @@
+```yaml
 version: '3.8'
 
 services:
@@ -64,4 +65,4 @@ services:
 networks:
   zaytoonz-network:
     driver: bridge
-
+```

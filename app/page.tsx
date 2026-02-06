@@ -1,5 +1,6 @@
-import LandingPage from './LandingPage/LandingPage';
+import ZaytoonzSMLanding from './components/ZaytoonzSMLanding';
 
 export default function Home() {
-  return <LandingPage />;
-} 
+  // Modal disabled for now – rendering plain social landing
+  return <ZaytoonzSMLanding initialShowModal={false} />;
+}
