@@ -4,7 +4,7 @@ services:
     image: node:20-alpine
     container_name: zaytoonz-nextjs
     working_dir: /app
-    command: sh -c "rm -rf .next && npm install --production && npm run build && npm start"
+    command: sh -c "npm install --production && npm run build && npm start"
     ports:
       - "3001:3000"
     environment:
@@ -22,7 +22,8 @@ services:
     volumes:
       - ./:/app
       - /app/node_modules
-      - /app/.next
+      # Removed /app/.next volume - let Next.js manage its own build cache
+      # To clear cache, remove the volume externally before rebuilding
     restart: unless-stopped
     depends_on:
       - python-scraper
