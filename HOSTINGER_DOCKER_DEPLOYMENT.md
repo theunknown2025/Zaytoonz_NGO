@@ -704,6 +704,65 @@ docker compose -f docker-compose.production.yml down
 docker compose -f docker-compose.production.yml up -d
 ```
 
+### Issue 8: Git Pull Conflicts
+
+**Symptoms:**
+- Error: "Your local changes to the following files would be overwritten by merge"
+- Can't pull latest changes from GitHub
+
+**Solution:**
+
+**Option A: Use GitHub version (Recommended if you want the latest updates):**
+```bash
+cd /opt/zaytoonz-ngo
+
+# Backup your local changes first (just in case)
+cp docker-compose.production.yml docker-compose.production.yml.backup
+
+# Discard local changes and use GitHub version
+git checkout -- docker-compose.production.yml
+
+# Now pull the latest changes
+git pull origin main
+```
+
+**Option B: Stash your changes (if you want to keep them for later):**
+```bash
+cd /opt/zaytoonz-ngo
+
+# Stash your local changes
+git stash
+
+# Pull the latest changes
+git pull origin main
+
+# If you want to see what you had locally later:
+# git stash show -p
+```
+
+**Option C: Commit your local changes first (if they're important):**
+```bash
+cd /opt/zaytoonz-ngo
+
+# See what changes you have
+git diff docker-compose.production.yml
+
+# If you want to keep them, commit first
+git add docker-compose.production.yml
+git commit -m "Local docker-compose changes"
+
+# Then pull (you may need to merge)
+git pull origin main
+```
+
+**After resolving, verify the file:**
+```bash
+# Verify the file doesn't have beta path (if that was removed)
+grep -i "beta" docker-compose.production.yml
+
+# If nothing is returned, the beta path has been removed successfully
+```
+
 ### Quick Diagnostic Script
 
 Run this to get a full status report:
@@ -761,9 +820,11 @@ docker compose -f docker-compose.production.yml logs -f
 # Restart services
 docker compose -f docker-compose.production.yml restart
 
-# Update application
+# Update application (if no conflicts)
 git pull origin main
 docker compose -f docker-compose.production.yml up -d --build
+
+# If you get merge conflicts, see Issue 8 in Troubleshooting section
 ```
 
 ### Access Points
