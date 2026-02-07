@@ -10,12 +10,17 @@ git pull origin main
 echo "🛑 Stopping containers..."
 docker compose -f docker-compose.production.yml stop nextjs
 
-echo "🗑️  Removing Next.js container and build cache..."
+echo "🗑️  Removing Next.js container..."
 docker compose -f docker-compose.production.yml rm -f nextjs
 
-echo "🧹 Cleaning Next.js build cache inside container volume..."
-# Remove .next directory if it exists in the volume
-docker run --rm -v zaytoonz-ngo_app:/app alpine sh -c "rm -rf /app/.next" 2>/dev/null || true
+echo "🧹 Cleaning Next.js build cache (.next folder)..."
+# The /app/.next volume persists build cache - we need to remove it
+# Find and remove the anonymous volume created by /app/.next
+docker volume ls | grep -E "zaytoonz.*next" | awk '{print $2}' | xargs -r docker volume rm 2>/dev/null || true
+# Also try to remove by container name pattern
+docker volume prune -f
+
+echo "💡 Note: If build cache persists, manually run: docker volume prune -f"
 
 echo "🔨 Rebuilding Next.js container with fresh build..."
 docker compose -f docker-compose.production.yml up -d --build nextjs
