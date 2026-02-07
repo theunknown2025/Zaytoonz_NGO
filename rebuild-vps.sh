@@ -14,13 +14,17 @@ echo "🗑️  Removing Next.js container..."
 docker compose -f docker-compose.production.yml rm -f nextjs
 
 echo "🧹 Cleaning Next.js build cache (.next folder)..."
-# The /app/.next volume persists build cache - we need to remove it
-# Find and remove the anonymous volume created by /app/.next
-docker volume ls | grep -E "zaytoonz.*next" | awk '{print $2}' | xargs -r docker volume rm 2>/dev/null || true
-# Also try to remove by container name pattern
-docker volume prune -f
+# Remove .next folder from the bind mount (volume mount removed in docker-compose)
+if [ -d ".next" ]; then
+    echo "Removing .next directory..."
+    rm -rf .next
+    echo "✅ .next directory removed"
+else
+    echo "ℹ️  .next directory doesn't exist (will be created during build)"
+fi
 
-echo "💡 Note: If build cache persists, manually run: docker volume prune -f"
+# Also clean up any orphaned volumes from old setup
+docker volume prune -f
 
 echo "🔨 Rebuilding Next.js container with fresh build..."
 docker compose -f docker-compose.production.yml up -d --build nextjs
