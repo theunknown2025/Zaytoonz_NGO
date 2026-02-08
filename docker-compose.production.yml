@@ -56,7 +56,7 @@ services:
     working_dir: /app/NLWeb-main
     command: sh -c "cd code/python && pip install --no-cache-dir -r requirements.txt && python app-file.py"
     ports:
-      - "8001:8000"
+      - "8002:8000"
     env_file:
       # Use main .env file (NLWeb-specific .env is optional and can be added later if needed)
       - ./.env
