@@ -37,7 +37,7 @@ export default function RootLayout({
         </div>
         
         <div className="relative z-10">
-          <AuthProvider skipLoadingOnRoot>
+          <AuthProvider>
             {children}
           </AuthProvider>
         </div>

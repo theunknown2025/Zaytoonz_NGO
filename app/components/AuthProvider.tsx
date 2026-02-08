@@ -1,16 +1,23 @@
 'use client';
 
 import { ReactNode, useEffect, useState, useCallback } from 'react';
+import { usePathname } from 'next/navigation';
 import { AuthContext, AuthService, User } from '../lib/auth';
 
 interface AuthProviderProps {
   children: ReactNode;
-  skipLoadingOnRoot?: boolean;
 }
 
-export function AuthProvider({ children, skipLoadingOnRoot = false }: AuthProviderProps) {
+// Public routes that don't need auth check - render immediately
+const PUBLIC_ROUTES = ['/', '/social', '/app'];
+
+export function AuthProvider({ children }: AuthProviderProps) {
   const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(!skipLoadingOnRoot);
+  const [loading, setLoading] = useState(true);
+  const pathname = usePathname();
+
+  // Check if current route is public
+  const isPublicRoute = pathname && PUBLIC_ROUTES.includes(pathname);
 
   useEffect(() => {
     // Check if user is already logged in
@@ -20,15 +27,16 @@ export function AuthProvider({ children, skipLoadingOnRoot = false }: AuthProvid
       setLoading(false);
     };
 
-    // If skipLoadingOnRoot is true, render immediately and check auth in background
-    if (skipLoadingOnRoot) {
+    // If it's a public route, render immediately and check auth in background
+    if (isPublicRoute) {
       setLoading(false);
       // Check auth in background without blocking render
       checkUser();
     } else {
+      // For protected routes, wait for auth check
       checkUser();
     }
-  }, [skipLoadingOnRoot]);
+  }, [isPublicRoute]);
 
   const signIn = useCallback(async (email: string, password: string) => {
     const { user, error } = await AuthService.signIn(email, password);
