@@ -115,9 +115,10 @@ console.log('\n' + '='.repeat(60));
 console.log('📊 SUMMARY');
 console.log('='.repeat(60));
 
+const sourceContent = fs.existsSync(sourcePagePath) ? fs.readFileSync(sourcePagePath, 'utf8') : '';
 const sourceCorrect = fs.existsSync(sourcePagePath) && 
-  fs.readFileSync(sourcePagePath, 'utf8').includes('ZaytoonzSMLanding') &&
-  !fs.readFileSync(sourcePagePath, 'utf8').includes('LandingPage');
+  sourceContent.includes('ZaytoonzSMLanding') &&
+  !/import.*LandingPage|from.*LandingPage|<LandingPage/.test(sourceContent);
 
 if (sourceCorrect) {
   console.log('✅ Source file (app/page.tsx) is CORRECT');
