@@ -3,9 +3,14 @@
 import { ReactNode, useEffect, useState, useCallback } from 'react';
 import { AuthContext, AuthService, User } from '../lib/auth';
 
-export function AuthProvider({ children }: { children: ReactNode }) {
+interface AuthProviderProps {
+  children: ReactNode;
+  skipLoadingOnRoot?: boolean;
+}
+
+export function AuthProvider({ children, skipLoadingOnRoot = false }: AuthProviderProps) {
   const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!skipLoadingOnRoot);
 
   useEffect(() => {
     // Check if user is already logged in
@@ -15,8 +20,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setLoading(false);
     };
 
-    checkUser();
-  }, []);
+    // If skipLoadingOnRoot is true, render immediately and check auth in background
+    if (skipLoadingOnRoot) {
+      setLoading(false);
+      // Check auth in background without blocking render
+      checkUser();
+    } else {
+      checkUser();
+    }
+  }, [skipLoadingOnRoot]);
 
   const signIn = useCallback(async (email: string, password: string) => {
     const { user, error } = await AuthService.signIn(email, password);
@@ -48,7 +60,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { error };
   }, []);
 
-  // Only render children after we've checked for a logged-in user
+  // Only render children after we've checked for a logged-in user (unless skipLoadingOnRoot)
   if (loading) {
     return <div className="flex items-center justify-center min-h-screen">Loading...</div>;
   }
