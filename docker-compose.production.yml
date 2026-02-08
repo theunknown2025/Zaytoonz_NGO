@@ -24,7 +24,7 @@ services:
       - ./:/app
       - /app/node_modules
       # Removed /app/.next volume - let Next.js manage its own build cache
-      # To clear cache, remove the volume externally before rebuilding
+      # The command already includes "rm -rf .next" to ensure fresh builds
     restart: unless-stopped
     depends_on:
       - python-scraper
