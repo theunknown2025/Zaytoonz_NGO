@@ -53,10 +53,14 @@ services:
   nlweb:
     image: python:3.13-slim
     container_name: zaytoonz-nlweb
-    working_dir: /app/NLWeb-main/code/python
-    command: sh -c "pip install --no-cache-dir -r requirements.txt && python app-file.py"
+    working_dir: /app/NLWeb-main
+    command: sh -c "cd code/python && pip install --no-cache-dir -r requirements.txt && python app-file.py"
     ports:
       - "8001:8000"
+    env_file:
+      # Load NLWeb-specific .env file if it exists, otherwise use main .env
+      - ./NLWeb-main/.env
+      - ./.env
     environment:
       - PYTHONUNBUFFERED=${PYTHONUNBUFFERED:-1}
       - PYTHONPATH=/app/NLWeb-main/code/python
@@ -117,3 +121,5 @@ networks:
   zaytoonz-network:
     driver: bridge
 
+volumes:
+  nlweb-data:
