@@ -22,7 +22,17 @@ curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
 sudo apt install -y nodejs
 
 # Install Python 3.11+ and pip
-sudo apt install -y python3.11 python3.11-venv python3-pip python3-dev
+# First, check available Python version
+python3 --version
+
+# Option 1: Install Python 3.11 from deadsnakes PPA (recommended if available)
+sudo apt install -y software-properties-common
+sudo add-apt-repository ppa:deadsnakes/ppa -y
+sudo apt update
+sudo apt install -y python3.11 python3.11-venv python3.11-dev python3-pip
+
+# Option 2: If Python 3.11 is not available, use default Python (3.9+ should work)
+# sudo apt install -y python3 python3-venv python3-pip python3-dev
 
 # Install build tools
 sudo apt install -y build-essential git curl wget
@@ -48,7 +58,7 @@ sudo apt install -y nginx
 ### Verify Installations
 ```bash
 node --version  # Should be v20.x
-python3 --version  # Should be 3.11+
+python3 --version  # Should be 3.9+ (3.11+ preferred)
 pm2 --version
 nginx -v
 ```
@@ -142,39 +152,184 @@ nano .env
 
 Add the following (replace with your actual values):
 ```env
-# Node.js / Next.js
+# ============================================
+# Node.js / Next.js Configuration
+# ============================================
 NODE_ENV=production
 PORT=3001
 
-# Supabase
-NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+# ============================================
+# Supabase Configuration
+# ============================================
+NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key_here
 
-# OpenAI
-OPENAI_API_KEY=your_openai_key
-NEXT_PUBLIC_OPENAI_API_KEY=your_openai_key
+# ============================================
+# OpenAI Configuration for Zaytoonz AI Scraper
+# ============================================
+OPENAI_API_KEY=your_openai_api_key_here
+NEXT_PUBLIC_OPENAI_API_KEY=your_openai_api_key_here
 OPENAI_MODEL=gpt-4o-mini
 OPENAI_MAX_TOKENS=2000
 
-# Scraper
+# ============================================
+# External Python Scraper Configuration
+# ============================================
+# Set to 'true' to use external Python scraper, 'false' to use local TypeScript scraper
 NEXT_PUBLIC_USE_EXTERNAL_SCRAPER=true
 NEXT_PUBLIC_EXTERNAL_SCRAPER_URL=http://localhost:8000
 NEXT_PUBLIC_FALLBACK_TO_LOCAL=true
 
-# NLWeb
+# ============================================
+# NLWeb Configuration (for enhanced NLP capabilities)
+# ============================================
+# Note: Use localhost for /var/www deployment (not Docker service names)
 NLWEB_URL=http://localhost:8001
 
-# Python
+# ============================================
+# Python Environment
+# ============================================
 PYTHONUNBUFFERED=1
+PYTHONDONTWRITEBYTECODE=1
 ```
 
-### Create NLWeb .env File (if using separate file)
+### Create Python Scraper .env File (Optional - if using separate file)
+```bash
+cd /var/www/zaytoonz-ngo/Scrape_Master
+nano .env
+```
+
+Add the following:
+```env
+# ============================================
+# Python Scraper Environment Variables
+# ============================================
+OPENAI_API_KEY=your_openai_api_key_here
+
+# Optional: Other AI Provider Keys
+GEMINI_API_KEY=
+GROQ_API_KEY=
+DEEPSEEK_API_KEY=
+
+# Supabase Configuration (if needed by scraper)
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_ANON_KEY=your_supabase_anon_key_here
+```
+
+### Create NLWeb .env File
 ```bash
 cd /var/www/zaytoonz-ngo/NLWeb-main
 nano .env
 ```
 
-Add NLWeb-specific environment variables (see `NLWeb-main/.env` for reference).
+Add the following (replace TODOs with your actual values):
+```env
+# ============================================
+# NLWeb Environment Variables
+# ============================================
+# This holds the environment variables needed for the NLWeb webapp to run.
+# It is recommended to set these variables in your shell profile or secure environment.
+# Make sure to replace the placeholder values with your actual keys and endpoints.
+
+# ============================================
+# Azure Services Configuration
+# ============================================
+AZURE_VECTOR_SEARCH_ENDPOINT=https://TODO.search.windows.net
+AZURE_VECTOR_SEARCH_API_KEY=<TODO>
+
+AZURE_OPENAI_ENDPOINT=https://TODO.openai.azure.com/
+AZURE_OPENAI_API_KEY=<TODO>
+
+# ============================================
+# LLM Provider API Keys
+# ============================================
+ANTHROPIC_API_KEY=<TODO>
+
+INCEPTION_ENDPOINT=https://api.inceptionlabs.ai/v1/chat/completions
+INCEPTION_API_KEY=<TODO>
+
+OPENAI_ENDPOINT=https://api.openai.com/v1/chat/completions
+OPENAI_API_KEY=your_openai_api_key_here
+
+# ============================================
+# Snowflake Configuration
+# ============================================
+SNOWFLAKE_ACCOUNT_URL=<TODO>
+SNOWFLAKE_PAT=<TODO>
+# One of https://docs.snowflake.com/en/user-guide/snowflake-cortex/vector-embeddings#text-embedding-models
+SNOWFLAKE_EMBEDDING_MODEL=snowflake-arctic-embed-l-v2.0
+
+# Fully qualified name of the cortex search service in your snowflake account
+# For example TEMP.NLWEB.NLWEB_SAMPLE
+# if you used snowflake.sql with --database TEMP --schema NLWEB
+SNOWFLAKE_CORTEX_SEARCH_SERVICE=TODO
+
+# ============================================
+# Vector Database Configuration
+# ============================================
+# Milvus Configuration
+# For dev, run Milvus Lite: Specify a local file to persist data. No token needed.
+MILVUS_ENDPOINT=../data/db/milvus.db
+# For production, deploy a server and specify the URI and optionally "username:password" as token.
+# MILVUS_ENDPOINT=http://localhost:19530
+# MILVUS_TOKEN=username:password
+# For fully managed Milvus (Zilliz Cloud): use Public Endpoint and API key of your Zilliz cluster.
+# MILVUS_ENDPOINT=<copy_your_cluster_endpoint_here>
+# MILVUS_TOKEN=<copy_your_api_key_here>
+
+# Qdrant Configuration
+# QDRANT_URL=http://localhost:6333
+# QDRANT_API_KEY=
+
+# OpenSearch Configuration
+OPENSEARCH_ENDPOINT=<TODO>
+# Authentication credentials (username:password for basic auth, or API key)
+OPENSEARCH_CREDENTIALS=<TODO>
+
+# Elasticsearch Configuration
+ELASTICSEARCH_URL=http://localhost:9200
+ELASTICSEARCH_API_KEY=<TODO>
+
+# Postgres Configuration
+POSTGRES_CONNECTION_STRING=postgresql://<HOST>:<PORT>/<DATABASE>?user=<USERNAME>&sslmode=require
+POSTGRES_PASSWORD=<PASSWORD>
+
+# ============================================
+# NLWeb Storage and Output Configuration
+# ============================================
+# Using local file-based storage
+NLWEB_OUTPUT_DIR=../data/nlweb
+# Or specify absolute path:
+# NLWEB_OUTPUT_DIR=/var/www/zaytoonz-ngo/NLWeb-main/data/nlweb
+
+# ============================================
+# Other Services
+# ============================================
+OLLAMA_URL=http://localhost:11434
+
+# ============================================
+# NLWeb Logging Configuration
+# ============================================
+# NLWeb Logging profile (production, development, testing)
+# This is used to set the logging level and other configurations in config/config_logging.py
+NLWEB_LOGGING_PROFILE=production
+
+# ============================================
+# Additional Provider Keys
+# ============================================
+# Hugging Face Inference Providers
+HF_TOKEN=<TODO>
+
+# Cloudflare AutoRAG
+CLOUDFLARE_API_TOKEN=<TODO>
+CLOUDFLARE_RAG_ID_ENV=<TODO>
+CLOUDFLARE_ACCOUNT_ID=<TODO>
+```
+
+**Note:** 
+- Replace all `<TODO>` placeholders with your actual values
+- For production, remove or comment out unused services
+- Keep API keys secure and never commit `.env` files to version control
 
 ## Step 8: Update PM2 Configuration
 
