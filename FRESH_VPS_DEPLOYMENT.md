@@ -144,14 +144,29 @@ ls -la .env
 
 ### 5.1 Verify docker-compose.production.yml
 ```bash
-cat docker-compose.production.yml | head -30
+cat docker-compose.production.yml
 ```
 
 **Should see:**
-- `nextjs` service
+- `nextjs` service with:
+  - `image: node:20-alpine`
+  - `command: sh -c "npm install --production && npm run build && npm start"`
+  - `volumes:` section with:
+    - `./:/app`
+    - `/app/node_modules`
+    - **NO `/app/.next` volume** (removed to allow cache clearing)
+  - `restart: unless-stopped` (only once)
+  - `depends_on: - python-scraper` (only once)
 - `python-scraper` service
 - `nginx` service
-- No `/app/.next` volume mount (removed to allow cache clearing)
+- `networks: zaytoonz-network`
+
+**Verify no duplicates:**
+```bash
+# Check for duplicate restart/depends_on in nextjs service
+grep -A 10 "nextjs:" docker-compose.production.yml | grep -E "restart|depends_on" | wc -l
+# Should return: 2 (one restart, one depends_on)
+```
 
 ### 5.2 Verify app/page.tsx (Root Page)
 ```bash
