@@ -22,7 +22,7 @@ module.exports = {
     {
       name: 'python-scraper',
       script: 'venv/bin/uvicorn',
-      args: 'api_wrapper:app --host 0.0.0.0 --port 8000 --workers 2',
+      args: 'api_wrapper:app --host 0.0.0.0 --port 8000 --loop asyncio',
       cwd: '/var/www/zaytoonz-ngo/Scrape_Master',
       interpreter: 'none',
       instances: 1,
