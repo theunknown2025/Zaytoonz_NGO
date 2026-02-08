@@ -23,6 +23,10 @@ else
     echo "ℹ️  .next directory doesn't exist (will be created during build)"
 fi
 
+# Also remove .next from inside container if it exists (from previous builds)
+echo "🧹 Ensuring clean build environment..."
+docker compose -f docker-compose.production.yml run --rm nextjs sh -c "rm -rf .next" 2>/dev/null || true
+
 # Also clean up any orphaned volumes from old setup
 docker volume prune -f
 
