@@ -19,6 +19,7 @@ services:
       - NEXT_PUBLIC_USE_EXTERNAL_SCRAPER=${NEXT_PUBLIC_USE_EXTERNAL_SCRAPER:-true}
       - NEXT_PUBLIC_EXTERNAL_SCRAPER_URL=${NEXT_PUBLIC_EXTERNAL_SCRAPER_URL:-http://python-scraper:8000}
       - NEXT_PUBLIC_FALLBACK_TO_LOCAL=${NEXT_PUBLIC_FALLBACK_TO_LOCAL:-true}
+      - NLWEB_URL=${NLWEB_URL:-http://nlweb:8000}
     volumes:
       - ./:/app
       - /app/node_modules
@@ -27,6 +28,7 @@ services:
     restart: unless-stopped
     depends_on:
       - python-scraper
+      - nlweb
     networks:
       - zaytoonz-network
 
@@ -44,6 +46,56 @@ services:
       - OPENAI_API_KEY=${OPENAI_API_KEY}
     volumes:
       - ./Scrape_Master:/app/Scrape_Master
+    restart: unless-stopped
+    networks:
+      - zaytoonz-network
+
+  nlweb:
+    image: python:3.13-slim
+    container_name: zaytoonz-nlweb
+    working_dir: /app/NLWeb-main/code/python
+    command: sh -c "pip install --no-cache-dir -r requirements.txt && python app-file.py"
+    ports:
+      - "8001:8000"
+    environment:
+      - PYTHONUNBUFFERED=${PYTHONUNBUFFERED:-1}
+      - PYTHONPATH=/app/NLWeb-main/code/python
+      - PORT=8000
+      - NLWEB_CONFIG_DIR=/app/NLWeb-main/config
+      - NLWEB_OUTPUT_DIR=/app/NLWeb-main/data/nlweb
+      - NLWEB_OUTPUT_DIR_RELATIVE=../data/nlweb
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - OPENAI_ENDPOINT=${OPENAI_ENDPOINT:-https://api.openai.com/v1/chat/completions}
+      - AZURE_OPENAI_ENDPOINT=${AZURE_OPENAI_ENDPOINT}
+      - AZURE_OPENAI_API_KEY=${AZURE_OPENAI_API_KEY}
+      - AZURE_VECTOR_SEARCH_ENDPOINT=${AZURE_VECTOR_SEARCH_ENDPOINT}
+      - AZURE_VECTOR_SEARCH_API_KEY=${AZURE_VECTOR_SEARCH_API_KEY}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - INCEPTION_ENDPOINT=${INCEPTION_ENDPOINT}
+      - INCEPTION_API_KEY=${INCEPTION_API_KEY}
+      - SNOWFLAKE_ACCOUNT_URL=${SNOWFLAKE_ACCOUNT_URL}
+      - SNOWFLAKE_PAT=${SNOWFLAKE_PAT}
+      - SNOWFLAKE_EMBEDDING_MODEL=${SNOWFLAKE_EMBEDDING_MODEL}
+      - SNOWFLAKE_CORTEX_SEARCH_SERVICE=${SNOWFLAKE_CORTEX_SEARCH_SERVICE}
+      - MILVUS_ENDPOINT=${MILVUS_ENDPOINT}
+      - MILVUS_TOKEN=${MILVUS_TOKEN}
+      - QDRANT_URL=${QDRANT_URL}
+      - QDRANT_API_KEY=${QDRANT_API_KEY}
+      - OPENSEARCH_ENDPOINT=${OPENSEARCH_ENDPOINT}
+      - OPENSEARCH_CREDENTIALS=${OPENSEARCH_CREDENTIALS}
+      - OLLAMA_URL=${OLLAMA_URL}
+      - ELASTICSEARCH_URL=${ELASTICSEARCH_URL}
+      - ELASTICSEARCH_API_KEY=${ELASTICSEARCH_API_KEY}
+      - POSTGRES_CONNECTION_STRING=${POSTGRES_CONNECTION_STRING}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - NLWEB_LOGGING_PROFILE=${NLWEB_LOGGING_PROFILE:-production}
+      - HF_TOKEN=${HF_TOKEN}
+      - CLOUDFLARE_API_TOKEN=${CLOUDFLARE_API_TOKEN}
+      - CLOUDFLARE_RAG_ID_ENV=${CLOUDFLARE_RAG_ID_ENV}
+      - CLOUDFLARE_ACCOUNT_ID=${CLOUDFLARE_ACCOUNT_ID}
+    volumes:
+      - ./NLWeb-main:/app/NLWeb-main
+      - nlweb-data:/app/NLWeb-main/data
     restart: unless-stopped
     networks:
       - zaytoonz-network
