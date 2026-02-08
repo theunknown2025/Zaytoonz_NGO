@@ -13,11 +13,14 @@ const PUBLIC_ROUTES = ['/', '/social', '/app'];
 
 export function AuthProvider({ children }: AuthProviderProps) {
   const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
   const pathname = usePathname();
 
-  // Check if current route is public
-  const isPublicRoute = pathname && PUBLIC_ROUTES.includes(pathname);
+  // Check if current route is public (default to true if pathname not yet available)
+  const isPublicRoute = pathname ? PUBLIC_ROUTES.includes(pathname) : true;
+
+  // For public routes, start with loading=false to render immediately
+  // For protected routes, start with loading=true to wait for auth check
+  const [loading, setLoading] = useState(!isPublicRoute);
 
   useEffect(() => {
     // Check if user is already logged in
@@ -29,8 +32,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
     // If it's a public route, render immediately and check auth in background
     if (isPublicRoute) {
-      setLoading(false);
-      // Check auth in background without blocking render
+      // Already set loading=false in useState, just check auth in background
       checkUser();
     } else {
       // For protected routes, wait for auth check
