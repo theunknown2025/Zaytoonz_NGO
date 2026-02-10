@@ -4,7 +4,7 @@ services:
     image: node:20-alpine
     container_name: zaytoonz-nextjs
     working_dir: /app
-    command: sh -c "rm -rf .next && npm install --production && npm run build && npm start"
+    command: sh -c "rm -rf .next && echo '🔍 Verifying page routing...' && grep -q 'ZaytoonzSMLanding' app/page.tsx && echo '✅ Root page (/) uses ZaytoonzSMLanding (SM page)' || (echo '❌ ERROR: Root page must use ZaytoonzSMLanding!' && exit 1) && grep -q 'LandingPage' app/app/page.tsx && echo '✅ /app route uses LandingPage' || (echo '❌ ERROR: /app route must use LandingPage!' && exit 1) && echo '📦 Installing dependencies...' && npm install --production && echo '🔨 Building Next.js app...' && npm run build && echo '✅ Build complete - Root (/) = SM Page, /app = LandingPage' && npm start"
     ports:
       - "3002:3000"
     environment:
