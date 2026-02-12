@@ -1,0 +1,66 @@
+# Dependencies
+node_modules
+npm-debug.log
+yarn-error.log
+package-lock.json
+
+# Next.js
+.next/
+out/
+build/
+dist/
+
+# Environment files
+.env
+.env.*
+env.production
+
+# Git
+.git
+.gitignore
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Deployment
+Deployment/
+docker-compose*.yml
+*.md
+*.sh
+*.ps1
+
+# Database
+database/
+sql/
+*.sql
+
+# Logs
+logs
+*.log
+
+# Certificates
+certbot/
+
+# Other services
+Scrape_Master/
+NLWeb-main/
+python_scraper/
+morchid-ai-service/
+browser-extension/
+
+# Archives
+*.tar.gz
+*.zip
+
+# Test
+.coverage
+coverage/
+.nyc_output/

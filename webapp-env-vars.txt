@@ -1,0 +1,19 @@
+# Web App Only - Environment Variables
+# Copy and paste these into your deployment platform
+
+NODE_ENV=production
+PORT=3000
+
+# Supabase Configuration (REQUIRED)
+NEXT_PUBLIC_SUPABASE_URL=https://uroirdudxkfppocqcorm.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVyb2lyZHVkeGtmcHBvY3Fjb3JtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDU3MDA4MzMsImV4cCI6MjA2MTI3NjgzM30.6sFQhGrngaFTnsDS7EqjUI2F86iKefTfCn_M1BitcPM
+
+# OpenAI Configuration (REQUIRED - Replace with your actual key)
+OPENAI_API_KEY=k-proj-rJmsO4OxQGYD6eXARiETdS_RDKhkClL_1_ESDFVnZ9XmosCZ70cSibn6SRAIcuwNGRv0idqP_oT3BlbkFJARMThcXGjmbR9ZNelNSUCkA4XrUaIzO_BX89dcQyjVylF21yx_JU_Pw5_4qpTfmnJMDyYR8UsA
+NEXT_PUBLIC_OPENAI_API_KEY=YOUR_OPENAI_API_KEY_HERE
+OPENAI_MODEL=gpt-4o-mini
+OPENAI_MAX_TOKENS=2000
+
+# Disable external services (Scraper and NLWEB not included in this deployment)
+NEXT_PUBLIC_USE_EXTERNAL_SCRAPER=false
+NEXT_PUBLIC_FALLBACK_TO_LOCAL=false
