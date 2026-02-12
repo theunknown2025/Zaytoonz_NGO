@@ -8,14 +8,10 @@ services:
       - -c
       - |
         rm -rf .next
-        echo "Verifying page routing..."
-        grep -q "ZaytoonzSMLanding" page.tsx && echo "Root page uses ZaytoonzSMLanding (SM page)" || (echo "ERROR: Root page must use ZaytoonzSMLanding" && exit 1)
-        grep -q "LandingPage" app/page.tsx && echo "/app route uses LandingPage" || (echo "ERROR: /app route must use LandingPage" && exit 1)
-        echo "Installing dependencies..."
+        grep -q "ZaytoonzSMLanding" page.tsx || exit 1
+        grep -q "LandingPage" app/page.tsx || exit 1
         npm install --production
-        echo "Building Next.js app..."
         npm run build
-        echo "Build complete - Root = SM Page, /app = LandingPage"
         npm start
     ports:
       - "3002:3000"
@@ -35,8 +31,6 @@ services:
     volumes:
       - ./:/app
       - /app/node_modules
-      # Removed /app/.next volume - let Next.js manage its own build cache
-      # The command already includes "rm -rf .next" to ensure fresh builds
     restart: unless-stopped
     depends_on:
       - python-scraper
@@ -79,9 +73,6 @@ services:
     command: sh -c "cd code/python && pip install --no-cache-dir -r requirements.txt && python app-file.py"
     ports:
       - "8002:8000"
-    env_file:
-      # Use main .env file (NLWeb-specific .env is optional and can be added later if needed)
-      - ./.env
     environment:
       - PYTHONUNBUFFERED=${PYTHONUNBUFFERED:-1}
       - PYTHONPATH=/app/NLWeb-main/code/python
@@ -132,11 +123,17 @@ services:
       - "80:80"
       - "443:443"
     volumes:
-      - ./nginx.conf:/etc/nginx/nginx.conf:ro
       - ./certbot/conf:/etc/letsencrypt:ro
       - ./certbot/www:/var/www/certbot:ro
+    entrypoint: |
+      sh -c "
+        echo 'Waiting for services to be ready...'
+        sleep 5
+        echo 'events{worker_connections 1024;}http{resolver 127.0.0.11 valid=30s;include /etc/nginx/mime.types;default_type application/octet-stream;server{listen 80;server_name _;client_max_body_size 100M;location /.well-known/acme-challenge/{root /var/www/certbot;try_files \$uri =404;}location /{set \$backend nextjs:3000;proxy_pass http://\$backend;proxy_http_version 1.1;proxy_set_header Upgrade \$http_upgrade;proxy_set_header Connection upgrade;proxy_set_header Host \$host;proxy_set_header X-Real-IP \$remote_addr;proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;proxy_set_header X-Forwarded-Proto \$scheme;proxy_cache_bypass \$http_upgrade;proxy_read_timeout 300s;proxy_connect_timeout 75s;}location /scraper-api/{set \$backend python-scraper:8000;proxy_pass http://\$backend/;proxy_http_version 1.1;proxy_set_header Host \$host;proxy_set_header X-Real-IP \$remote_addr;proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;proxy_set_header X-Forwarded-Proto \$scheme;proxy_read_timeout 600s;proxy_connect_timeout 75s;}}}' > /etc/nginx/nginx.conf && nginx -g 'daemon off;'
+      "
     depends_on:
       - nextjs
+      - python-scraper
     restart: unless-stopped
     networks:
       - zaytoonz-network
