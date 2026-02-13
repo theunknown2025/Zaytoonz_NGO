@@ -32,10 +32,10 @@ services:
       - nextjs-cache:/app/.next
     restart: unless-stopped
     depends_on:
-      python-scraper:
-        condition: service_started
       nlweb:
         condition: service_started
+      # Note: python-scraper is optional - Next.js will start without waiting for it
+      # The scraper can be used when available via NEXT_PUBLIC_EXTERNAL_SCRAPER_URL
     networks:
       - zaytoonz-network
     healthcheck:
@@ -93,8 +93,8 @@ services:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health || exit 1"]
       interval: 30s
       timeout: 10s
-      retries: 5
-      start_period: 300s
+      retries: 3
+      start_period: 120s
     deploy:
       resources:
         limits:
