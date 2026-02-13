@@ -29,7 +29,8 @@ services:
       - NLWEB_URL=${NLWEB_URL:-http://nlweb:8000}
     volumes:
       - ./public:/app/public:ro
-      - nextjs-cache:/app/.next
+      # Note: .next is built into the image, no need for volume mount
+      # Removing volume mount ensures fresh build is used
     restart: unless-stopped
     depends_on:
       nlweb:
