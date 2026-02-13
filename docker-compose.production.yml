@@ -159,7 +159,7 @@ services:
       - CLOUDFLARE_RAG_ID_ENV=${CLOUDFLARE_RAG_ID_ENV:-}
       - CLOUDFLARE_ACCOUNT_ID=${CLOUDFLARE_ACCOUNT_ID:-}
     volumes:
-      - ./NLWeb-main:/app/NLWeb-main:ro
+      - ./NLWeb-main:/app/NLWeb-main
       - nlweb-data:/app/NLWeb-main/data
     restart: unless-stopped
     networks:
