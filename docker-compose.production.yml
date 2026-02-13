@@ -1,22 +1,12 @@
+version: '3.8'
+
 services:
   nextjs:
-    image: node:20-alpine
+    build:
+      context: .
+      dockerfile: Dockerfile.webapp
     container_name: zaytoonz-nextjs
     working_dir: /app
-    command:
-      - sh
-      - -c
-      - |
-        rm -rf .next
-        echo "Verifying page routing..."
-        grep -q "ZaytoonzSMLanding" page.tsx && echo "Root page uses ZaytoonzSMLanding (SM page)" || (echo "ERROR: Root page must use ZaytoonzSMLanding" && exit 1)
-        grep -q "LandingPage" app/page.tsx && echo "/app route uses LandingPage" || (echo "ERROR: /app route must use LandingPage" && exit 1)
-        echo "Installing dependencies..."
-        npm install --production
-        echo "Building Next.js app..."
-        npm run build
-        echo "Build complete - Root = SM Page, /app = LandingPage"
-        npm start
     ports:
       - "3002:3000"
     environment:
@@ -29,61 +19,106 @@ services:
       - OPENAI_MODEL=${OPENAI_MODEL:-gpt-4o-mini}
       - OPENAI_MAX_TOKENS=${OPENAI_MAX_TOKENS:-2000}
       - NEXT_PUBLIC_USE_EXTERNAL_SCRAPER=${NEXT_PUBLIC_USE_EXTERNAL_SCRAPER:-true}
-      - NEXT_PUBLIC_EXTERNAL_SCRAPER_URL=${NEXT_PUBLIC_EXTERNAL_SCRAPER_URL:-https://zaytoonz.com/scraper-api}
+      - NEXT_PUBLIC_EXTERNAL_SCRAPER_URL=${NEXT_PUBLIC_EXTERNAL_SCRAPER_URL:-http://python-scraper:8000}
       - NEXT_PUBLIC_FALLBACK_TO_LOCAL=${NEXT_PUBLIC_FALLBACK_TO_LOCAL:-true}
       - NLWEB_URL=${NLWEB_URL:-http://nlweb:8000}
     volumes:
-      - ./:/app
-      - /app/node_modules
-      # Removed /app/.next volume - let Next.js manage its own build cache
-      # The command already includes "rm -rf .next" to ensure fresh builds
+      - ./public:/app/public:ro
+      - nextjs-cache:/app/.next
     restart: unless-stopped
     depends_on:
-      - python-scraper
-      - nlweb
+      python-scraper:
+        condition: service_healthy
+      nlweb:
+        condition: service_started
     networks:
       - zaytoonz-network
-
-  certbot:
-    image: certbot/certbot
-    container_name: zaytoonz-certbot
-    volumes:
-      - ./certbot/conf:/etc/letsencrypt
-      - ./certbot/www:/var/www/certbot
-    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
-    networks:
-      - zaytoonz-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/health || wget --no-verbose --tries=1 --spider http://localhost:3000/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   python-scraper:
     image: python:3.11-slim
     container_name: zaytoonz-scraper
     working_dir: /app/Scrape_Master
-    command: sh -c "apt-get update && apt-get install -y wget gnupg ca-certificates && mkdir -p /etc/apt/keyrings && wget -q -O /etc/apt/keyrings/google-chrome.gpg https://dl-ssl.google.com/linux/linux_signing_key.pub && echo 'deb [arch=amd64 signed-by=/etc/apt/keyrings/google-chrome.gpg] http://dl.google.com/linux/chrome/deb/ stable main' > /etc/apt/sources.list.d/google-chrome.list && apt-get update && apt-get install -y google-chrome-stable && pip install --no-cache-dir -r requirements.txt && playwright install chromium && uvicorn api_wrapper:app --host 0.0.0.0 --port 8000"
+    command: >
+      sh -c "
+        apt-get update -qq &&
+        apt-get install -y -qq wget gnupg ca-certificates curl &&
+        mkdir -p /etc/apt/keyrings &&
+        wget -q -O /etc/apt/keyrings/google-chrome.gpg https://dl-ssl.google.com/linux/linux_signing_key.pub &&
+        echo 'deb [arch=amd64 signed-by=/etc/apt/keyrings/google-chrome.gpg] http://dl.google.com/linux/chrome/deb/ stable main' > /etc/apt/sources.list.d/google-chrome.list &&
+        apt-get update -qq &&
+        apt-get install -y -qq google-chrome-stable &&
+        pip install --no-cache-dir -r requirements.txt &&
+        playwright install chromium --with-deps &&
+        uvicorn api_wrapper:app --host 0.0.0.0 --port 8000 --workers 2
+      "
     ports:
       - "8000:8000"
     environment:
       - PYTHONUNBUFFERED=${PYTHONUNBUFFERED:-1}
+      - PYTHONDONTWRITEBYTECODE=${PYTHONDONTWRITEBYTECODE:-1}
       - NEXT_PUBLIC_SUPABASE_URL=${NEXT_PUBLIC_SUPABASE_URL}
       - NEXT_PUBLIC_SUPABASE_ANON_KEY=${NEXT_PUBLIC_SUPABASE_ANON_KEY}
       - OPENAI_API_KEY=${OPENAI_API_KEY}
     volumes:
-      - ./Scrape_Master:/app/Scrape_Master
+      - ./Scrape_Master:/app/Scrape_Master:ro
+      - scraper-cache:/app/.cache
     restart: unless-stopped
     networks:
       - zaytoonz-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 120s
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 3G
+        reservations:
+          cpus: '0.5'
+          memory: 1G
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   nlweb:
     image: python:3.13-slim
     container_name: zaytoonz-nlweb
     working_dir: /app/NLWeb-main
-    command: sh -c "cd code/python && pip install --no-cache-dir -r requirements.txt && python app-file.py"
+    command: >
+      sh -c "
+        cd code/python &&
+        pip install --no-cache-dir -r requirements.txt &&
+        python app-file.py
+      "
     ports:
       - "8002:8000"
-    env_file:
-      # Use main .env file (NLWeb-specific .env is optional and can be added later if needed)
-      - ./.env
     environment:
       - PYTHONUNBUFFERED=${PYTHONUNBUFFERED:-1}
+      - PYTHONDONTWRITEBYTECODE=${PYTHONDONTWRITEBYTECODE:-1}
       - PYTHONPATH=/app/NLWeb-main/code/python
       - PORT=8000
       - NLWEB_CONFIG_DIR=/app/NLWeb-main/config
@@ -119,11 +154,30 @@ services:
       - CLOUDFLARE_RAG_ID_ENV=${CLOUDFLARE_RAG_ID_ENV:-}
       - CLOUDFLARE_ACCOUNT_ID=${CLOUDFLARE_ACCOUNT_ID:-}
     volumes:
-      - ./NLWeb-main:/app/NLWeb-main
+      - ./NLWeb-main:/app/NLWeb-main:ro
       - nlweb-data:/app/NLWeb-main/data
     restart: unless-stopped
     networks:
       - zaytoonz-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health || exit 1"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 120s
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 3G
+        reservations:
+          cpus: '0.5'
+          memory: 1G
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   nginx:
     image: nginx:alpine
@@ -132,18 +186,78 @@ services:
       - "80:80"
       - "443:443"
     volumes:
-      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx-webapp.conf:/etc/nginx/nginx.conf:ro
       - ./certbot/conf:/etc/letsencrypt:ro
       - ./certbot/www:/var/www/certbot:ro
+      - nginx-cache:/var/cache/nginx
+      - nginx-logs:/var/log/nginx
+    restart: unless-stopped
     depends_on:
-      - nextjs
+      nextjs:
+        condition: service_healthy
+      python-scraper:
+        condition: service_healthy
+    networks:
+      - zaytoonz-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 128M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  certbot:
+    image: certbot/certbot
+    container_name: zaytoonz-certbot
+    volumes:
+      - ./certbot/conf:/etc/letsencrypt
+      - ./certbot/www:/var/www/certbot
+    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew --quiet; sleep 12h & wait $${!}; done;'"
     restart: unless-stopped
     networks:
       - zaytoonz-network
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+        reservations:
+          cpus: '0.1'
+          memory: 64M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "5m"
+        max-file: "2"
 
 networks:
   zaytoonz-network:
     driver: bridge
+    ipam:
+      config:
+        - subnet: 172.28.0.0/16
 
 volumes:
   nlweb-data:
+    driver: local
+  nextjs-cache:
+    driver: local
+  scraper-cache:
+    driver: local
+  nginx-cache:
+    driver: local
+  nginx-logs:
+    driver: local
