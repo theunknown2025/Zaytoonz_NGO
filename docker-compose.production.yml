@@ -17,6 +17,9 @@ services:
     environment:
       - NODE_ENV=${NODE_ENV:-production}
       - PORT=${PORT:-3000}
+      # Note: NEXT_PUBLIC_BASE_PATH is intentionally not set - app runs at root (/)
+      # Root page (/) redirects to /social which shows ZaytoonzSMLanding (SM page)
+      # Full LandingPage is available at /app route
       - NEXT_PUBLIC_SUPABASE_URL=${NEXT_PUBLIC_SUPABASE_URL}
       - NEXT_PUBLIC_SUPABASE_ANON_KEY=${NEXT_PUBLIC_SUPABASE_ANON_KEY}
       - OPENAI_API_KEY=${OPENAI_API_KEY}
