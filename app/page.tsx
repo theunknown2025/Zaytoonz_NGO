@@ -7,6 +7,11 @@
  * 
  * If you see LandingPage at root, the build cache is stale - rebuild required!
  */
+
+// Force dynamic rendering to prevent static generation issues
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 import ZaytoonzSMLanding from './components/ZaytoonzSMLanding';
 
 export default function Home() {

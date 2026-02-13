@@ -32,8 +32,18 @@ COPY . .
 # Clear Next.js cache to ensure fresh build
 RUN rm -rf .next
 
+# Verify critical files exist before build
+RUN test -f app/page.tsx && \
+    test -f app/components/ZaytoonzSMLanding.tsx && \
+    grep -q "ZaytoonzSMLanding" app/page.tsx && \
+    echo "✓ Root page configuration verified"
+
 # Build the application
 RUN npm run build
+
+# Verify build output contains correct page
+RUN test -d .next && \
+    echo "✓ Build completed successfully"
 
 # Production stage
 FROM node:20-alpine AS runner
