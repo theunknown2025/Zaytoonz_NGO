@@ -200,8 +200,7 @@ services:
     depends_on:
       nextjs:
         condition: service_healthy
-      python-scraper:
-        condition: service_healthy
+      # Note: python-scraper is optional - Nginx will start even if scraper isn't ready yet
     networks:
       - zaytoonz-network
     healthcheck:
