@@ -1,6 +1,7 @@
 'use client';
 
 export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
 import { useState } from 'react';
 import { ChartPieIcon, ListBulletIcon, PlusIcon, RectangleGroupIcon } from '@heroicons/react/24/outline';
