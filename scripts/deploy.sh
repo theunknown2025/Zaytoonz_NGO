@@ -147,14 +147,29 @@ else
     log_warning "Not a git repository, skipping code update"
 fi
 
-# Step 6: Stop existing services
-log_info "Stopping existing services..."
-if docker-compose -f "$COMPOSE_FILE" ps | grep -q "Up"; then
-    docker-compose -f "$COMPOSE_FILE" down --remove-orphans
-    log_success "Services stopped"
-else
-    log_info "No running services to stop"
-fi
+# Step 6: Stop and remove existing services
+log_info "Stopping and removing existing services..."
+# Stop services using docker-compose
+docker-compose -f "$COMPOSE_FILE" down --remove-orphans 2>/dev/null || true
+
+# Remove any containers with our naming pattern that might still exist
+log_info "Cleaning up any remaining containers..."
+CONTAINERS=(
+    "zaytoonz-nextjs"
+    "zaytoonz-scraper"
+    "zaytoonz-nlweb"
+    "zaytoonz-nginx"
+    "zaytoonz-certbot"
+)
+
+for container in "${CONTAINERS[@]}"; do
+    if docker ps -a --format '{{.Names}}' | grep -q "^${container}$"; then
+        log_info "Removing container: $container"
+        docker rm -f "$container" 2>/dev/null || true
+    fi
+done
+
+log_success "Existing services cleaned up"
 
 # Step 7: Build Docker images
 log_info "Building Docker images..."
