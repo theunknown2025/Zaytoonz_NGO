@@ -8,6 +8,11 @@ const nextConfig = {
   images: {
     unoptimized: true
   },
+  // Don't fail build on prerender errors (pages will be rendered on-demand)
+  onDemandEntries: {
+    maxInactiveAge: 25 * 1000,
+    pagesBufferLength: 2,
+  },
   // Exclude directories from Next.js routing
   pageExtensions: ['tsx', 'ts', 'jsx', 'js'],
   // Custom webpack configuration to exclude venv and other non-app directories
