@@ -409,7 +409,6 @@ export default function FormMakerTool() {
       }
       
       // Delete any associated images
-      const supabase = getSupabaseClient();
       const { data: imageData, error: imageError } = await supabase
         .from('form_pictures')
         .select('file_path')
