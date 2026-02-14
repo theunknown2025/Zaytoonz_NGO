@@ -270,7 +270,7 @@ export default function LandingPage() {
                 <ArrowRight className={`${isRTL ? 'mr-2 rotate-180' : 'ml-2'} h-5 w-5`} />
               </a>
               <a
-                href="/"
+                href="/auth/signup"
                 className={`border-2 border-olive-500 text-olive-700 px-8 py-4 rounded-full font-semibold text-lg hover:bg-olive-50 transition-all duration-300 flex items-center justify-center`}
               >
                 {t.hero.postOpportunities}
