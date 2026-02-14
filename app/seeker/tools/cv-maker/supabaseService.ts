@@ -1,16 +1,30 @@
-import { createClient } from '@supabase/supabase-js';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { CVData } from './types';
 import { AuthService } from '@/app/lib/auth';
 
-// Initialize Supabase client
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL as string;
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY as string;
+// Lazy initialization of Supabase client to prevent build-time errors
+let supabase: SupabaseClient | null = null;
 
-if (!supabaseUrl || !supabaseKey) {
-  throw new Error('Missing Supabase environment variables');
+function getSupabaseClient(): SupabaseClient {
+  if (supabase) {
+    return supabase;
+  }
+
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL as string;
+  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY as string;
+
+  if (!supabaseUrl || !supabaseKey) {
+    // Return a dummy client during build if env vars are missing
+    supabase = createClient(
+      supabaseUrl || 'https://placeholder.supabase.co',
+      supabaseKey || 'placeholder-key'
+    );
+    return supabase;
+  }
+
+  supabase = createClient(supabaseUrl, supabaseKey);
+  return supabase;
 }
-
-const supabase = createClient(supabaseUrl, supabaseKey);
 
 // Function to get current user ID
 const getCurrentUserId = async (): Promise<string | null> => {
@@ -51,11 +65,19 @@ export async function saveCV(cvData: CVData, cvName: string, cvId?: string, sect
       throw new Error('User not authenticated');
     }
 
+    const client = getSupabaseClient();
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+    if (!supabaseUrl || !supabaseKey) {
+      return { data: null, error: 'Missing Supabase environment variables' };
+    }
+
     let cvResult;
     
     if (cvId) {
       // Update existing CV
-      cvResult = await supabase
+      cvResult = await client
         .from('cvs')
         .update({
           name: cvName,
@@ -72,7 +94,7 @@ export async function saveCV(cvData: CVData, cvName: string, cvId?: string, sect
         .single();
     } else {
       // Create new CV
-      cvResult = await supabase
+      cvResult = await client
         .from('cvs')
         .insert({
           user_id: userId,
@@ -96,12 +118,12 @@ export async function saveCV(cvData: CVData, cvName: string, cvId?: string, sect
     // If updating, delete existing related data first
     if (cvId) {
       await Promise.all([
-        supabase.from('cv_work_experiences').delete().eq('cv_id', cvId),
-        supabase.from('cv_education').delete().eq('cv_id', cvId),
-        supabase.from('cv_skills').delete().eq('cv_id', cvId),
-        supabase.from('cv_languages').delete().eq('cv_id', cvId),
-        supabase.from('cv_certificates').delete().eq('cv_id', cvId),
-        supabase.from('cv_projects').delete().eq('cv_id', cvId)
+        client.from('cv_work_experiences').delete().eq('cv_id', cvId),
+        client.from('cv_education').delete().eq('cv_id', cvId),
+        client.from('cv_skills').delete().eq('cv_id', cvId),
+        client.from('cv_languages').delete().eq('cv_id', cvId),
+        client.from('cv_certificates').delete().eq('cv_id', cvId),
+        client.from('cv_projects').delete().eq('cv_id', cvId)
       ]);
     }
 
@@ -121,7 +143,7 @@ export async function saveCV(cvData: CVData, cvName: string, cvId?: string, sect
         description: work.description,
         sort_order: index
       }));
-      savePromises.push(supabase.from('cv_work_experiences').insert(workData));
+      savePromises.push(client.from('cv_work_experiences').insert(workData));
     }
 
     // Save education
@@ -136,7 +158,7 @@ export async function saveCV(cvData: CVData, cvName: string, cvId?: string, sect
         description: edu.description,
         sort_order: index
       }));
-      savePromises.push(supabase.from('cv_education').insert(eduData));
+      savePromises.push(client.from('cv_education').insert(eduData));
     }
 
     // Save skills
@@ -147,7 +169,7 @@ export async function saveCV(cvData: CVData, cvName: string, cvId?: string, sect
         level: skill.level,
         sort_order: index
       }));
-      savePromises.push(supabase.from('cv_skills').insert(skillsData));
+      savePromises.push(client.from('cv_skills').insert(skillsData));
     }
 
     // Save languages
@@ -158,7 +180,7 @@ export async function saveCV(cvData: CVData, cvName: string, cvId?: string, sect
         proficiency: lang.proficiency,
         sort_order: index
       }));
-      savePromises.push(supabase.from('cv_languages').insert(languagesData));
+      savePromises.push(client.from('cv_languages').insert(languagesData));
     }
 
     // Save certificates
@@ -171,7 +193,7 @@ export async function saveCV(cvData: CVData, cvName: string, cvId?: string, sect
         description: cert.description,
         sort_order: index
       }));
-      savePromises.push(supabase.from('cv_certificates').insert(certsData));
+      savePromises.push(client.from('cv_certificates').insert(certsData));
     }
 
     // Save projects
@@ -186,7 +208,7 @@ export async function saveCV(cvData: CVData, cvName: string, cvId?: string, sect
         url: project.url,
         sort_order: index
       }));
-      savePromises.push(supabase.from('cv_projects').insert(projectsData));
+      savePromises.push(client.from('cv_projects').insert(projectsData));
     }
 
     // Save external links
@@ -199,7 +221,7 @@ export async function saveCV(cvData: CVData, cvName: string, cvId?: string, sect
         sort_order: index
       }));
 
-      const externalLinksResult = await supabase
+      const externalLinksResult = await client
         .from('cv_external_links')
         .upsert(externalLinksData, { onConflict: 'cv_id,platform' });
 
@@ -253,8 +275,16 @@ export async function getCVById(cvId: string): Promise<{ data: any | null; error
       throw new Error('User not authenticated');
     }
 
+    const client = getSupabaseClient();
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+    if (!supabaseUrl || !supabaseKey) {
+      return { data: null, error: 'Missing Supabase environment variables' };
+    }
+
     // Get main CV data
-    const cvResult = await supabase
+    const cvResult = await client
       .from('cvs')
       .select('*')
       .eq('id', cvId)
@@ -267,13 +297,13 @@ export async function getCVById(cvId: string): Promise<{ data: any | null; error
 
     // Get all related data
     const [workResult, eduResult, skillsResult, languagesResult, certsResult, projectsResult, externalLinksResult] = await Promise.all([
-      supabase.from('cv_work_experiences').select('*').eq('cv_id', cvId).order('sort_order'),
-      supabase.from('cv_education').select('*').eq('cv_id', cvId).order('sort_order'),
-      supabase.from('cv_skills').select('*').eq('cv_id', cvId).order('sort_order'),
-      supabase.from('cv_languages').select('*').eq('cv_id', cvId).order('sort_order'),
-      supabase.from('cv_certificates').select('*').eq('cv_id', cvId).order('sort_order'),
-      supabase.from('cv_projects').select('*').eq('cv_id', cvId).order('sort_order'),
-      supabase.from('cv_external_links').select('*').eq('cv_id', cvId).order('sort_order')
+      client.from('cv_work_experiences').select('*').eq('cv_id', cvId).order('sort_order'),
+      client.from('cv_education').select('*').eq('cv_id', cvId).order('sort_order'),
+      client.from('cv_skills').select('*').eq('cv_id', cvId).order('sort_order'),
+      client.from('cv_languages').select('*').eq('cv_id', cvId).order('sort_order'),
+      client.from('cv_certificates').select('*').eq('cv_id', cvId).order('sort_order'),
+      client.from('cv_projects').select('*').eq('cv_id', cvId).order('sort_order'),
+      client.from('cv_external_links').select('*').eq('cv_id', cvId).order('sort_order')
     ]);
 
     // Transform data back to CV format
@@ -363,8 +393,16 @@ export async function deleteCV(cvId: string) {
       throw new Error('User not authenticated');
     }
 
+    const client = getSupabaseClient();
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+    if (!supabaseUrl || !supabaseKey) {
+      return { data: null, error: 'Missing Supabase environment variables' };
+    }
+
     // Delete main CV (cascade will handle related data)
-    const result = await supabase
+    const result = await client
       .from('cvs')
       .delete()
       .eq('id', cvId)
@@ -390,7 +428,15 @@ export async function updateCVName(cvId: string, newName: string) {
       throw new Error('User not authenticated');
     }
 
-    const result = await supabase
+    const client = getSupabaseClient();
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+    if (!supabaseUrl || !supabaseKey) {
+      return { data: null, error: 'Missing Supabase environment variables' };
+    }
+
+    const result = await client
       .from('cvs')
       .update({ name: newName, updated_at: new Date().toISOString() })
       .eq('id', cvId)

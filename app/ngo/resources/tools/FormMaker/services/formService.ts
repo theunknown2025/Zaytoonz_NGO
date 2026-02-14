@@ -1,10 +1,29 @@
-import { createClient } from '@supabase/supabase-js';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { FormData, Section } from '../types';
 
-// Initialize Supabase client
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL as string;
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY as string;
-const supabase = createClient(supabaseUrl, supabaseKey);
+// Lazy initialization of Supabase client to prevent build-time errors
+let supabase: SupabaseClient | null = null;
+
+function getSupabaseClient(): SupabaseClient {
+  if (supabase) {
+    return supabase;
+  }
+
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL as string;
+  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY as string;
+
+  if (!supabaseUrl || !supabaseKey) {
+    // Return a dummy client during build if env vars are missing
+    supabase = createClient(
+      supabaseUrl || 'https://placeholder.supabase.co',
+      supabaseKey || 'placeholder-key'
+    );
+    return supabase;
+  }
+
+  supabase = createClient(supabaseUrl, supabaseKey);
+  return supabase;
+}
 
 /**
  * Save a form template to the database
@@ -25,8 +44,16 @@ export async function saveFormTemplate(
       return { success: false, error: 'User authentication required to save form' };
     }
 
+    const client = getSupabaseClient();
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+    if (!supabaseUrl || !supabaseKey) {
+      return { success: false, error: 'Missing Supabase environment variables' };
+    }
+
     // Insert form template with proper user_id
-    const { data, error } = await supabase
+    const { data, error } = await client
       .from('forms_templates')
       .insert({
         title: formData.title,
@@ -65,7 +92,15 @@ export async function updateFormTemplate(
     if (formData.description !== undefined) updateData.description = formData.description;
     if (formData.sections) updateData.sections = formData.sections;
     
-    const { error } = await supabase
+    const client = getSupabaseClient();
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+    if (!supabaseUrl || !supabaseKey) {
+      return { success: false, error: 'Missing Supabase environment variables' };
+    }
+
+    const { error } = await client
       .from('forms_templates')
       .update(updateData)
       .eq('id', formId);
@@ -89,7 +124,15 @@ export async function publishFormTemplate(
   formId: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    const { error } = await supabase
+    const client = getSupabaseClient();
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+    if (!supabaseUrl || !supabaseKey) {
+      return { success: false, error: 'Missing Supabase environment variables' };
+    }
+
+    const { error } = await client
       .from('forms_templates')
       .update({ status: 'published' })
       .eq('id', formId);
@@ -119,7 +162,15 @@ export async function saveFormImage(
     const fileName = `${formId}-${Date.now()}.${fileExt}`;
     const filePath = `${fileName}`; // No need for subfolder since the bucket is specific to form pictures
 
-    const { error: uploadError } = await supabase.storage
+    const client = getSupabaseClient();
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+    if (!supabaseUrl || !supabaseKey) {
+      return { success: false, error: 'Missing Supabase environment variables' };
+    }
+
+    const { error: uploadError } = await client.storage
       .from('forms-pictures') // Use the new bucket name
       .upload(filePath, file);
 
@@ -129,12 +180,12 @@ export async function saveFormImage(
     }
 
     // Get public URL
-    const { data: urlData } = supabase.storage
+    const { data: urlData } = client.storage
       .from('forms-pictures') // Use the new bucket name
       .getPublicUrl(filePath);
 
     // Save reference to database
-    const { error: dbError } = await supabase
+    const { error: dbError } = await client
       .from('form_pictures')
       .insert({
         form_id: formId,
@@ -161,8 +212,16 @@ export async function saveFormImage(
  */
 export async function getUserForms(userId?: string) {
   try {
+    const client = getSupabaseClient();
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+    if (!supabaseUrl || !supabaseKey) {
+      return { success: false, error: 'Missing Supabase environment variables' };
+    }
+
     // Build the query
-    let query = supabase
+    let query = client
       .from('forms_templates')
       .select(`
         id, 
@@ -204,7 +263,15 @@ export async function getUserForms(userId?: string) {
  */
 export async function getFormById(formId: string) {
   try {
-    const { data, error } = await supabase
+    const client = getSupabaseClient();
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+    if (!supabaseUrl || !supabaseKey) {
+      return { success: false, error: 'Missing Supabase environment variables' };
+    }
+
+    const { data, error } = await client
       .from('forms_templates')
       .select(`
         id, 
@@ -237,8 +304,16 @@ export async function getFormById(formId: string) {
  */
 export async function getPublishedForms() {
   try {
+    const client = getSupabaseClient();
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+    if (!supabaseUrl || !supabaseKey) {
+      return { success: false, error: 'Missing Supabase environment variables' };
+    }
+
     // Fetch only published forms from the database
-    const { data, error } = await supabase
+    const { data, error } = await client
       .from('forms_templates')
       .select(`
         id, 

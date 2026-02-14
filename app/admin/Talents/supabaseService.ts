@@ -1,14 +1,28 @@
-import { createClient } from '@supabase/supabase-js';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
-// Initialize Supabase client
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL as string;
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY as string;
+// Lazy initialization of Supabase client to prevent build-time errors
+let supabase: SupabaseClient | null = null;
 
-if (!supabaseUrl || !supabaseKey) {
-  throw new Error('Missing Supabase environment variables');
+function getSupabaseClient(): SupabaseClient {
+  if (supabase) {
+    return supabase;
+  }
+
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL as string;
+  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY as string;
+
+  if (!supabaseUrl || !supabaseKey) {
+    // Return a dummy client during build if env vars are missing
+    supabase = createClient(
+      supabaseUrl || 'https://placeholder.supabase.co',
+      supabaseKey || 'placeholder-key'
+    );
+    return supabase;
+  }
+
+  supabase = createClient(supabaseUrl, supabaseKey);
+  return supabase;
 }
-
-const supabase = createClient(supabaseUrl, supabaseKey);
 
 export interface SeekerProfile {
   id: string;
@@ -36,10 +50,18 @@ export async function getPaginatedSeekerProfiles(
   limit: number = 5
 ): Promise<{ data: SeekerProfile[] | null; error: any; totalCount: number }> {
   try {
+    const client = getSupabaseClient();
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+    if (!supabaseUrl || !supabaseKey) {
+      return { data: null, error: 'Missing Supabase environment variables', totalCount: 0 };
+    }
+
     const offset = (page - 1) * limit;
 
     // Get total count
-    const { count: totalCount, error: countError } = await supabase
+    const { count: totalCount, error: countError } = await client
       .from('seeker_profiles')
       .select('*', { count: 'exact', head: true });
 
@@ -48,7 +70,7 @@ export async function getPaginatedSeekerProfiles(
     }
 
     // Get paginated data
-    const { data, error } = await supabase
+    const { data, error } = await client
       .from('seeker_profiles')
       .select(`
         *,
@@ -72,7 +94,15 @@ export async function getPaginatedSeekerProfiles(
 // Get all seeker profiles with user information
 export async function getAllSeekerProfiles(): Promise<{ data: SeekerProfile[] | null; error: any }> {
   try {
-    const { data, error } = await supabase
+    const client = getSupabaseClient();
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+    if (!supabaseUrl || !supabaseKey) {
+      return { data: null, error: 'Missing Supabase environment variables' };
+    }
+
+    const { data, error } = await client
       .from('seeker_profiles')
       .select(`
         *,
@@ -116,14 +146,22 @@ export async function getApplicationTrends(period: 'day' | 'week' | 'month' = 'd
         groupBy = 'DATE(created_at)';
     }
 
-    const { data, error } = await supabase
+    const client = getSupabaseClient();
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+    if (!supabaseUrl || !supabaseKey) {
+      return { data: null, error: 'Missing Supabase environment variables' };
+    }
+
+    const { data, error } = await client
       .rpc('get_application_trends', {
         period_type: period
       });
 
     if (error) {
       // Fallback to manual query if RPC doesn't exist
-      const { data: fallbackData, error: fallbackError } = await supabase
+      const { data: fallbackData, error: fallbackError } = await client
         .from('seeker_profiles')
         .select('created_at');
 
@@ -173,7 +211,15 @@ export async function getApplicationTrends(period: 'day' | 'week' | 'month' = 'd
 // Get location distribution for radar chart
 export async function getLocationDistribution(): Promise<{ data: any[] | null; error: any }> {
   try {
-    const { data, error } = await supabase
+    const client = getSupabaseClient();
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+    if (!supabaseUrl || !supabaseKey) {
+      return { data: null, error: 'Missing Supabase environment variables' };
+    }
+
+    const { data, error } = await client
       .from('seeker_profiles')
       .select('nationality')
       .not('nationality', 'is', null);
@@ -206,7 +252,15 @@ export async function getLocationDistribution(): Promise<{ data: any[] | null; e
 // Get experience distribution for radar chart
 export async function getExperienceDistribution(): Promise<{ data: any[] | null; error: any }> {
   try {
-    const { data, error } = await supabase
+    const client = getSupabaseClient();
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+    if (!supabaseUrl || !supabaseKey) {
+      return { data: null, error: 'Missing Supabase environment variables' };
+    }
+
+    const { data, error } = await client
       .from('seeker_profiles')
       .select('years_of_experience')
       .not('years_of_experience', 'is', null);
@@ -335,7 +389,15 @@ export async function searchSeekerProfiles(
     }
 
     // Get paginated search results
-    const { data, error } = await supabase
+    const client = getSupabaseClient();
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+    if (!supabaseUrl || !supabaseKey) {
+      return { data: null, error: 'Missing Supabase environment variables' };
+    }
+
+    const { data, error } = await client
       .from('seeker_profiles')
       .select(`
         *,
@@ -401,7 +463,15 @@ export async function filterSeekerProfiles(
 
     // For complex filtering (especially with email/phone), use in-memory filtering
     // This is more reliable than trying to do complex joins in Supabase
-    const { data: allData, error: allError } = await supabase
+    const client = getSupabaseClient();
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+    if (!supabaseUrl || !supabaseKey) {
+      return { data: null, error: 'Missing Supabase environment variables', totalCount: 0 };
+    }
+
+    const { data: allData, error: allError } = await client
       .from('seeker_profiles')
       .select(`
         *,
@@ -498,15 +568,27 @@ export async function getFilterOptions(): Promise<{
   error: any;
 }> {
   try {
+    const client = getSupabaseClient();
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+    if (!supabaseUrl || !supabaseKey) {
+      return {
+        nationalities: [],
+        fieldsOfExpertise: [],
+        error: 'Missing Supabase environment variables'
+      };
+    }
+
     // Get unique nationalities
-    const { data: nationalityData, error: nationalityError } = await supabase
+    const { data: nationalityData, error: nationalityError } = await client
       .from('seeker_profiles')
       .select('nationality')
       .not('nationality', 'is', null)
       .order('nationality');
 
     // Get unique fields of experience
-    const { data: fieldsData, error: fieldsError } = await supabase
+    const { data: fieldsData, error: fieldsError } = await client
       .from('seeker_profiles')
       .select('fields_of_experience')
       .not('fields_of_experience', 'is', null);

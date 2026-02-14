@@ -1,14 +1,29 @@
-import { createClient } from '@supabase/supabase-js';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
-// Initialize Supabase client
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL as string;
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY as string;
+// Lazy initialization of Supabase client to prevent build-time errors
+let supabase: SupabaseClient | null = null;
 
-if (!supabaseUrl || !supabaseKey) {
-  throw new Error('Missing Supabase environment variables');
+function getSupabaseClient(): SupabaseClient {
+  if (supabase) {
+    return supabase;
+  }
+
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL as string;
+  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY as string;
+
+  if (!supabaseUrl || !supabaseKey) {
+    // Return a dummy client during build if env vars are missing
+    // This prevents build errors while still allowing runtime checks
+    supabase = createClient(
+      supabaseUrl || 'https://placeholder.supabase.co',
+      supabaseKey || 'placeholder-key'
+    );
+    return supabase;
+  }
+
+  supabase = createClient(supabaseUrl, supabaseKey);
+  return supabase;
 }
-
-const supabase = createClient(supabaseUrl, supabaseKey);
 
 export interface NGOProfile {
   id: string;
@@ -70,10 +85,18 @@ export async function getPaginatedNGOProfiles(
   limit: number = 10
 ): Promise<{ data: NGOProfile[] | null; error: any; totalCount: number }> {
   try {
+    const client = getSupabaseClient();
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+    if (!supabaseUrl || !supabaseKey) {
+      return { data: null, error: 'Missing Supabase environment variables', totalCount: 0 };
+    }
+
     const offset = (page - 1) * limit;
 
     // Get total count
-    const { count: totalCount, error: countError } = await supabase
+    const { count: totalCount, error: countError } = await client
       .from('ngo_profile')
       .select('*', { count: 'exact', head: true });
 
@@ -82,7 +105,7 @@ export async function getPaginatedNGOProfiles(
     }
 
     // Get paginated data with user information
-    const { data, error } = await supabase
+    const { data, error } = await client
       .from('ngo_profile')
       .select(`
         *,
@@ -101,7 +124,7 @@ export async function getPaginatedNGOProfiles(
       (data || []).map(async (ngo) => {
         try {
           // Get opportunities created by this NGO user
-          const { data: opportunities, error: oppError } = await supabase
+          const { data: opportunities, error: oppError } = await client
             .from('opportunity_description')
             .select('id, opportunity_id, status, title')
             .eq('user_id', ngo.user_id);
@@ -119,7 +142,7 @@ export async function getPaginatedNGOProfiles(
           let applicationsCount = 0;
           if (opportunities && opportunities.length > 0) {
             const opportunityIds = opportunities.map(o => o.opportunity_id).filter(Boolean);
-            const { data: applications, error: appError } = await supabase
+            const { data: applications, error: appError } = await client
               .from('opportunity_applications')
               .select('id')
               .in('opportunity_id', opportunityIds);
@@ -157,7 +180,15 @@ export async function getPaginatedNGOProfiles(
 // Get all NGO profiles with user information
 export async function getAllNGOProfiles(): Promise<{ data: NGOProfile[] | null; error: any }> {
   try {
-    const { data, error } = await supabase
+    const client = getSupabaseClient();
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+    if (!supabaseUrl || !supabaseKey) {
+      return { data: null, error: 'Missing Supabase environment variables' };
+    }
+
+    const { data, error } = await client
       .from('ngo_profile')
       .select(`
         *,
@@ -175,7 +206,7 @@ export async function getAllNGOProfiles(): Promise<{ data: NGOProfile[] | null; 
       (data || []).map(async (ngo) => {
         try {
           // Get opportunities created by this NGO user
-          const { data: opportunities, error: oppError } = await supabase
+          const { data: opportunities, error: oppError } = await client
             .from('opportunity_description')
             .select('id, opportunity_id, status, title')
             .eq('user_id', ngo.user_id);
@@ -193,7 +224,7 @@ export async function getAllNGOProfiles(): Promise<{ data: NGOProfile[] | null; 
           let applicationsCount = 0;
           if (opportunities && opportunities.length > 0) {
             const opportunityIds = opportunities.map(o => o.opportunity_id).filter(Boolean);
-            const { data: applications, error: appError } = await supabase
+            const { data: applications, error: appError } = await client
               .from('opportunity_applications')
               .select('id')
               .in('opportunity_id', opportunityIds);
@@ -231,8 +262,16 @@ export async function getAllNGOProfiles(): Promise<{ data: NGOProfile[] | null; 
 // Get NGO profile statistics
 export async function getNGOProfileStats(): Promise<{ data: any | null; error: any }> {
   try {
+    const client = getSupabaseClient();
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+    if (!supabaseUrl || !supabaseKey) {
+      return { data: null, error: 'Missing Supabase environment variables' };
+    }
+
     // Get total count
-    const { count: totalCount, error: countError } = await supabase
+    const { count: totalCount, error: countError } = await client
       .from('ngo_profile')
       .select('*', { count: 'exact', head: true });
 
@@ -244,7 +283,7 @@ export async function getNGOProfileStats(): Promise<{ data: any | null; error: a
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-    const { count: recentCount, error: recentError } = await supabase
+    const { count: recentCount, error: recentError } = await client
       .from('ngo_profile')
       .select('*', { count: 'exact', head: true })
       .gte('created_at', thirtyDaysAgo.toISOString());
@@ -254,7 +293,7 @@ export async function getNGOProfileStats(): Promise<{ data: any | null; error: a
     }
 
     // Get approval status distribution
-    const { data: approvalData, error: approvalError } = await supabase
+    const { data: approvalData, error: approvalError } = await client
       .from('ngo_profile')
       .select('approval_status');
 
@@ -295,10 +334,18 @@ export async function searchNGOProfiles(
   limit: number = 10
 ): Promise<{ data: NGOProfile[] | null; error: any; totalCount: number }> {
   try {
+    const client = getSupabaseClient();
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+    if (!supabaseUrl || !supabaseKey) {
+      return { data: null, error: 'Missing Supabase environment variables', totalCount: 0 };
+    }
+
     const offset = (page - 1) * limit;
 
     // Get total count for search
-    const { count: totalCount, error: countError } = await supabase
+    const { count: totalCount, error: countError } = await client
       .from('ngo_profile')
       .select('*', { count: 'exact', head: true })
       .or(`name.ilike.%${searchTerm}%,email.ilike.%${searchTerm}%,legal_rep_name.ilike.%${searchTerm}%`);
@@ -308,7 +355,7 @@ export async function searchNGOProfiles(
     }
 
     // Get paginated search results
-    const { data, error } = await supabase
+    const { data, error } = await client
       .from('ngo_profile')
       .select(`
         *,
@@ -328,7 +375,7 @@ export async function searchNGOProfiles(
       (data || []).map(async (ngo) => {
         try {
           // Get opportunities created by this NGO user
-          const { data: opportunities, error: oppError } = await supabase
+          const { data: opportunities, error: oppError } = await client
             .from('opportunity_description')
             .select('id, opportunity_id, status, title')
             .eq('user_id', ngo.user_id);
@@ -346,7 +393,7 @@ export async function searchNGOProfiles(
           let applicationsCount = 0;
           if (opportunities && opportunities.length > 0) {
             const opportunityIds = opportunities.map(o => o.opportunity_id).filter(Boolean);
-            const { data: applications, error: appError } = await supabase
+            const { data: applications, error: appError } = await client
               .from('opportunity_applications')
               .select('id')
               .in('opportunity_id', opportunityIds);
@@ -388,6 +435,14 @@ export async function updateNGOApprovalStatus(
   notes?: string
 ): Promise<{ data: any | null; error: any }> {
   try {
+    const client = getSupabaseClient();
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+    if (!supabaseUrl || !supabaseKey) {
+      return { data: null, error: 'Missing Supabase environment variables' };
+    }
+
     const updateData = {
       approval_status: action === 'approve' ? 'approved' : 'rejected',
       admin_notes: notes,
@@ -395,7 +450,7 @@ export async function updateNGOApprovalStatus(
       updated_at: new Date().toISOString()
     };
 
-    const { data, error } = await supabase
+    const { data, error } = await client
       .from('ngo_profile')
       .update(updateData)
       .eq('id', ngoId)

@@ -58,6 +58,15 @@ export interface Opportunity {
 // Enhanced function to fetch all opportunities with complete information (both internal and scraped)
 export async function getOpportunities(): Promise<{ opportunities: Opportunity[] | null, error: string | null }> {
   try {
+    // Check if Supabase is properly configured
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+    if (!supabaseUrl || !supabaseKey || supabaseUrl.includes('placeholder') || supabaseKey.includes('placeholder')) {
+      console.warn('Supabase environment variables not configured, returning empty opportunities list');
+      return { opportunities: [], error: null };
+    }
+
     // Fetch internal NGO opportunities
     const { data: internalData, error: internalError } = await supabase
       .from('opportunities')

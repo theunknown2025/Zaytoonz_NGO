@@ -1,15 +1,29 @@
-import { createClient } from '@supabase/supabase-js';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { AuthService } from '@/app/lib/auth';
 
-// Initialize Supabase client
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL as string;
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY as string;
+// Lazy initialization of Supabase client to prevent build-time errors
+let supabase: SupabaseClient | null = null;
 
-if (!supabaseUrl || !supabaseKey) {
-  throw new Error('Missing Supabase environment variables');
+function getSupabaseClient(): SupabaseClient {
+  if (supabase) {
+    return supabase;
+  }
+
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL as string;
+  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY as string;
+
+  if (!supabaseUrl || !supabaseKey) {
+    // Return a dummy client during build if env vars are missing
+    supabase = createClient(
+      supabaseUrl || 'https://placeholder.supabase.co',
+      supabaseKey || 'placeholder-key'
+    );
+    return supabase;
+  }
+
+  supabase = createClient(supabaseUrl, supabaseKey);
+  return supabase;
 }
-
-const supabase = createClient(supabaseUrl, supabaseKey);
 
 // Function to get current user ID from AuthService (localStorage)
 const getCurrentUserId = async (): Promise<string | null> => {
@@ -37,6 +51,14 @@ export interface SeekerProfileData {
 // Upload profile picture to Supabase storage
 export async function uploadProfilePicture(file: File, userId: string): Promise<{ data: string | null; error: any }> {
   try {
+    const client = getSupabaseClient();
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+    if (!supabaseUrl || !supabaseKey) {
+      return { data: null, error: 'Missing Supabase environment variables' };
+    }
+
     // Generate unique filename
     const fileExt = file.name.split('.').pop();
     const fileName = `${userId}/profile-${Date.now()}.${fileExt}`;
@@ -44,7 +66,7 @@ export async function uploadProfilePicture(file: File, userId: string): Promise<
     console.log('Uploading file to storage bucket: profile-pictures, path:', fileName);
 
     // Upload file to storage
-    const { data, error } = await supabase.storage
+    const { data, error } = await client.storage
       .from('profile-pictures')
       .upload(fileName, file, {
         cacheControl: '3600',
@@ -59,7 +81,7 @@ export async function uploadProfilePicture(file: File, userId: string): Promise<
     console.log('File uploaded successfully:', data);
 
     // Get public URL
-    const { data: urlData } = supabase.storage
+    const { data: urlData } = client.storage
       .from('profile-pictures')
       .getPublicUrl(fileName);
 
@@ -97,8 +119,16 @@ export async function saveProfile(profileData: SeekerProfileData, profilePicture
       console.log('Profile picture uploaded, URL:', profilePictureUrl);
     }
 
+    const client = getSupabaseClient();
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+    if (!supabaseUrl || !supabaseKey) {
+      return { data: null, error: 'Missing Supabase environment variables' };
+    }
+
     // Check if profile already exists
-    const { data: existingProfile, error: checkError } = await supabase
+    const { data: existingProfile, error: checkError } = await client
       .from('seeker_profiles')
       .select('id')
       .eq('user_id', userId)
@@ -130,7 +160,7 @@ export async function saveProfile(profileData: SeekerProfileData, profilePicture
     if (existingProfile) {
       console.log('Updating existing profile...');
       // Update existing profile
-      result = await supabase
+      result = await client
         .from('seeker_profiles')
         .update(profileDataToSave)
         .eq('user_id', userId)
@@ -139,7 +169,7 @@ export async function saveProfile(profileData: SeekerProfileData, profilePicture
     } else {
       console.log('Creating new profile...');
       // Create new profile
-      result = await supabase
+      result = await client
         .from('seeker_profiles')
         .insert(profileDataToSave)
         .select()
@@ -170,7 +200,15 @@ export async function getProfile(): Promise<{ data: any | null; error: any }> {
 
     console.log('Getting profile for user ID:', userId);
 
-    const { data, error } = await supabase
+    const client = getSupabaseClient();
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+    if (!supabaseUrl || !supabaseKey) {
+      return { data: null, error: 'Missing Supabase environment variables' };
+    }
+
+    const { data, error } = await client
       .from('seeker_profiles')
       .select('*')
       .eq('user_id', userId)
@@ -199,7 +237,15 @@ export async function deleteProfilePicture(pictureUrl: string): Promise<{ error:
     const userId = urlParts[urlParts.length - 2];
     const filePath = `${userId}/${fileName}`;
 
-    const { error } = await supabase.storage
+    const client = getSupabaseClient();
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+    if (!supabaseUrl || !supabaseKey) {
+      return { error: 'Missing Supabase environment variables' };
+    }
+
+    const { error } = await client.storage
       .from('profile-pictures')
       .remove([filePath]);
 

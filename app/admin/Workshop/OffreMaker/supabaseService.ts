@@ -1,19 +1,46 @@
-import { createClient } from '@supabase/supabase-js';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { Template } from './NewTemplate';
 
-// Initialize Supabase client - replace with your actual Supabase credentials
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
-const supabase = createClient(supabaseUrl, supabaseKey);
+// Lazy initialization of Supabase client to prevent build-time errors
+let supabase: SupabaseClient | null = null;
+
+function getSupabaseClient(): SupabaseClient {
+  if (supabase) {
+    return supabase;
+  }
+
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+
+  if (!supabaseUrl || !supabaseKey) {
+    // Return a dummy client during build if env vars are missing
+    supabase = createClient(
+      supabaseUrl || 'https://placeholder.supabase.co',
+      supabaseKey || 'placeholder-key'
+    );
+    return supabase;
+  }
+
+  supabase = createClient(supabaseUrl, supabaseKey);
+  return supabase;
+}
 
 // Table name
 const TEMPLATES_TABLE = 'offres_templates';
 
 // Save a template to the database
 export async function saveTemplate(template: Template): Promise<{ data: Template | null; error: any }> {
+  const client = getSupabaseClient();
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+  if (!supabaseUrl || !supabaseKey) {
+    return { data: null, error: 'Missing Supabase environment variables' };
+  }
+
   // If template has an ID, we're updating an existing template
   if (template.id && template.id !== Date.now().toString()) {
-    const { data, error } = await supabase
+    const { data, error } = await client
       .from(TEMPLATES_TABLE)
       .update({
         title: template.title,
@@ -38,7 +65,7 @@ export async function saveTemplate(template: Template): Promise<{ data: Template
       published: false // Default to unpublished
     };
 
-    const { data, error } = await supabase
+    const { data, error } = await client
       .from(TEMPLATES_TABLE)
       .insert([newTemplate])
       .select()
@@ -50,7 +77,15 @@ export async function saveTemplate(template: Template): Promise<{ data: Template
 
 // Get all templates (admin templates only)
 export async function getTemplates(): Promise<{ data: Template[] | null; error: any }> {
-  const { data, error } = await supabase
+  const client = getSupabaseClient();
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+  if (!supabaseUrl || !supabaseKey) {
+    return { data: null, error: 'Missing Supabase environment variables' };
+  }
+
+  const { data, error } = await client
     .from(TEMPLATES_TABLE)
     .select('*')
     .eq('is_admin_template', true) // Only fetch admin templates
@@ -61,7 +96,15 @@ export async function getTemplates(): Promise<{ data: Template[] | null; error: 
 
 // Delete a template (admin templates only)
 export async function deleteTemplate(templateId: string): Promise<{ error: any }> {
-  const { error } = await supabase
+  const client = getSupabaseClient();
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+  if (!supabaseUrl || !supabaseKey) {
+    return { error: 'Missing Supabase environment variables' };
+  }
+
+  const { error } = await client
     .from(TEMPLATES_TABLE)
     .delete()
     .eq('id', templateId)
@@ -72,7 +115,15 @@ export async function deleteTemplate(templateId: string): Promise<{ error: any }
 
 // Get a template by ID (admin templates only)
 export async function getTemplateById(templateId: string): Promise<{ data: Template | null; error: any }> {
-  const { data, error } = await supabase
+  const client = getSupabaseClient();
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+  if (!supabaseUrl || !supabaseKey) {
+    return { data: null, error: 'Missing Supabase environment variables' };
+  }
+
+  const { data, error } = await client
     .from(TEMPLATES_TABLE)
     .select('*')
     .eq('id', templateId)
@@ -84,7 +135,15 @@ export async function getTemplateById(templateId: string): Promise<{ data: Templ
 
 // Toggle publish status of a template
 export async function toggleTemplatePublish(templateId: string, published: boolean): Promise<{ error: any }> {
-  const { error } = await supabase
+  const client = getSupabaseClient();
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+  if (!supabaseUrl || !supabaseKey) {
+    return { error: 'Missing Supabase environment variables' };
+  }
+
+  const { error } = await client
     .from(TEMPLATES_TABLE)
     .update({ published })
     .eq('id', templateId)
