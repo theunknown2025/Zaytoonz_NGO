@@ -1,9 +1,28 @@
-import { createClient } from '@supabase/supabase-js';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
-// Initialize the Supabase client
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
+// Lazy initialization of Supabase client to prevent build-time errors
+let supabase: SupabaseClient | null = null;
+
+function getSupabaseClient(): SupabaseClient {
+  if (supabase) {
+    return supabase;
+  }
+
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+  if (!supabaseUrl || !supabaseAnonKey) {
+    // Return a dummy client during build if env vars are missing
+    supabase = createClient(
+      'https://placeholder.supabase.co',
+      'placeholder-key'
+    );
+    return supabase;
+  }
+
+  supabase = createClient(supabaseUrl, supabaseAnonKey);
+  return supabase;
+}
 
 export interface ProcessTemplate {
   id?: string;
@@ -33,9 +52,17 @@ export async function createProcessTemplate(
   steps: Omit<ProcessStep, 'process_template_id' | 'display_order'>[]
 ) {
   try {
+    const client = getSupabaseClient();
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+    if (!supabaseUrl || !supabaseAnonKey) {
+      throw new Error('Missing Supabase environment variables');
+    }
+
     // Insert the process template without requiring authentication
     // Use a default value for created_by if authentication is needed in the database
-    const { data: templateData, error: templateError } = await supabase
+    const { data: templateData, error: templateError } = await client
       .from('process_templates')
       .insert({
         ...template,
@@ -77,7 +104,15 @@ export async function createProcessTemplate(
  */
 export async function getProcessTemplates() {
   try {
-    const { data, error } = await supabase
+    const client = getSupabaseClient();
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+    if (!supabaseUrl || !supabaseAnonKey) {
+      throw new Error('Missing Supabase environment variables');
+    }
+
+    const { data, error } = await client
       .from('process_templates')
       .select('*')
       .order('created_at', { ascending: false });
@@ -95,8 +130,16 @@ export async function getProcessTemplates() {
  */
 export async function getProcessTemplateWithSteps(id: string) {
   try {
+    const client = getSupabaseClient();
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+    if (!supabaseUrl || !supabaseAnonKey) {
+      throw new Error('Missing Supabase environment variables');
+    }
+
     // Get the template
-    const { data: template, error: templateError } = await supabase
+    const { data: template, error: templateError } = await client
       .from('process_templates')
       .select('*')
       .eq('id', id)
@@ -105,7 +148,7 @@ export async function getProcessTemplateWithSteps(id: string) {
     if (templateError) throw templateError;
 
     // Get the steps
-    const { data: steps, error: stepsError } = await supabase
+    const { data: steps, error: stepsError } = await client
       .from('process_steps')
       .select('*')
       .eq('process_template_id', id)
@@ -134,7 +177,15 @@ export async function getProcessTemplateWithSteps(id: string) {
  */
 export async function deleteProcessTemplate(id: string) {
   try {
-    const { error } = await supabase
+    const client = getSupabaseClient();
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+    if (!supabaseUrl || !supabaseAnonKey) {
+      throw new Error('Missing Supabase environment variables');
+    }
+
+    const { error } = await client
       .from('process_templates')
       .delete()
       .eq('id', id);
@@ -156,8 +207,16 @@ export async function updateProcessTemplate(
   steps?: Omit<ProcessStep, 'process_template_id'>[]
 ) {
   try {
+    const client = getSupabaseClient();
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+    if (!supabaseUrl || !supabaseAnonKey) {
+      throw new Error('Missing Supabase environment variables');
+    }
+
     // Update the template
-    const { data: templateData, error: templateError } = await supabase
+    const { data: templateData, error: templateError } = await client
       .from('process_templates')
       .update({
         ...template,
@@ -172,7 +231,7 @@ export async function updateProcessTemplate(
     // If steps are provided, handle them
     if (steps) {
       // First delete all existing steps
-      const { error: deleteError } = await supabase
+      const { error: deleteError } = await client
         .from('process_steps')
         .delete()
         .eq('process_template_id', id);
@@ -187,7 +246,7 @@ export async function updateProcessTemplate(
         status_options: JSON.stringify(step.status_options)
       }));
 
-      const { data: stepsData, error: stepsError } = await supabase
+      const { data: stepsData, error: stepsError } = await client
         .from('process_steps')
         .insert(stepsWithIds)
         .select();

@@ -12,10 +12,21 @@ import {
   EyeSlashIcon
 } from '@heroicons/react/24/outline';
 
-// Initialize Supabase client
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
-const supabase = createClient(supabaseUrl, supabaseKey);
+// Lazy initialization of Supabase client to prevent build-time errors
+function getSupabaseClient() {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+  
+  if (!supabaseUrl || !supabaseKey) {
+    // Return a dummy client during build if env vars are missing
+    return createClient(
+      'https://placeholder.supabase.co',
+      'placeholder-key'
+    );
+  }
+  
+  return createClient(supabaseUrl, supabaseKey);
+}
 
 interface EvaluationTemplate {
   id: string;
@@ -48,6 +59,7 @@ export default function ZaytoonzTemplates({ onUseTemplate }: ZaytoonzTemplatesPr
       setLoading(true);
       
       // Fetch ALL admin evaluation templates (both published and draft)
+      const supabase = getSupabaseClient();
       const { data, error } = await supabase
         .from('evaluation_templates')
         .select('*')

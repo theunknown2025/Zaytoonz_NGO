@@ -19,10 +19,21 @@ import { saveFormTemplate, publishFormTemplate, saveFormImage, getFormById, upda
 import { FormData, Section, Question, QuestionType } from './types';
 import { createClient } from '@supabase/supabase-js';
 
-// Initialize Supabase client
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL as string;
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY as string;
-const supabase = createClient(supabaseUrl, supabaseKey);
+// Lazy initialization of Supabase client to prevent build-time errors
+function getSupabaseClient() {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL as string;
+  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY as string;
+  
+  if (!supabaseUrl || !supabaseKey) {
+    // Return a dummy client during build if env vars are missing
+    return createClient(
+      'https://placeholder.supabase.co',
+      'placeholder-key'
+    );
+  }
+  
+  return createClient(supabaseUrl, supabaseKey);
+}
 
 // Types for component props
 interface NewFormProps {

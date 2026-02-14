@@ -15,10 +15,21 @@ import { getUserForms } from './services/formService';
 import { createClient } from '@supabase/supabase-js';
 import Image from 'next/image';
 
-// Initialize Supabase client
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL as string;
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY as string;
-const supabase = createClient(supabaseUrl, supabaseKey);
+// Lazy initialization of Supabase client to prevent build-time errors
+function getSupabaseClient() {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL as string;
+  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY as string;
+  
+  if (!supabaseUrl || !supabaseKey) {
+    // Return a dummy client during build if env vars are missing
+    return createClient(
+      'https://placeholder.supabase.co',
+      'placeholder-key'
+    );
+  }
+  
+  return createClient(supabaseUrl, supabaseKey);
+}
 
 // Types for component props and form data
 interface ListFormsProps {
@@ -72,6 +83,7 @@ export default function ListForms({ onNewForm, onEditForm, toast }: ListFormsPro
         return;
       }
       
+      const supabase = getSupabaseClient();
       const { data, error } = await supabase.from('forms_templates').select('count').limit(1);
       
       if (error) {
@@ -88,6 +100,7 @@ export default function ListForms({ onNewForm, onEditForm, toast }: ListFormsPro
   const fetchForms = async () => {
     setLoading(true);
     try {
+      const supabase = getSupabaseClient();
       let query = supabase
         .from('forms_templates')
         .select('*');
@@ -123,6 +136,7 @@ export default function ListForms({ onNewForm, onEditForm, toast }: ListFormsPro
     
     try {
       // First check if the form exists
+      const supabase = getSupabaseClient();
       const { data: formData, error: formError } = await supabase
         .from('forms_templates')
         .select('id')
@@ -144,6 +158,7 @@ export default function ListForms({ onNewForm, onEditForm, toast }: ListFormsPro
         // Delete the files from storage
         for (const picture of picturesData) {
           if (picture.file_path) {
+            const supabase = getSupabaseClient();
             await supabase.storage
               .from('forms-pictures')
               .remove([picture.file_path]);

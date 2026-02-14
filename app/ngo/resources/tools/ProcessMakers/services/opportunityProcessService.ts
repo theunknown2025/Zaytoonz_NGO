@@ -1,9 +1,28 @@
-import { createClient } from '@supabase/supabase-js';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
-// Initialize the Supabase client
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
+// Lazy initialization of Supabase client to prevent build-time errors
+let supabase: SupabaseClient | null = null;
+
+function getSupabaseClient(): SupabaseClient {
+  if (supabase) {
+    return supabase;
+  }
+
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+  if (!supabaseUrl || !supabaseAnonKey) {
+    // Return a dummy client during build if env vars are missing
+    supabase = createClient(
+      'https://placeholder.supabase.co',
+      'placeholder-key'
+    );
+    return supabase;
+  }
+
+  supabase = createClient(supabaseUrl, supabaseAnonKey);
+  return supabase;
+}
 
 interface OpportunityProcess {
   id?: string;
@@ -31,8 +50,16 @@ interface OpportunityProcessStep {
  */
 export async function saveOpportunityProcess(opportunityId: string, processTemplateId: string, status: string = 'active') {
   try {
+    const client = getSupabaseClient();
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+    if (!supabaseUrl || !supabaseAnonKey) {
+      throw new Error('Missing Supabase environment variables');
+    }
+
     // Check if there's an existing record
-    const { data: existingData, error: fetchError } = await supabase
+    const { data: existingData, error: fetchError } = await client
       .from('opportunity_processes')
       .select('*')
       .eq('opportunity_id', opportunityId)
@@ -47,7 +74,7 @@ export async function saveOpportunityProcess(opportunityId: string, processTempl
     
     if (existingData) {
       // Update the existing record
-      const { data, error } = await supabase
+      const { data, error } = await client
         .from('opportunity_processes')
         .update({
           process_template_id: processTemplateId,
@@ -62,7 +89,7 @@ export async function saveOpportunityProcess(opportunityId: string, processTempl
       result = data;
     } else {
       // Insert a new record
-      const { data, error } = await supabase
+      const { data, error } = await client
         .from('opportunity_processes')
         .insert({
           opportunity_id: opportunityId,
@@ -89,8 +116,16 @@ export async function saveOpportunityProcess(opportunityId: string, processTempl
  */
 export async function initializeOpportunityProcessSteps(opportunityProcessId: string, processTemplateId: string) {
   try {
+    const client = getSupabaseClient();
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+    if (!supabaseUrl || !supabaseAnonKey) {
+      throw new Error('Missing Supabase environment variables');
+    }
+
     // First, get all steps for this process template
-    const { data: templateSteps, error: stepsError } = await supabase
+    const { data: templateSteps, error: stepsError } = await client
       .from('process_steps')
       .select('*')
       .eq('process_template_id', processTemplateId)
@@ -110,7 +145,7 @@ export async function initializeOpportunityProcessSteps(opportunityProcessId: st
     }));
     
     // Insert all steps for this opportunity process
-    const { data, error } = await supabase
+    const { data, error } = await client
       .from('opportunity_process_steps')
       .insert(stepsToInsert)
       .select();
@@ -128,8 +163,16 @@ export async function initializeOpportunityProcessSteps(opportunityProcessId: st
  */
 export async function getOpportunityProcess(opportunityId: string) {
   try {
+    const client = getSupabaseClient();
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+    if (!supabaseUrl || !supabaseAnonKey) {
+      throw new Error('Missing Supabase environment variables');
+    }
+
     // Get the process
-    const { data: process, error: processError } = await supabase
+    const { data: process, error: processError } = await client
       .from('opportunity_processes')
       .select('*, process_template:process_template_id(*)')
       .eq('opportunity_id', opportunityId)
@@ -144,7 +187,7 @@ export async function getOpportunityProcess(opportunityId: string) {
     }
     
     // Get the steps
-    const { data: steps, error: stepsError } = await supabase
+    const { data: steps, error: stepsError } = await client
       .from('opportunity_process_steps')
       .select('*, process_step:process_step_id(*)')
       .eq('opportunity_process_id', process.id)
@@ -176,7 +219,7 @@ export async function updateOpportunityProcessStep(stepId: string, status: strin
       updateData.notes = notes;
     }
     
-    const { data, error } = await supabase
+    const { data, error } = await client
       .from('opportunity_process_steps')
       .update(updateData)
       .eq('id', stepId)
@@ -196,8 +239,16 @@ export async function updateOpportunityProcessStep(stepId: string, status: strin
  */
 export async function deleteOpportunityProcess(opportunityId: string) {
   try {
+    const client = getSupabaseClient();
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+    if (!supabaseUrl || !supabaseAnonKey) {
+      throw new Error('Missing Supabase environment variables');
+    }
+
     // First, get the process record
-    const { data: process, error: processError } = await supabase
+    const { data: process, error: processError } = await client
       .from('opportunity_processes')
       .select('id')
       .eq('opportunity_id', opportunityId)
@@ -212,7 +263,7 @@ export async function deleteOpportunityProcess(opportunityId: string) {
     }
     
     // Delete all steps first (foreign key constraint)
-    const { error: stepsDeleteError } = await supabase
+    const { error: stepsDeleteError } = await client
       .from('opportunity_process_steps')
       .delete()
       .eq('opportunity_process_id', process.id);
@@ -220,7 +271,7 @@ export async function deleteOpportunityProcess(opportunityId: string) {
     if (stepsDeleteError) throw stepsDeleteError;
     
     // Then delete the process
-    const { error: processDeleteError } = await supabase
+    const { error: processDeleteError } = await client
       .from('opportunity_processes')
       .delete()
       .eq('id', process.id);

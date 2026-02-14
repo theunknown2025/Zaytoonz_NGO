@@ -32,6 +32,15 @@ import { useAuth } from '@/app/lib/auth';
 function getSupabaseClient() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL as string;
   const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY as string;
+  
+  if (!supabaseUrl || !supabaseKey) {
+    // Return a dummy client during build if env vars are missing
+    return createClient(
+      'https://placeholder.supabase.co',
+      'placeholder-key'
+    );
+  }
+  
   return createClient(supabaseUrl, supabaseKey);
 }
 
@@ -400,6 +409,7 @@ export default function FormMakerTool() {
       }
       
       // Delete any associated images
+      const supabase = getSupabaseClient();
       const { data: imageData, error: imageError } = await supabase
         .from('form_pictures')
         .select('file_path')
