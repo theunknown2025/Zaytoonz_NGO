@@ -249,7 +249,15 @@ export async function getCVs() {
       throw new Error('User not authenticated');
     }
 
-    const result = await supabase
+    const client = getSupabaseClient();
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+    if (!supabaseUrl || !supabaseKey) {
+      return { data: null, error: 'Missing Supabase environment variables' };
+    }
+
+    const result = await client
       .from('cvs')
       .select('*')
       .eq('user_id', userId)

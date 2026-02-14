@@ -172,7 +172,7 @@ export async function getOpportunityProcess(opportunityId: string) {
     }
 
     // Get the process
-    const { data: process, error: processError } = await client
+    const { data: opportunityProcess, error: processError } = await client
       .from('opportunity_processes')
       .select('*, process_template:process_template_id(*)')
       .eq('opportunity_id', opportunityId)
@@ -190,13 +190,13 @@ export async function getOpportunityProcess(opportunityId: string) {
     const { data: steps, error: stepsError } = await client
       .from('opportunity_process_steps')
       .select('*, process_step:process_step_id(*)')
-      .eq('opportunity_process_id', process.id)
+      .eq('opportunity_process_id', opportunityProcess.id)
       .order('process_step(display_order)', { ascending: true });
     
     if (stepsError) throw stepsError;
     
     return {
-      process,
+      process: opportunityProcess,
       steps: steps || []
     };
   } catch (error) {
@@ -210,6 +210,14 @@ export async function getOpportunityProcess(opportunityId: string) {
  */
 export async function updateOpportunityProcessStep(stepId: string, status: string, notes?: string) {
   try {
+    const client = getSupabaseClient();
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+    if (!supabaseUrl || !supabaseAnonKey) {
+      throw new Error('Missing Supabase environment variables');
+    }
+
     const updateData: any = {
       status,
       updated_at: new Date().toISOString()
@@ -248,7 +256,7 @@ export async function deleteOpportunityProcess(opportunityId: string) {
     }
 
     // First, get the process record
-    const { data: process, error: processError } = await client
+    const { data: opportunityProcess, error: processError } = await client
       .from('opportunity_processes')
       .select('id')
       .eq('opportunity_id', opportunityId)
@@ -266,7 +274,7 @@ export async function deleteOpportunityProcess(opportunityId: string) {
     const { error: stepsDeleteError } = await client
       .from('opportunity_process_steps')
       .delete()
-      .eq('opportunity_process_id', process.id);
+      .eq('opportunity_process_id', opportunityProcess.id);
     
     if (stepsDeleteError) throw stepsDeleteError;
     
@@ -274,7 +282,7 @@ export async function deleteOpportunityProcess(opportunityId: string) {
     const { error: processDeleteError } = await client
       .from('opportunity_processes')
       .delete()
-      .eq('id', process.id);
+      .eq('id', opportunityProcess.id);
     
     if (processDeleteError) throw processDeleteError;
     

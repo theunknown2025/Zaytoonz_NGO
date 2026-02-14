@@ -147,6 +147,7 @@ export default function NewForm({ onFormSaved, onCancel, editFormId = null, toas
         if (form.form_pictures && form.form_pictures.length > 0) {
           const imagePath = form.form_pictures[0].file_path;
           try {
+            const supabase = getSupabaseClient();
             const imageUrl = supabase.storage.from('forms-pictures').getPublicUrl(imagePath).data.publicUrl;
             setFormImage(imageUrl);
           } catch (e) {

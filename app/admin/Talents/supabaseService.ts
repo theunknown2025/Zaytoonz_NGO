@@ -309,8 +309,16 @@ export async function getExperienceDistribution(): Promise<{ data: any[] | null;
 // Get seeker profile statistics
 export async function getSeekerProfileStats(): Promise<{ data: any | null; error: any }> {
   try {
+    const client = getSupabaseClient();
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+    if (!supabaseUrl || !supabaseKey) {
+      return { data: null, error: 'Missing Supabase environment variables' };
+    }
+
     // Get total count
-    const { count: totalCount, error: countError } = await supabase
+    const { count: totalCount, error: countError } = await client
       .from('seeker_profiles')
       .select('*', { count: 'exact', head: true });
 
@@ -322,7 +330,7 @@ export async function getSeekerProfileStats(): Promise<{ data: any | null; error
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-    const { count: recentCount, error: recentError } = await supabase
+    const { count: recentCount, error: recentError } = await client
       .from('seeker_profiles')
       .select('*', { count: 'exact', head: true })
       .gte('created_at', thirtyDaysAgo.toISOString());
@@ -332,7 +340,7 @@ export async function getSeekerProfileStats(): Promise<{ data: any | null; error
     }
 
     // Get most common fields of experience
-    const { data: experienceData, error: experienceError } = await supabase
+    const { data: experienceData, error: experienceError } = await client
       .from('seeker_profiles')
       .select('fields_of_experience')
       .not('fields_of_experience', 'is', null);
@@ -376,10 +384,18 @@ export async function searchSeekerProfiles(
   limit: number = 5
 ): Promise<{ data: SeekerProfile[] | null; error: any; totalCount: number }> {
   try {
+    const client = getSupabaseClient();
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+    if (!supabaseUrl || !supabaseKey) {
+      return { data: null, error: 'Missing Supabase environment variables', totalCount: 0 };
+    }
+
     const offset = (page - 1) * limit;
 
     // Get total count for search
-    const { count: totalCount, error: countError } = await supabase
+    const { count: totalCount, error: countError } = await client
       .from('seeker_profiles')
       .select('*', { count: 'exact', head: true })
       .or(`first_name.ilike.%${searchTerm}%,last_name.ilike.%${searchTerm}%,nationality.ilike.%${searchTerm}%`);
@@ -389,14 +405,6 @@ export async function searchSeekerProfiles(
     }
 
     // Get paginated search results
-    const client = getSupabaseClient();
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
-    if (!supabaseUrl || !supabaseKey) {
-      return { data: null, error: 'Missing Supabase environment variables' };
-    }
-
     const { data, error } = await client
       .from('seeker_profiles')
       .select(`

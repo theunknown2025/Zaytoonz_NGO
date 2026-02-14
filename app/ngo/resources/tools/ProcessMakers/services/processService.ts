@@ -82,7 +82,7 @@ export async function createProcessTemplate(
       status_options: JSON.stringify(step.status_options)
     }));
 
-    const { data: stepsData, error: stepsError } = await supabase
+    const { data: stepsData, error: stepsError } = await client
       .from('process_steps')
       .insert(stepsWithIds)
       .select();

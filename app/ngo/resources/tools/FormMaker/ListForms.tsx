@@ -215,6 +215,7 @@ export default function ListForms({ onNewForm, onEditForm, toast }: ListFormsPro
     setIsDuplicating(true);
     try {
       // Get the form data
+      const supabase = getSupabaseClient();
       const { data: formData, error: formError } = await supabase
         .from('forms_templates')
         .select('*')
@@ -289,6 +290,7 @@ export default function ListForms({ onNewForm, onEditForm, toast }: ListFormsPro
 
   const handlePublishToggle = async (formId: string, currentStatus: boolean) => {
     try {
+      const supabase = getSupabaseClient();
       const { error } = await supabase
         .from('forms_templates')
         .update({ published: !currentStatus })
@@ -311,6 +313,7 @@ export default function ListForms({ onNewForm, onEditForm, toast }: ListFormsPro
     
     setIsDeleting(true);
     try {
+      const supabase = getSupabaseClient();
       for (const formId of selectedForms) {
         // Delete form sections and questions
         await supabase
