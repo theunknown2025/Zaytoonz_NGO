@@ -568,6 +568,12 @@ fi
 
 print_status ".env.production file created with all credentials"
 
+# Create .env symlink for docker compose (docker compose looks for .env by default)
+if [ -f ".env.production" ] && [ ! -f ".env" ]; then
+    ln -sf .env.production .env
+    print_status "Created .env symlink pointing to .env.production"
+fi
+
 # Display configuration summary
 echo -e "\n${GREEN}=== Configuration Summary ===${NC}"
 echo -e "✓ Supabase URL: ${GREEN}${SUPABASE_URL}${NC}"
