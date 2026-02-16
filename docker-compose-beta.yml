@@ -1,0 +1,223 @@
+services:
+  nextjs:
+    build:
+      context: .
+      dockerfile: Dockerfile.webapp
+      args:
+        - NEXT_PUBLIC_SUPABASE_URL=${NEXT_PUBLIC_SUPABASE_URL}
+        - NEXT_PUBLIC_SUPABASE_ANON_KEY=${NEXT_PUBLIC_SUPABASE_ANON_KEY}
+        - NEXT_PUBLIC_OPENAI_API_KEY=${NEXT_PUBLIC_OPENAI_API_KEY}
+        - NEXT_PUBLIC_USE_EXTERNAL_SCRAPER=${NEXT_PUBLIC_USE_EXTERNAL_SCRAPER:-true}
+        - NEXT_PUBLIC_EXTERNAL_SCRAPER_URL=${NEXT_PUBLIC_EXTERNAL_SCRAPER_URL:-http://python-scraper:8000}
+        - NEXT_PUBLIC_FALLBACK_TO_LOCAL=${NEXT_PUBLIC_FALLBACK_TO_LOCAL:-true}
+    container_name: zaytoonz-nextjs-beta
+    working_dir: /app
+    ports:
+      - "3002:3000"
+    environment:
+      - NODE_ENV=${NODE_ENV:-production}
+      - PORT=${PORT:-3000}
+      - NEXT_PUBLIC_SUPABASE_URL=${NEXT_PUBLIC_SUPABASE_URL}
+      - NEXT_PUBLIC_SUPABASE_ANON_KEY=${NEXT_PUBLIC_SUPABASE_ANON_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - NEXT_PUBLIC_OPENAI_API_KEY=${NEXT_PUBLIC_OPENAI_API_KEY}
+      - OPENAI_MODEL=${OPENAI_MODEL:-gpt-4o-mini}
+      - OPENAI_MAX_TOKENS=${OPENAI_MAX_TOKENS:-2000}
+      - NEXT_PUBLIC_USE_EXTERNAL_SCRAPER=${NEXT_PUBLIC_USE_EXTERNAL_SCRAPER:-true}
+      - NEXT_PUBLIC_EXTERNAL_SCRAPER_URL=${NEXT_PUBLIC_EXTERNAL_SCRAPER_URL:-http://python-scraper:8000}
+      - NEXT_PUBLIC_FALLBACK_TO_LOCAL=${NEXT_PUBLIC_FALLBACK_TO_LOCAL:-true}
+      - NLWEB_URL=${NLWEB_URL:-http://nlweb:8000}
+    volumes:
+      - ./public:/app/public:ro
+    restart: unless-stopped
+    depends_on:
+      nlweb:
+        condition: service_started
+    networks:
+      - zaytoonz-network
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000/', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 90s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  python-scraper:
+    image: python:3.11-slim
+    container_name: zaytoonz-scraper-beta
+    working_dir: /app/Scrape_Master
+    command: >
+      sh -c "
+        apt-get update -qq &&
+        apt-get install -y -qq wget gnupg ca-certificates curl &&
+        mkdir -p /etc/apt/keyrings &&
+        wget -q -O /etc/apt/keyrings/google-chrome.gpg https://dl-ssl.google.com/linux/linux_signing_key.pub &&
+        echo 'deb [arch=amd64 signed-by=/etc/apt/keyrings/google-chrome.gpg] http://dl.google.com/linux/chrome/deb/ stable main' > /etc/apt/sources.list.d/google-chrome.list &&
+        apt-get update -qq &&
+        apt-get install -y -qq google-chrome-stable &&
+        pip install --no-cache-dir -r requirements.txt &&
+        playwright install chromium --with-deps &&
+        uvicorn api_wrapper:app --host 0.0.0.0 --port 8000 --workers 2
+      "
+    ports:
+      - "8000:8000"
+    environment:
+      - PYTHONUNBUFFERED=${PYTHONUNBUFFERED:-1}
+      - PYTHONDONTWRITEBYTECODE=${PYTHONDONTWRITEBYTECODE:-1}
+      - NEXT_PUBLIC_SUPABASE_URL=${NEXT_PUBLIC_SUPABASE_URL}
+      - NEXT_PUBLIC_SUPABASE_ANON_KEY=${NEXT_PUBLIC_SUPABASE_ANON_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+    volumes:
+      - ./Scrape_Master:/app/Scrape_Master:ro
+      - scraper-cache:/app/.cache
+    restart: unless-stopped
+    networks:
+      - zaytoonz-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 120s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  nlweb:
+    image: python:3.13-slim
+    container_name: zaytoonz-nlweb-beta
+    working_dir: /app/NLWeb-main
+    command: >
+      sh -c "
+        cd code/python &&
+        pip install --no-cache-dir -r requirements.txt &&
+        python app-file.py
+      "
+    ports:
+      - "8002:8000"
+    environment:
+      - PYTHONUNBUFFERED=${PYTHONUNBUFFERED:-1}
+      - PYTHONDONTWRITEBYTECODE=${PYTHONDONTWRITEBYTECODE:-1}
+      - PYTHONPATH=/app/NLWeb-main/code/python
+      - PORT=8000
+      - NLWEB_CONFIG_DIR=/app/NLWeb-main/config
+      - NLWEB_OUTPUT_DIR=/app/NLWeb-main/data/nlweb
+      - NLWEB_OUTPUT_DIR_RELATIVE=../data/nlweb
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - OPENAI_ENDPOINT=${OPENAI_ENDPOINT:-https://api.openai.com/v1/chat/completions}
+      - AZURE_OPENAI_ENDPOINT=${AZURE_OPENAI_ENDPOINT:-}
+      - AZURE_OPENAI_API_KEY=${AZURE_OPENAI_API_KEY:-}
+      - AZURE_VECTOR_SEARCH_ENDPOINT=${AZURE_VECTOR_SEARCH_ENDPOINT:-}
+      - AZURE_VECTOR_SEARCH_API_KEY=${AZURE_VECTOR_SEARCH_API_KEY:-}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - INCEPTION_ENDPOINT=${INCEPTION_ENDPOINT:-}
+      - INCEPTION_API_KEY=${INCEPTION_API_KEY:-}
+      - SNOWFLAKE_ACCOUNT_URL=${SNOWFLAKE_ACCOUNT_URL:-}
+      - SNOWFLAKE_PAT=${SNOWFLAKE_PAT:-}
+      - SNOWFLAKE_EMBEDDING_MODEL=${SNOWFLAKE_EMBEDDING_MODEL:-}
+      - SNOWFLAKE_CORTEX_SEARCH_SERVICE=${SNOWFLAKE_CORTEX_SEARCH_SERVICE:-}
+      - MILVUS_ENDPOINT=${MILVUS_ENDPOINT:-}
+      - MILVUS_TOKEN=${MILVUS_TOKEN:-}
+      - QDRANT_URL=${QDRANT_URL:-}
+      - QDRANT_API_KEY=${QDRANT_API_KEY:-}
+      - OPENSEARCH_ENDPOINT=${OPENSEARCH_ENDPOINT:-}
+      - OPENSEARCH_CREDENTIALS=${OPENSEARCH_CREDENTIALS:-}
+      - OLLAMA_URL=${OLLAMA_URL:-}
+      - ELASTICSEARCH_URL=${ELASTICSEARCH_URL:-}
+      - ELASTICSEARCH_API_KEY=${ELASTICSEARCH_API_KEY:-}
+      - POSTGRES_CONNECTION_STRING=${POSTGRES_CONNECTION_STRING:-}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-}
+      - NLWEB_LOGGING_PROFILE=${NLWEB_LOGGING_PROFILE:-production}
+      - HF_TOKEN=${HF_TOKEN:-}
+      - CLOUDFLARE_API_TOKEN=${CLOUDFLARE_API_TOKEN:-}
+      - CLOUDFLARE_RAG_ID_ENV=${CLOUDFLARE_RAG_ID_ENV:-}
+      - CLOUDFLARE_ACCOUNT_ID=${CLOUDFLARE_ACCOUNT_ID:-}
+    volumes:
+      - ./NLWeb-main:/app/NLWeb-main
+      - nlweb-data:/app/NLWeb-main/data
+    restart: unless-stopped
+    networks:
+      - zaytoonz-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health || exit 1"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 120s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  nginx:
+    image: nginx:alpine
+    container_name: zaytoonz-nginx-beta
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx-beta.conf:/etc/nginx/nginx.conf:ro
+      - ./certbot/conf:/etc/letsencrypt:ro
+      - ./certbot/www:/var/www/certbot:ro
+      - nginx-cache:/var/cache/nginx
+      - nginx-logs:/var/log/nginx
+    restart: unless-stopped
+    depends_on:
+      nextjs:
+        condition: service_healthy
+    networks:
+      - zaytoonz-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  certbot:
+    image: certbot/certbot
+    container_name: zaytoonz-certbot-beta
+    volumes:
+      - ./certbot/conf:/etc/letsencrypt
+      - ./certbot/www:/var/www/certbot
+    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew --quiet; sleep 12h & wait $${!}; done;'"
+    restart: unless-stopped
+    networks:
+      - zaytoonz-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "5m"
+        max-file: "2"
+
+networks:
+  zaytoonz-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.29.0.0/16
+
+volumes:
+  nlweb-data:
+    driver: local
+  nextjs-cache:
+    driver: local
+  scraper-cache:
+    driver: local
+  nginx-cache:
+    driver: local
+  nginx-logs:
+    driver: local
