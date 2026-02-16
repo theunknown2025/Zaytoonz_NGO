@@ -323,13 +323,39 @@ if [ "$SKIP_CERT" -eq 0 ]; then
     $DOCKER_COMPOSE -f "$COMPOSE_FILE" up -d nginx
     
     print_info "Waiting for nginx to be ready..."
-    sleep 5
+    sleep 10
     
     # Verify nginx is running
-    if $DOCKER_COMPOSE -f "$COMPOSE_FILE" ps nginx | grep -q "Up"; then
+    NGINX_STATUS=$($DOCKER_COMPOSE -f "$COMPOSE_FILE" ps nginx 2>/dev/null | grep -c "Up" || echo "0")
+    
+    if [ "$NGINX_STATUS" -gt 0 ]; then
         print_success "Nginx is running"
+        
+        # Test nginx configuration
+        print_info "Testing nginx configuration..."
+        if $DOCKER_COMPOSE -f "$COMPOSE_FILE" exec nginx nginx -t 2>&1 | grep -q "successful"; then
+            print_success "Nginx configuration is valid"
+        else
+            print_warning "Nginx configuration test had issues"
+            print_info "Checking nginx logs..."
+            $DOCKER_COMPOSE -f "$COMPOSE_FILE" logs nginx --tail=20
+        fi
     else
         print_error "Nginx failed to start"
+        echo ""
+        print_info "Checking nginx logs for errors..."
+        $DOCKER_COMPOSE -f "$COMPOSE_FILE" logs nginx --tail=30
+        echo ""
+        print_info "Checking if nginx container exists..."
+        docker ps -a | grep nginx || print_error "Nginx container not found"
+        echo ""
+        print_info "Common issues:"
+        print_info "  1. Port 80 or 443 already in use"
+        print_info "  2. nginx-beta.conf file missing or invalid"
+        print_info "  3. Volume mount issues"
+        print_info "  4. Permission issues"
+        echo ""
+        print_info "Run diagnostic script: ./diagnose-nginx.sh"
         exit 1
     fi
 fi
