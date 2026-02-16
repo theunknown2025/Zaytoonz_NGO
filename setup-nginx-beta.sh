@@ -68,8 +68,9 @@ http {
 
     # HTTPS Server
     server {
-        listen 443 ssl http2;
-        listen [::]:443 ssl http2;
+        listen 443 ssl;
+        listen [::]:443 ssl;
+        http2 on;
         server_name DOMAIN_PLACEHOLDER VPS_IP_PLACEHOLDER;
 
         # SSL Configuration (will be updated after certificate generation)
