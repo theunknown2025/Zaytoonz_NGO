@@ -34,8 +34,8 @@ RUN rm -rf .next
 
 # Verify critical files exist before build
 RUN test -f app/page.tsx && \
-    test -f app/components/ZaytoonzSMLanding.tsx && \
-    grep -q "ZaytoonzSMLanding" app/page.tsx && \
+    test -f app/LandingPage/LandingPage.tsx && \
+    grep -q "LandingPage" app/page.tsx && \
     echo "✓ Root page configuration verified"
 
 # Build the application
