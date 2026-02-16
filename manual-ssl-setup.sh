@@ -267,8 +267,21 @@ if [ -f "$DATA_PATH/conf/live/$DOMAIN/fullchain.pem" ]; then
     docker compose -f "$COMPOSE_FILE" run --rm --entrypoint "\
       openssl x509 -in /etc/letsencrypt/live/$DOMAIN/fullchain.pem -text -noout | grep -E 'Subject:|Issuer:|Not Before|Not After'" certbot
 else
-    print_error "Certificate files not found!"
-    exit 1
+    print_warning "Certificate files not found!"
+    print_info "This might be because:"
+    print_info "  1. Certificate request failed (check logs above)"
+    print_info "  2. Certificate is temporary and was removed"
+    print_info "  3. Certificate path is different"
+    echo ""
+    print_info "Checking certificate location..."
+    find "$DATA_PATH/conf" -name "*.pem" -type f 2>/dev/null | head -5 || print_info "No certificate files found"
+    echo ""
+    read -p "Continue anyway? (y/N) " continue_no_cert
+    if [ "$continue_no_cert" != "y" ] && [ "$continue_no_cert" != "Y" ]; then
+        print_info "You may need to create a temporary certificate first"
+        print_info "Or fix the certificate request and try again"
+        exit 1
+    fi
 fi
 
 # Step 11: Reload Nginx
