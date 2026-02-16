@@ -141,6 +141,18 @@ print_status "Directories created"
 # Step 9: Set up environment file with interactive credential collection
 echo -e "\n${YELLOW}Step 8: Configuring environment variables...${NC}"
 
+# Function to sanitize value (remove ANSI codes and special characters that could break .env file)
+sanitize_value() {
+    local value="$1"
+    # Remove ANSI escape sequences
+    value=$(echo "$value" | sed 's/\x1b\[[0-9;]*m//g')
+    # Remove carriage returns
+    value=$(echo "$value" | tr -d '\r')
+    # Trim whitespace
+    value=$(echo "$value" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+    echo "$value"
+}
+
 # Function to prompt for required value
 prompt_required() {
     local var_name=$1
@@ -150,15 +162,18 @@ prompt_required() {
     
     while [ -z "$value" ]; do
         if [ -n "$default_value" ]; then
-            echo -e "${YELLOW}${prompt_text} [default: ${default_value}]:${NC} "
+            echo -ne "${YELLOW}${prompt_text} [default: ${default_value}]:${NC} "
             read -r value
             if [ -z "$value" ]; then
                 value="$default_value"
             fi
         else
-            echo -e "${YELLOW}${prompt_text} (required):${NC} "
+            echo -ne "${YELLOW}${prompt_text} (required):${NC} "
             read -r value
         fi
+        
+        # Sanitize the value
+        value=$(sanitize_value "$value")
         
         if [ -z "$value" ]; then
             print_error "This field is required. Please enter a value."
@@ -175,15 +190,18 @@ prompt_optional() {
     local value=""
     
     if [ -n "$default_value" ]; then
-        echo -e "${YELLOW}${prompt_text} [default: ${default_value}]:${NC} "
+        echo -ne "${YELLOW}${prompt_text} [default: ${default_value}]:${NC} "
         read -r value
         if [ -z "$value" ]; then
             value="$default_value"
         fi
     else
-        echo -e "${YELLOW}${prompt_text} [optional, press Enter to skip]:${NC} "
+        echo -ne "${YELLOW}${prompt_text} [optional, press Enter to skip]:${NC} "
         read -r value
     fi
+    
+    # Sanitize the value
+    value=$(sanitize_value "$value")
     
     echo "$value"
 }
@@ -537,6 +555,17 @@ DOMAIN=${DOMAIN}
 VPS_IP=${VPS_IP}
 EOF
 
+# Clean any potential ANSI codes from the file
+sed -i 's/\x1b\[[0-9;]*m//g' .env.production 2>/dev/null || true
+# Remove any carriage returns
+sed -i 's/\r$//' .env.production 2>/dev/null || true
+
+# Validate the file format
+if grep -q $'\x1b\[' .env.production 2>/dev/null; then
+    print_warning "Found ANSI codes in .env.production, cleaning..."
+    sed -i 's/\x1b\[[0-9;]*m//g' .env.production
+fi
+
 print_status ".env.production file created with all credentials"
 
 # Display configuration summary
@@ -581,10 +610,37 @@ fi
 # Step 13: Start Docker containers
 echo -e "\n${YELLOW}Step 12: Starting Docker containers...${NC}"
 if [ -f "docker-compose-beta.yml" ]; then
-    # Load environment variables
-    set -a
-    [ -f .env.production ] && . .env.production
-    set +a
+    # Validate .env.production file before sourcing
+    if [ -f .env.production ]; then
+        # Check for any ANSI codes or problematic characters
+        if grep -q $'\x1b\[' .env.production 2>/dev/null; then
+            print_error ".env.production contains ANSI escape codes. Cleaning file..."
+            # Remove ANSI codes
+            sed -i 's/\x1b\[[0-9;]*m//g' .env.production
+        fi
+        
+        # Load environment variables safely
+        set -a
+        # Export variables from .env.production file line by line to avoid sourcing issues
+        set +e
+        while IFS= read -r line || [ -n "$line" ]; do
+            # Skip comments and empty lines
+            [[ "$line" =~ ^[[:space:]]*# ]] && continue
+            [[ -z "$line" ]] && continue
+            # Only process lines that look like valid env vars (VAR=value format)
+            if [[ "$line" =~ ^[[:space:]]*[A-Za-z_][A-Za-z0-9_]*= ]]; then
+                # Remove leading/trailing whitespace
+                line=$(echo "$line" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+                # Export the variable
+                export "$line" 2>/dev/null || true
+            fi
+        done < .env.production
+        set -e
+        set +a
+    else
+        print_error ".env.production file not found!"
+        exit 1
+    fi
     
     docker compose -f docker-compose-beta.yml pull
     docker compose -f docker-compose-beta.yml up -d --build
