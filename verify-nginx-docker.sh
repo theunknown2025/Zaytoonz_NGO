@@ -119,12 +119,32 @@ fi
 # Check 9: Test nginx config syntax (if container is running)
 print_info "9. Testing nginx configuration syntax..."
 if docker compose -f "$COMPOSE_FILE" ps nginx 2>/dev/null | grep -q "Up"; then
-    if docker compose -f "$COMPOSE_FILE" exec nginx nginx -t 2>&1 | grep -q "successful"; then
+    TEST_OUTPUT=$(docker compose -f "$COMPOSE_FILE" exec nginx nginx -t 2>&1)
+    if echo "$TEST_OUTPUT" | grep -q "successful"; then
         print_success "Nginx configuration test passed!"
     else
         print_error "Nginx configuration test failed!"
-        docker compose -f "$COMPOSE_FILE" exec nginx nginx -t
-        exit 1
+        echo ""
+        echo "$TEST_OUTPUT"
+        echo ""
+        
+        # Check if it's a certificate issue
+        if echo "$TEST_OUTPUT" | grep -q "cannot load certificate\|No such file"; then
+            print_warning "Certificate file not found - this is expected if you haven't created SSL certificate yet"
+            print_info "You need to create a temporary certificate first:"
+            echo ""
+            echo "  mkdir -p certbot/conf/live/$DOMAIN"
+            echo "  docker compose -f $COMPOSE_FILE run --rm --entrypoint '\\"
+            echo "    openssl req -x509 -nodes -newkey rsa:4096 -days 1\\"
+            echo "      -keyout /etc/letsencrypt/live/$DOMAIN/privkey.pem \\"
+            echo "      -out /etc/letsencrypt/live/$DOMAIN/fullchain.pem \\"
+            echo "      -subj /CN=localhost' certbot"
+            echo ""
+            print_info "Or run: ./manual-ssl-setup.sh to set up SSL properly"
+        else
+            print_error "Configuration syntax error - check the error above"
+            exit 1
+        fi
     fi
 else
     print_warning "Nginx container not running - cannot test config"
