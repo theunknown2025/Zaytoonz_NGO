@@ -9,6 +9,32 @@ import { saveOpportunityProgress, getLatestOpportunityProgress } from '../servic
 import { toast } from 'react-hot-toast';
 import { supabase } from '@/app/lib/supabase';
 
+const COUNTRIES = [
+  'Afghanistan', 'Albania', 'Algeria', 'Andorra', 'Angola', 'Antigua and Barbuda', 'Argentina', 'Armenia',
+  'Australia', 'Austria', 'Azerbaijan', 'Bahamas', 'Bahrain', 'Bangladesh', 'Barbados', 'Belarus', 'Belgium',
+  'Belize', 'Benin', 'Bhutan', 'Bolivia', 'Bosnia and Herzegovina', 'Botswana', 'Brazil', 'Brunei', 'Bulgaria',
+  'Burkina Faso', 'Burundi', 'Cambodia', 'Cameroon', 'Canada', 'Cape Verde', 'Central African Republic', 'Chad',
+  'Chile', 'China', 'Colombia', 'Comoros', 'Congo (Brazzaville)', 'Congo (Kinshasa)', 'Costa Rica', 'Cote d\'Ivoire',
+  'Croatia', 'Cuba', 'Cyprus', 'Czech Republic', 'Denmark', 'Djibouti', 'Dominica', 'Dominican Republic',
+  'Ecuador', 'Egypt', 'El Salvador', 'Equatorial Guinea', 'Eritrea', 'Estonia', 'Eswatini', 'Ethiopia',
+  'Fiji', 'Finland', 'France', 'Gabon', 'Gambia', 'Georgia', 'Germany', 'Ghana', 'Greece', 'Grenada',
+  'Guatemala', 'Guinea', 'Guinea-Bissau', 'Guyana', 'Haiti', 'Honduras', 'Hungary', 'Iceland', 'India',
+  'Indonesia', 'Iran', 'Iraq', 'Ireland', 'Israel', 'Italy', 'Jamaica', 'Japan', 'Jordan', 'Kazakhstan',
+  'Kenya', 'Kiribati', 'Kuwait', 'Kyrgyzstan', 'Laos', 'Latvia', 'Lebanon', 'Lesotho', 'Liberia', 'Libya',
+  'Liechtenstein', 'Lithuania', 'Luxembourg', 'Madagascar', 'Malawi', 'Malaysia', 'Maldives', 'Mali', 'Malta',
+  'Marshall Islands', 'Mauritania', 'Mauritius', 'Mexico', 'Micronesia', 'Moldova', 'Monaco', 'Mongolia',
+  'Montenegro', 'Morocco', 'Mozambique', 'Myanmar', 'Namibia', 'Nauru', 'Nepal', 'Netherlands', 'New Zealand',
+  'Nicaragua', 'Niger', 'Nigeria', 'North Korea', 'North Macedonia', 'Norway', 'Oman', 'Pakistan', 'Palau',
+  'Panama', 'Papua New Guinea', 'Paraguay', 'Peru', 'Philippines', 'Poland', 'Portugal', 'Qatar', 'Romania',
+  'Russia', 'Rwanda', 'Saint Kitts and Nevis', 'Saint Lucia', 'Saint Vincent and the Grenadines', 'Samoa',
+  'San Marino', 'Sao Tome and Principe', 'Saudi Arabia', 'Senegal', 'Serbia', 'Seychelles', 'Sierra Leone',
+  'Singapore', 'Slovakia', 'Slovenia', 'Solomon Islands', 'Somalia', 'South Africa', 'South Korea', 'South Sudan',
+  'Spain', 'Sri Lanka', 'Sudan', 'Suriname', 'Sweden', 'Switzerland', 'Syria', 'Taiwan', 'Tajikistan',
+  'Tanzania', 'Thailand', 'Timor-Leste', 'Togo', 'Tonga', 'Trinidad and Tobago', 'Tunisia', 'Turkey',
+  'Turkmenistan', 'Tuvalu', 'Uganda', 'Ukraine', 'United Arab Emirates', 'United Kingdom', 'United States',
+  'Uruguay', 'Uzbekistan', 'Vanuatu', 'Vatican City', 'Venezuela', 'Vietnam', 'Yemen', 'Zambia', 'Zimbabwe'
+];
+
 // Define our extended field type that supports all the field types we want to render
 interface ExtendedField {
   id: string;
@@ -74,6 +100,7 @@ interface CriteriaSelection {
   level?: string;
   sector?: string;
   location?: string;
+  country?: string;
   fundingType?: string;
   eligibility?: string;
   amountRange?: string;
@@ -104,6 +131,8 @@ export default function OpportunityDescription({ formData, onChange, onNext, opp
   const [customFilters, setCustomFilters] = useState<{ [key: string]: string }>({});
   const [newCustomFilterName, setNewCustomFilterName] = useState('');
   const [newCustomFilterValue, setNewCustomFilterValue] = useState('');
+  const [countrySearch, setCountrySearch] = useState('');
+  const [isCountryListOpen, setIsCountryListOpen] = useState(false);
   
   // Use a ref to track if we've already loaded data to prevent multiple calls
   const dataLoadedRef = useRef(false);
@@ -297,6 +326,12 @@ export default function OpportunityDescription({ formData, onChange, onNext, opp
     
     return options[opportunityType as keyof typeof options] || {};
   };
+
+  useEffect(() => {
+    if (criteria.country && criteria.country !== countrySearch) {
+      setCountrySearch(criteria.country);
+    }
+  }, [criteria.country, countrySearch]);
 
   // Handle criteria change
   const handleCriteriaChange = (field: string, value: string) => {
@@ -641,6 +676,12 @@ export default function OpportunityDescription({ formData, onChange, onNext, opp
     );
   }
 
+  const normalizedCountrySearch = countrySearch.trim().toLowerCase();
+  const filteredCountries = normalizedCountrySearch
+    ? COUNTRIES.filter((country) => country.toLowerCase().includes(normalizedCountrySearch))
+    : COUNTRIES;
+  const visibleCountries = filteredCountries.slice(0, 10);
+
   return (
     <div className="space-y-6">
       <div>
@@ -772,6 +813,68 @@ export default function OpportunityDescription({ formData, onChange, onNext, opp
                   </select>
                 </div>
               ))}
+
+              <div className="relative">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Country (Geographical Location)
+                </label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={countrySearch}
+                    onChange={(e) => {
+                      setCountrySearch(e.target.value);
+                      setIsCountryListOpen(true);
+                    }}
+                    onFocus={() => setIsCountryListOpen(true)}
+                    onBlur={() => {
+                      setTimeout(() => setIsCountryListOpen(false), 120);
+                    }}
+                    placeholder="Search and select a country..."
+                    className="block w-full border border-gray-300 rounded-md shadow-sm focus:ring-2 focus:ring-[#556B2F] focus:border-[#556B2F] sm:text-sm py-2 pl-3 pr-10 hover:border-[#556B2F]/50 transition-colors"
+                  />
+                  {countrySearch && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setCountrySearch('');
+                        handleCriteriaChange('country', '');
+                        setIsCountryListOpen(false);
+                      }}
+                      className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
+                      aria-label="Clear country"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  )}
+                </div>
+                {isCountryListOpen && visibleCountries.length > 0 && (
+                  <div className="absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded-md shadow-lg max-h-56 overflow-auto">
+                    {visibleCountries.map((country) => (
+                      <button
+                        type="button"
+                        key={country}
+                        onMouseDown={(e) => {
+                          e.preventDefault();
+                          setCountrySearch(country);
+                          handleCriteriaChange('country', country);
+                          setIsCountryListOpen(false);
+                        }}
+                        className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-[#556B2F]/10 hover:text-[#556B2F]"
+                      >
+                        {country}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {isCountryListOpen && visibleCountries.length === 0 && (
+                  <div className="absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded-md shadow-lg p-3 text-sm text-gray-500">
+                    No matching countries.
+                  </div>
+                )}
+              </div>
               
               {/* Cross-cutting filter - Deadline */}
               <div>
@@ -801,6 +904,7 @@ export default function OpportunityDescription({ formData, onChange, onNext, opp
                            field === 'level' ? 'Level:' :
                            field === 'sector' ? 'Sector:' :
                            field === 'location' ? 'Location:' :
+                           field === 'country' ? 'Country:' :
                            field === 'fundingType' ? 'Type:' :
                            field === 'eligibility' ? 'Eligibility:' :
                            field === 'amountRange' ? 'Amount:' :
