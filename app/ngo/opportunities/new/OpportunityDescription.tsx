@@ -1114,8 +1114,17 @@ export default function OpportunityDescription({ formData, onChange, onNext, opp
           {descriptionMode === 'template' ? (
             <div className="mt-3 space-y-6">
               <div className="relative">
-                <label htmlFor="template" className="block text-sm font-medium text-gray-700 mb-1">
+                <label htmlFor="template" className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-1">
                   Select a Template
+                  <span
+                    className="group/tooltip relative inline-flex items-center justify-center w-4 h-4 rounded-full bg-[#556B2F]/20 text-[#556B2F] text-xs font-bold cursor-help"
+                    title="Select a template to use predefined fields for your opportunity"
+                  >
+                    i
+                    <span className="absolute left-1/2 -translate-x-1/2 bottom-full mb-1 px-2 py-1.5 text-xs font-normal text-white bg-gray-800 rounded shadow-lg opacity-0 invisible group-hover/tooltip:opacity-100 group-hover/tooltip:visible transition-all duration-150 max-w-[220px] text-center z-10 pointer-events-none">
+                      Select a template to use predefined fields for your opportunity
+                    </span>
+                  </span>
                 </label>
                 <select
                   id="template"
@@ -1131,16 +1140,6 @@ export default function OpportunityDescription({ formData, onChange, onNext, opp
                     </option>
                   ))}
                 </select>
-                {!loading && !selectedTemplate && (
-                  <div className="mt-3 rounded-md bg-[#556B2F]/5 p-3 border border-[#556B2F]/10">
-                    <p className="text-sm text-gray-600 flex items-center">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 text-[#556B2F]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
-                      Select a template to use predefined fields for your opportunity
-                    </p>
-                  </div>
-                )}
               </div>
               
               {selectedTemplate && !loading && (
@@ -1452,7 +1451,7 @@ export default function OpportunityDescription({ formData, onChange, onNext, opp
                   })}
                   
                   <div className="relative mt-6 pt-6 border-t border-dashed border-gray-200">
-                    <div className="flex items-center justify-between mb-3">
+                    <div className="mb-3">
                       <h4 className="text-sm font-medium text-gray-700 flex items-center">
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1 text-[#556B2F]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -1460,10 +1459,6 @@ export default function OpportunityDescription({ formData, onChange, onNext, opp
                         </svg>
                         Description Preview
                       </h4>
-                      
-                      <span className="text-xs font-medium px-2 py-1 bg-[#556B2F]/10 text-[#556B2F] rounded-full">
-                        Auto-Generated
-                      </span>
                     </div>
                     
                     <div className="p-4 bg-gray-50 border border-gray-200 rounded-md text-sm whitespace-pre-line shadow-inner overflow-auto max-h-48">
