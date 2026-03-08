@@ -492,7 +492,7 @@ export default function OpportunityDetailClient({ opportunity }: OpportunityDeta
       const sanitizedHtml = sanitizeHtml(description);
       return (
         <div 
-          className="text-gray-700 leading-relaxed prose prose-sm max-w-none 
+          className="text-gray-700 leading-relaxed prose prose-sm max-w-none break-words 
                      prose-headings:text-gray-900 prose-headings:font-semibold 
                      prose-p:mb-4 prose-p:text-gray-700 prose-p:leading-relaxed
                      prose-h1:text-2xl prose-h1:border-b prose-h1:border-gray-200 prose-h1:pb-3 prose-h1:mb-6
@@ -509,6 +509,7 @@ export default function OpportunityDetailClient({ opportunity }: OpportunityDeta
                      prose-pre:bg-gray-100 prose-pre:p-4 prose-pre:rounded-lg prose-pre:overflow-x-auto
                      [&>div]:mb-4 [&>div>h2]:text-xl [&>div>h2]:font-semibold [&>div>h2]:text-gray-900 [&>div>h2]:mb-3
                      [&>div>p]:mb-3 [&>div>p]:text-gray-700 [&>div>p]:leading-relaxed"
+          style={{ overflowWrap: 'anywhere' } as React.CSSProperties}
           dangerouslySetInnerHTML={{ __html: sanitizedHtml }}
         />
       );
@@ -526,7 +527,7 @@ export default function OpportunityDetailClient({ opportunity }: OpportunityDeta
                 </h3>
               )}
               {section.content && (
-                <div className="text-gray-700 leading-relaxed whitespace-pre-wrap prose prose-sm max-w-none">
+                <div className="text-gray-700 leading-relaxed whitespace-pre-wrap break-words prose prose-sm max-w-none" style={{ overflowWrap: 'anywhere' } as React.CSSProperties}>
                   {/* Check if content contains file URLs and render them appropriately */}
                   {section.content.split('\n').map((line, lineIndex) => {
                     const trimmedLine = line.trim();
@@ -861,12 +862,14 @@ export default function OpportunityDetailClient({ opportunity }: OpportunityDeta
         {/* Main Content - Single Column Layout */}
         <div className="w-full space-y-8">
           {/* Description */}
-          <div className="bg-white rounded-2xl shadow-sm p-8 border border-gray-100 w-full">
+          <div className="bg-white rounded-2xl shadow-sm p-8 border border-gray-100 w-full min-w-0 overflow-hidden">
             <div className="flex items-center gap-3 mb-6">
               <DocumentTextIcon className="w-6 h-6 text-gray-600" />
               <h2 className="text-2xl font-semibold text-gray-900">Description</h2>
             </div>
-            <FormattedDescription description={opportunity.description || ''} />
+            <div className="break-words overflow-x-hidden">
+              <FormattedDescription description={opportunity.description || ''} />
+            </div>
           </div>
 
           {/* Metadata */}

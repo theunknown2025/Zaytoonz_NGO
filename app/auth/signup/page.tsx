@@ -108,11 +108,13 @@ export default function SignUp() {
       />
       <div className="w-full max-w-md px-8 py-10 mx-auto overflow-hidden bg-white rounded-2xl shadow-xl card">
         <div className="mb-8 text-center">
-          <div className="inline-flex items-center justify-center w-20 h-20 mb-5 bg-gradient-to-r from-[#556B2F] to-[#6B8E23] rounded-full">
-            <svg xmlns="http://www.w3.org/2000/svg" className="w-10 h-10 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
-            </svg>
-          </div>
+          <Link href="/" className="inline-block mb-5">
+            <img
+              src="/image.png"
+              alt="Zaytoonz Logo"
+              className="h-16 w-auto mx-auto"
+            />
+          </Link>
           <h2 className="text-3xl font-bold text-gradient">Create Account</h2>
           <p className="mt-2 text-sm text-gray-600">Join our community today</p>
         </div>
