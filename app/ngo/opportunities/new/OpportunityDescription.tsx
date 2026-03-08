@@ -1121,7 +1121,7 @@ export default function OpportunityDescription({ formData, onChange, onNext, opp
                   id="template"
                   value={selectedTemplate}
                   onChange={handleTemplateChange}
-                  className="mt-1 block w-full pl-3 pr-10 py-2.5 text-base border-gray-300 focus:outline-none focus:ring-[#556B2F] focus:border-[#556B2F] sm:text-sm rounded-md bg-white shadow-sm hover:border-[#556B2F]/50 transition-colors"
+                  className="mt-1 block w-full pl-3 pr-10 py-2.5 text-base border-2 border-[#556B2F] focus:outline-none focus:ring-2 focus:ring-[#556B2F] focus:ring-offset-1 focus:border-[#556B2F] sm:text-sm rounded-md bg-white shadow-sm hover:border-[#6B8E23] transition-colors"
                   disabled={loading}
                 >
                   <option value="">Select a template...</option>
