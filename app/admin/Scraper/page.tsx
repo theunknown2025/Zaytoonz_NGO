@@ -249,10 +249,21 @@ export default function ScraperPage() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ url, fields, model: 'gpt-4o-mini', use_pagination: usePagination, pagination_details: paginationDetails }),
         });
-        const result = await res.json();
+        const contentType = res.headers.get('content-type') || '';
+        let result: ScrapeResult;
+        if (contentType.includes('application/json')) {
+          result = await res.json();
+        } else {
+          const text = await res.text();
+          const errMsg = res.status === 502
+            ? 'Scraper backend is not responding (502). Ensure python-scraper is running: docker compose ps python-scraper'
+            : `Unexpected response (${res.status}): ${text.slice(0, 100)}`;
+          result = { success: false, error: errMsg };
+        }
+        if (!res.ok && result.success !== false) {
+          result = { success: false, error: result.error || `HTTP ${res.status}` };
+        }
         console.log('Scraper API Response:', result);
-        console.log('Jobs in response:', result.jobs?.length || 0);
-        console.log('Data in response:', result.data);
         allResults.push(result);
       } catch (err) {
         console.error('Scraper API Error:', err);
