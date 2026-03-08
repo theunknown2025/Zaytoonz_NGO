@@ -334,6 +334,19 @@ export default function OpportunityDescription({ formData, onChange, onNext, opp
     }
   }, [criteria.country, countrySearch]);
 
+  // Auto-resize multiline textareas when templateFields change (e.g. loaded from saved progress)
+  useEffect(() => {
+    if (!selectedTemplate) return;
+    const timer = setTimeout(() => {
+      document.querySelectorAll('textarea[data-autoresize="true"]').forEach((el) => {
+        const ta = el as HTMLTextAreaElement;
+        ta.style.height = 'auto';
+        ta.style.height = Math.max(ta.scrollHeight, 72) + 'px';
+      });
+    }, 0);
+    return () => clearTimeout(timer);
+  }, [templateFields, selectedTemplate]);
+
   // Handle criteria change
   const handleCriteriaChange = (field: string, value: string) => {
     const newCriteria = {
@@ -1235,9 +1248,21 @@ export default function OpportunityDescription({ formData, onChange, onNext, opp
                             <textarea
                               id={`field-${field.id}`}
                               value={templateFields[field.id] || ''}
-                              onChange={(e) => handleFieldChange(field.id, e.target.value)}
+                              onChange={(e) => {
+                                const target = e.target;
+                                handleFieldChange(field.id, e.target.value);
+                                target.style.height = 'auto';
+                                target.style.height = target.scrollHeight + 'px';
+                              }}
+                              ref={(el) => {
+                                if (el) {
+                                  el.style.height = 'auto';
+                                  el.style.height = Math.max(el.scrollHeight, 72) + 'px';
+                                }
+                              }}
+                              data-autoresize="true"
                               rows={3}
-                              className="block w-full border border-gray-300 rounded-md shadow-sm focus:ring-2 focus:ring-[#556B2F] focus:border-[#556B2F] sm:text-sm transition-all pl-3 pr-3 py-2 resize-none group-hover:border-[#556B2F]/50"
+                              className="block w-full min-h-[72px] max-h-[400px] border border-gray-300 rounded-md shadow-sm focus:ring-2 focus:ring-[#556B2F] focus:border-[#556B2F] sm:text-sm transition-all pl-3 pr-3 py-2 resize-none overflow-y-auto group-hover:border-[#556B2F]/50"
                               placeholder={field.placeholder}
                             />
                             <div className="absolute bottom-2 right-2 text-xs text-gray-400">
