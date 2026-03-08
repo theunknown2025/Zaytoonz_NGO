@@ -823,6 +823,7 @@ export default function NewOpportunityPage() {
             }}
             opportunityType={opportunityType}
             opportunityId={opportunityId}
+            criteria={formData.criteria}
             onPrevious={handlePrevious}
             onSubmit={handleNext}
           />

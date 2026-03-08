@@ -13,9 +13,11 @@ import {
   ArrowPathIcon,
   BriefcaseIcon,
   CurrencyDollarIcon,
-  AcademicCapIcon
+  AcademicCapIcon,
+  EyeIcon
 } from '@heroicons/react/24/outline';
 import { getFormById } from '../../resources/tools/FormMaker/services/formService';
+import FullPreview from './FullPreview';
 
 interface FormSection {
   id: string;
@@ -64,6 +66,23 @@ interface RecapProps {
   };
   opportunityType?: 'job' | 'funding' | 'training' | '';
   opportunityId?: string;
+  criteria?: {
+    contractType?: string;
+    level?: string;
+    sector?: string;
+    location?: string;
+    country?: string;
+    fundingType?: string;
+    eligibility?: string;
+    amountRange?: string;
+    purpose?: string;
+    format?: string;
+    duration?: string;
+    certification?: string;
+    cost?: string;
+    deadline?: string;
+    customFilters?: { [key: string]: string };
+  };
   onPrevious: () => void;
   onSubmit: () => void;
   isSaving?: boolean;
@@ -77,11 +96,14 @@ export default function Recap({
   evaluationData,
   opportunityType,
   opportunityId,
+  criteria = {},
   onPrevious,
   onSubmit,
   isSaving = false,
   isSubmitting = false
 }: RecapProps) {
+  const [showFullPreview, setShowFullPreview] = useState(false);
+
   // State to track which accordion sections are open
   const [openSections, setOpenSections] = useState<{
     description: boolean;
@@ -291,12 +313,34 @@ export default function Recap({
 
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-xl font-semibold text-gray-900">Review & Submit</h2>
-        <p className="mt-1 text-sm text-gray-500">
-          Review your opportunity details before submitting.
-        </p>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h2 className="text-xl font-semibold text-gray-900">Review & Submit</h2>
+          <p className="mt-1 text-sm text-gray-500">
+            Review your opportunity details before submitting.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={() => setShowFullPreview(true)}
+          className="inline-flex items-center px-4 py-2 border border-[#556B2F] text-sm font-medium rounded-md text-[#556B2F] bg-white hover:bg-[#556B2F]/10 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#556B2F]"
+        >
+          <EyeIcon className="h-4 w-4 mr-2" />
+          Full Preview
+        </button>
       </div>
+
+      <FullPreview
+        isOpen={showFullPreview}
+        onClose={() => setShowFullPreview(false)}
+        descriptionData={descriptionData}
+        formData={formData}
+        processData={processData}
+        evaluationData={evaluationData}
+        opportunityType={opportunityType}
+        criteria={criteria}
+        formDetails={formDetails}
+      />
 
       <div className="space-y-4">
         {/* Description Accordion */}
