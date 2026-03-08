@@ -137,7 +137,15 @@ export async function POST(request: NextRequest) {
           body: JSON.stringify({ url: opp.url }),
         });
 
-        const rawContentResult = await rawContentResponse.json();
+        const rawText = await rawContentResponse.text();
+        const rawContentResult = (() => {
+          try {
+            return JSON.parse(rawText);
+          } catch {
+            console.error('Scraper raw-content returned invalid JSON:', rawText.slice(0, 150));
+            return { success: false, raw_content: '' };
+          }
+        })();
         const fullRawContent = rawContentResult.success ? rawContentResult.raw_content : '';
         const filteredContent = extractOpportunitySection(fullRawContent, opp.title);
         console.log(`📄 Raw content: ${fullRawContent?.length || 0} characters | Filtered: ${filteredContent?.length || 0} characters`);
@@ -155,7 +163,15 @@ export async function POST(request: NextRequest) {
           }),
         });
 
-        const scraperResult = await mainInfoResponse.json();
+        const scrapeText = await mainInfoResponse.text();
+        const scraperResult = (() => {
+          try {
+            return JSON.parse(scrapeText);
+          } catch {
+            console.error('Scraper api/scrape returned invalid JSON:', scrapeText.slice(0, 150));
+            return { success: false, error: 'Scraper returned invalid response (backend may be down)' };
+          }
+        })();
 
         // If both failed, record as failed
         if (!scraperResult.success && !fullRawContent) {

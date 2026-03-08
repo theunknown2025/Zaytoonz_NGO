@@ -100,8 +100,15 @@ async function scrapeWithExternalPython(url: string): Promise<JobData | JobListR
       throw new Error(`HTTP error! status: ${response.status}`);
     }
 
-    const result: ExternalScraperResponse = await response.json();
-    
+    const text = await response.text();
+    let result: ExternalScraperResponse;
+    try {
+      result = JSON.parse(text) as ExternalScraperResponse;
+    } catch {
+      console.error('Scraper returned invalid JSON. Raw response:', text.slice(0, 200));
+      throw new Error('Scraper backend returned invalid response (not JSON). It may be down or misconfigured.');
+    }
+
     if (result.success) {
       // Log cost information if available
       if (result.metadata?.total_cost) {

@@ -249,16 +249,23 @@ export default function ScraperPage() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ url, fields, model: 'gpt-4o-mini', use_pagination: usePagination, pagination_details: paginationDetails }),
         });
+        const text = await res.text();
         const contentType = res.headers.get('content-type') || '';
         let result: ScrapeResult;
-        if (contentType.includes('application/json')) {
-          result = await res.json();
-        } else {
-          const text = await res.text();
-          const errMsg = res.status === 502
-            ? 'Scraper backend is not responding (502). Ensure python-scraper is running: docker compose ps python-scraper'
-            : `Unexpected response (${res.status}): ${text.slice(0, 100)}`;
-          result = { success: false, error: errMsg };
+        try {
+          if (contentType.includes('application/json')) {
+            result = JSON.parse(text) as ScrapeResult;
+          } else {
+            const errMsg = res.status === 502
+              ? 'Scraper backend is not responding (502). Ensure python-scraper is running.'
+              : `Unexpected response (${res.status}): ${text.slice(0, 80)}`;
+            result = { success: false, error: errMsg };
+          }
+        } catch (_parseErr) {
+          result = {
+            success: false,
+            error: `Scraper returned invalid JSON (not running or misconfigured). Check python-scraper logs.`,
+          };
         }
         if (!res.ok && result.success !== false) {
           result = { success: false, error: result.error || `HTTP ${res.status}` };
