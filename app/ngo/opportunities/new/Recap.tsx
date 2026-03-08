@@ -18,6 +18,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { getFormById } from '../../resources/tools/FormMaker/services/formService';
 import FullPreview from './FullPreview';
+import { formatDescriptionForDisplay } from './formatDescription';
 
 interface FormSection {
   id: string;
@@ -409,7 +410,7 @@ export default function Recap({
                   <h4 className="text-sm font-semibold text-gray-700 mb-1">Description</h4>
                   <div className="prose prose-sm max-w-none text-gray-600 border border-gray-100 rounded-md p-3 bg-gray-50">
                     {descriptionData.description ? (
-                      <div dangerouslySetInnerHTML={{ __html: descriptionData.description }} />
+                      <div dangerouslySetInnerHTML={{ __html: formatDescriptionForDisplay(descriptionData.description) }} />
                     ) : (
                       <p className="text-gray-400 italic">No description provided</p>
                     )}

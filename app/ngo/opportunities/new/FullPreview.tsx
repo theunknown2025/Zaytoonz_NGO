@@ -1,5 +1,6 @@
 'use client';
 
+import { formatDescriptionForDisplay } from './formatDescription';
 import {
   XMarkIcon,
   DocumentTextIcon,
@@ -230,14 +231,9 @@ export default function FullPreview({
               <div className="prose prose-lg max-w-none text-gray-700 border border-gray-200 rounded-lg p-6 bg-gray-50/50 min-h-[200px]">
                 {descriptionData.description ? (
                   <div
-                    className="prose prose-lg max-w-none [&_strong]:text-[#556B2F] [&_strong]:font-semibold"
+                    className="prose prose-lg max-w-none"
                     dangerouslySetInnerHTML={{
-                      __html: /<[a-z][\s\S]*>/i.test(descriptionData.description)
-                        ? descriptionData.description
-                        : descriptionData.description.replace(
-                            /\*\*(.*?)\*\*/g,
-                            '<strong>$1</strong>'
-                          )
+                      __html: formatDescriptionForDisplay(descriptionData.description)
                     }}
                   />
                 ) : (

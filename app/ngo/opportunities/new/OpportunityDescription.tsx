@@ -6,6 +6,7 @@ import { getTemplates } from '../../resources/tools/OffreMaker/supabaseService';
 import { Template as OffreTemplate, TemplateField } from '../../resources/tools/OffreMaker/NewTemplate';
 import dynamic from 'next/dynamic';
 import { saveOpportunityProgress, getLatestOpportunityProgress } from '../services/opportunityService';
+import { formatDescriptionForDisplay } from './formatDescription';
 import { toast } from 'react-hot-toast';
 import { supabase } from '@/app/lib/supabase';
 
@@ -1461,10 +1462,10 @@ export default function OpportunityDescription({ formData, onChange, onNext, opp
                       </h4>
                     </div>
                     
-                    <div className="p-4 bg-gray-50 border border-gray-200 rounded-md text-sm whitespace-pre-line shadow-inner overflow-auto max-h-48">
+                    <div className="p-4 bg-gray-50 border border-gray-200 rounded-md text-sm shadow-inner overflow-auto max-h-48">
                       {formData.description ? (
                         <div dangerouslySetInnerHTML={{ 
-                          __html: formData.description.replace(/\*\*(.*?)\*\*/g, '<strong class="text-[#556B2F]">$1</strong>') 
+                          __html: formatDescriptionForDisplay(formData.description) 
                         }} />
                       ) : (
                         <p className="text-gray-400 italic text-center py-4">
