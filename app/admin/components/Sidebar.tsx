@@ -63,7 +63,7 @@ export function Sidebar({ user }: SidebarProps) {
             {user.name?.charAt(0) || 'A'}
           </div>
           <div>
-            <h2 className="text-xl font-semibold mb-1 text-gray-800">{user.name || 'Admin'}</h2>
+            <h2 className="text-xl font-semibold mb-1 text-gray-800">Hello, {user.name || 'Admin'}</h2>
             <p className="text-sm text-gray-500">{user.email}</p>
           </div>
         </div>

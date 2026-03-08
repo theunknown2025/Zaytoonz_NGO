@@ -36,8 +36,11 @@ import {
 import RecentOpportunities from './components/RecentOpportunities';
 import OurPartners from './components/OurPartners';
 import { languages, getTranslations, getLanguageByCode, type LanguageCode, type Language } from './translations';
+import { useAuth } from '@/app/lib/auth';
+import Link from 'next/link';
 
 export default function LandingPage() {
+  const { user } = useAuth();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [isLangOpen, setIsLangOpen] = useState(false);
@@ -142,18 +145,35 @@ export default function LandingPage() {
                 )}
               </div>
 
-              <a
-                href="/auth/signin"
-                className="text-olive-700 hover:text-olive-600 font-medium transition-colors"
-              >
-                {t.nav.signIn}
-              </a>
-              <a
-                href="/auth/signup"
-                className="bg-olive-700 text-white px-6 py-2 rounded-full font-medium hover:bg-olive-800 hover:shadow-lg transition-all duration-300 transform hover:scale-105"
-              >
-                {t.nav.getStarted}
-              </a>
+              {user ? (
+                <Link
+                  href={
+                    user.userType === 'Admin'
+                      ? '/admin'
+                      : user.userType === 'Personne'
+                      ? '/seeker'
+                      : '/ngo/dashboard'
+                  }
+                  className="text-olive-700 hover:text-olive-600 font-medium transition-colors"
+                >
+                  Hello, {user.fullName}
+                </Link>
+              ) : (
+                <>
+                  <a
+                    href="/auth/signin"
+                    className="text-olive-700 hover:text-olive-600 font-medium transition-colors"
+                  >
+                    {t.nav.signIn}
+                  </a>
+                  <a
+                    href="/auth/signup"
+                    className="bg-olive-700 text-white px-6 py-2 rounded-full font-medium hover:bg-olive-800 hover:shadow-lg transition-all duration-300 transform hover:scale-105"
+                  >
+                    {t.nav.getStarted}
+                  </a>
+                </>
+              )}
             </div>
 
             <button
@@ -208,12 +228,29 @@ export default function LandingPage() {
                 </div>
                 
                 <div className="pt-4 pb-3 border-t border-olive-200">
-                  <a href="/auth/signin" className={`block w-full text-${isRTL ? 'right' : 'left'} px-3 py-2 text-olive-700 hover:text-olive-600`}>
-                    {t.nav.signIn}
-                  </a>
-                  <a href="/auth/signup" className="block w-full mt-2 bg-olive-700 text-white px-3 py-2 rounded-full font-medium text-center hover:bg-olive-800">
-                    {t.nav.getStarted}
-                  </a>
+                  {user ? (
+                    <Link
+                      href={
+                        user.userType === 'Admin'
+                          ? '/admin'
+                          : user.userType === 'Personne'
+                          ? '/seeker'
+                          : '/ngo/dashboard'
+                      }
+                      className={`block w-full text-${isRTL ? 'right' : 'left'} px-3 py-2 text-olive-700 hover:text-olive-600 font-medium`}
+                    >
+                      Hello, {user.fullName}
+                    </Link>
+                  ) : (
+                    <>
+                      <a href="/auth/signin" className={`block w-full text-${isRTL ? 'right' : 'left'} px-3 py-2 text-olive-700 hover:text-olive-600`}>
+                        {t.nav.signIn}
+                      </a>
+                      <a href="/auth/signup" className="block w-full mt-2 bg-olive-700 text-white px-3 py-2 rounded-full font-medium text-center hover:bg-olive-800">
+                        {t.nav.getStarted}
+                      </a>
+                    </>
+                  )}
                 </div>
               </div>
             </div>
