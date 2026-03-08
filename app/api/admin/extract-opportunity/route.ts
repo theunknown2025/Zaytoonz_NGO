@@ -29,8 +29,8 @@ interface ExtractedContent {
   [key: string]: unknown;
 }
 
-// Server-side: use localhost or env var. Client-side will use relative path via Nginx proxy
-const SCRAPER_URL = process.env.NEXT_PUBLIC_EXTERNAL_SCRAPER_URL || 'http://localhost:8000';
+// Server-side only: use internal URL (python-scraper:8000 in Docker) or localhost for dev
+const SCRAPER_URL = process.env.SCRAPER_INTERNAL_URL || process.env.NEXT_PUBLIC_EXTERNAL_SCRAPER_URL || 'http://localhost:8000';
 
 // Heuristic slicer: keep content from the opportunity title to the first "Apply" section.
 function extractOpportunitySection(raw: string, title: string): string {

@@ -128,10 +128,11 @@ export default function ScraperPage() {
     pagination_details: '',
   });
 
-  // Use relative path for Nginx proxy, or fallback to env var, or localhost for dev
-  // Nginx proxies /api/scraper/ to http://localhost:8000/
-  const SCRAPER_URL = process.env.NEXT_PUBLIC_EXTERNAL_SCRAPER_URL || 
-    (typeof window !== 'undefined' ? '/api/scraper' : 'http://localhost:8000');
+  // Client (browser): use relative /scraper-api - Nginx proxies to python-scraper (avoids mixed content & DNS)
+  // Server (SSR): use internal URL or localhost for dev
+  const SCRAPER_URL = typeof window !== 'undefined'
+    ? '/scraper-api'
+    : (process.env.NEXT_PUBLIC_EXTERNAL_SCRAPER_URL || process.env.SCRAPER_INTERNAL_URL || 'http://localhost:8000');
 
   // Generate unique IDs for jobs
   const getAllJobs = useCallback((): { job: JobData; sourceUrl: string; uniqueId: string }[] => {
