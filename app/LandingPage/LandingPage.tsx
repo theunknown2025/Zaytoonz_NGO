@@ -98,15 +98,24 @@ export default function LandingPage() {
               <a href="#home" className="text-olive-700 hover:text-olive-600 font-medium transition-colors">
                 {t.nav.home}
               </a>
-              <a href="#jobs" className="text-olive-700 hover:text-olive-600 font-medium transition-colors">
+              <Link
+                href="/seeker/opportunities?category=job"
+                className="text-olive-700 hover:text-olive-600 font-medium transition-colors"
+              >
                 {t.nav.jobs}
-              </a>
-              <a href="#training" className="text-olive-700 hover:text-olive-600 font-medium transition-colors">
+              </Link>
+              <Link
+                href="/seeker/opportunities?category=training"
+                className="text-olive-700 hover:text-olive-600 font-medium transition-colors"
+              >
                 {t.nav.training}
-              </a>
-              <a href="#funding" className="text-olive-700 hover:text-olive-600 font-medium transition-colors">
+              </Link>
+              <Link
+                href="/seeker/opportunities?category=funding"
+                className="text-olive-700 hover:text-olive-600 font-medium transition-colors"
+              >
                 {t.nav.funding}
-              </a>
+              </Link>
               <a href="#resources" className="text-olive-700 hover:text-olive-600 font-medium transition-colors">
                 {t.nav.resources}
               </a>
@@ -190,15 +199,27 @@ export default function LandingPage() {
                 <a href="#home" className="block px-3 py-2 text-olive-700 hover:text-olive-600">
                   {t.nav.home}
                 </a>
-                <a href="#jobs" className="block px-3 py-2 text-olive-700 hover:text-olive-600">
+                <Link
+                  href="/seeker/opportunities?category=job"
+                  className="block px-3 py-2 text-olive-700 hover:text-olive-600"
+                  onClick={() => setIsMenuOpen(false)}
+                >
                   {t.nav.jobs}
-                </a>
-                <a href="#training" className="block px-3 py-2 text-olive-700 hover:text-olive-600">
+                </Link>
+                <Link
+                  href="/seeker/opportunities?category=training"
+                  className="block px-3 py-2 text-olive-700 hover:text-olive-600"
+                  onClick={() => setIsMenuOpen(false)}
+                >
                   {t.nav.training}
-                </a>
-                <a href="#funding" className="block px-3 py-2 text-olive-700 hover:text-olive-600">
+                </Link>
+                <Link
+                  href="/seeker/opportunities?category=funding"
+                  className="block px-3 py-2 text-olive-700 hover:text-olive-600"
+                  onClick={() => setIsMenuOpen(false)}
+                >
                   {t.nav.funding}
-                </a>
+                </Link>
                 <a href="#resources" className="block px-3 py-2 text-olive-700 hover:text-olive-600">
                   {t.nav.resources}
                 </a>

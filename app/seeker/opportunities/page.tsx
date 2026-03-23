@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
-import { useRouter } from 'next/navigation';
+import React, { useState, useEffect, useLayoutEffect, useMemo, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { 
   BriefcaseIcon, 
@@ -73,7 +73,13 @@ const initialFilters: Filters = {
   source: 'all',
 };
 
-export default function OpportunitiesPage() {
+function categoryFromSearchParam(value: string | null): string {
+  if (value === 'job' || value === 'training' || value === 'funding') return value;
+  return 'all';
+}
+
+function OpportunitiesPageContent() {
+  const searchParams = useSearchParams();
   const router = useRouter();
   const { user } = useAuth();
   const [opportunities, setOpportunities] = useState<Opportunity[]>([]);
@@ -154,6 +160,14 @@ export default function OpportunitiesPage() {
     if (searchQuery.trim()) count++;
     return count;
   }, [filters, searchQuery]);
+
+  const urlCategory = categoryFromSearchParam(searchParams.get('category'));
+
+  useLayoutEffect(() => {
+    setFilters((prev) =>
+      prev.category === urlCategory ? prev : { ...prev, category: urlCategory }
+    );
+  }, [urlCategory]);
 
   useEffect(() => {
     fetchOpportunities();
@@ -1446,4 +1460,23 @@ export default function OpportunitiesPage() {
       </div>
     </div>
   );
-} 
+}
+
+export default function OpportunitiesPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-olive-50 flex items-center justify-center">
+          <div className="text-center">
+            <div className="inline-flex items-center justify-center w-16 h-16 bg-olive-100 rounded-full mb-4">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-olive-600" />
+            </div>
+            <p className="text-olive-700 font-medium">Loading opportunities...</p>
+          </div>
+        </div>
+      }
+    >
+      <OpportunitiesPageContent />
+    </Suspense>
+  );
+}
