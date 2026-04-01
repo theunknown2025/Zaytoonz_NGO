@@ -19,21 +19,28 @@ from markdown import fetch_and_store_markdowns, read_raw_data
 from utils import generate_unique_name
 from assets import MODELS_USED, OPENAI_MODEL_FULLNAME
 from api_management import get_supabase_client
+from robots_guard import check_url_allowed
 
 # Initialize FastAPI app
 app = FastAPI(title="Scrape Master API", version="1.0.0")
 
-# Configure CORS to allow your Next.js frontend
+# CORS: Starlette does not support wildcards like https://*.app — use env or explicit hosts
+def _cors_allow_origins() -> List[str]:
+    raw = os.getenv("SCRAPER_CORS_ORIGINS", "").strip()
+    if raw:
+        return [o.strip() for o in raw.split(",") if o.strip()]
+    return [
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "https://beta-zaytoonz.pro",
+        "http://beta-zaytoonz.pro",
+    ]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",  # Local Next.js development
-        "https://*.netlify.app",  # Netlify deployments
-        "https://*.vercel.app",   # Vercel deployments (if needed)
-        # Add your specific frontend domain here
-    ],
+    allow_origins=_cors_allow_origins(),
     allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "DELETE"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],
 )
 
@@ -45,6 +52,11 @@ class ScrapeRequest(BaseModel):
     use_pagination: Optional[bool] = False
     pagination_details: Optional[str] = ""
     return_raw_content: Optional[bool] = False  # If True, return the full raw markdown content
+
+
+class RobotsCheckRequest(BaseModel):
+    urls: List[str] = Field(default_factory=list)
+    user_agent: Optional[str] = "ZaytoonzScraperBot/1.0"
 
 class JobData(BaseModel):
     title: Optional[str] = None
@@ -362,6 +374,34 @@ async def get_raw_content(request: ScrapeRequest):
             "error": error_msg,
             "url": request.url
         }
+
+@app.post("/api/robots-check")
+async def robots_check(request: RobotsCheckRequest):
+    """Precheck robots.txt alignment before scraping (used by admin Opportunities Scraper)."""
+    if not request.urls:
+        raise HTTPException(status_code=400, detail="At least one URL is required")
+
+    checks = []
+    for raw_url in request.urls:
+        try:
+            check = check_url_allowed(raw_url, user_agent=request.user_agent or "ZaytoonzScraperBot/1.0")
+            checks.append(check)
+        except Exception as exc:
+            checks.append({
+                "url": raw_url,
+                "allowed": False,
+                "error": str(exc),
+                "matched_rule": "Invalid URL",
+            })
+
+    blocked = [c for c in checks if not c.get("allowed", False)]
+    return {
+        "success": True,
+        "all_allowed": len(blocked) == 0,
+        "blocked_count": len(blocked),
+        "checks": checks,
+    }
+
 
 @app.get("/health")
 async def health_check():

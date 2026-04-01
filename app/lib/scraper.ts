@@ -1,6 +1,7 @@
 import puppeteer, { Browser, Page } from 'puppeteer';
 import { JSDOM } from 'jsdom';
 import cheerio from 'cheerio';
+import { getBrowserScraperBaseUrl, getServerScraperBaseUrl } from '@/app/lib/scraper-url';
 
 export interface JobData {
   title?: string;
@@ -32,12 +33,10 @@ export interface JobListResult {
   };
 }
 
-// Configuration for external Python scraper
-// Client (browser): use relative /scraper-api - avoids mixed content & internal hostname resolution
-// Server: use internal URL (python-scraper:8000 in Docker) or localhost for dev
+// Configuration for external Python scraper (see scraper-url.ts)
 const getScraperBaseUrl = () => {
-  if (typeof window !== 'undefined') return '/scraper-api';
-  return process.env.NEXT_PUBLIC_EXTERNAL_SCRAPER_URL || process.env.SCRAPER_INTERNAL_URL || 'http://localhost:8000';
+  if (typeof window !== 'undefined') return getBrowserScraperBaseUrl();
+  return getServerScraperBaseUrl();
 };
 const EXTERNAL_SCRAPER_CONFIG = {
   enabled: process.env.NEXT_PUBLIC_USE_EXTERNAL_SCRAPER === 'true',

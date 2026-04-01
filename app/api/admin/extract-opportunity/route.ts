@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/app/lib/supabase';
+import { getServerScraperBaseUrl } from '@/app/lib/scraper-url';
 
 interface ExtractRequest {
   opportunities: {
@@ -29,8 +30,7 @@ interface ExtractedContent {
   [key: string]: unknown;
 }
 
-// Server-side only: use internal URL (python-scraper:8000 in Docker) or localhost for dev
-const SCRAPER_URL = process.env.SCRAPER_INTERNAL_URL || process.env.NEXT_PUBLIC_EXTERNAL_SCRAPER_URL || 'http://localhost:8000';
+const SCRAPER_URL = getServerScraperBaseUrl();
 
 // Heuristic slicer: keep content from the opportunity title to the first "Apply" section.
 function extractOpportunitySection(raw: string, title: string): string {

@@ -2,6 +2,10 @@
 
 If you get **502** when using `/scraper-api/api/scrape`, Nginx cannot reach the scraper backend.
 
+## Supabase env (python-scraper container)
+
+The API reads `SUPABASE_URL` / `SUPABASE_ANON_KEY` **or** `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_ANON_KEY`. If none are set, scraping returns **Supabase not configured**. Ensure your `.env` or compose passes these into the `python-scraper` service.
+
 ## Docker deployment
 
 1. **Confirm python-scraper is running**
