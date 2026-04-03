@@ -24,7 +24,7 @@ import {
   PencilIcon,
 } from '@heroicons/react/24/outline';
 import { CheckIcon as CheckIconSolid } from '@heroicons/react/24/solid';
-import { getBrowserScraperBaseUrl } from '@/app/lib/scraper-url';
+import { getBrowserScraperBaseUrls } from '@/app/lib/scraper-url';
 
 interface JobData {
   id?: string;
@@ -68,16 +68,6 @@ interface ScrapeResult {
   };
 }
 
-interface RobotsCheckItem {
-  url: string;
-  allowed: boolean;
-  matched_rule?: string | null;
-  robots_url?: string;
-  robots_fetched?: boolean;
-  robots_error?: string | null;
-  error?: string;
-}
-
 const DEFAULT_FIELDS = ['title', 'company', 'location', 'description', 'url', 'job_type', 'salary_range', 'deadline'];
 
 interface SavedSource {
@@ -115,9 +105,6 @@ export default function ScraperPage() {
   const [selectedJob, setSelectedJob] = useState<JobData | null>(null);
   const [showDescriptionModal, setShowDescriptionModal] = useState(false);
   const [currentSourceUrl, setCurrentSourceUrl] = useState<string>('');
-  const [robotsChecks, setRobotsChecks] = useState<RobotsCheckItem[]>([]);
-  const [robotsPrecheckMessage, setRobotsPrecheckMessage] = useState<string | null>(null);
-  
   // Selection state
   const [selectedJobs, setSelectedJobs] = useState<Set<string>>(new Set());
   const [showSaveModal, setShowSaveModal] = useState(false);
@@ -244,122 +231,72 @@ export default function ScraperPage() {
     if (fields.length === 0) { setError('Please add at least one field'); return; }
     setError(null);
     setSuccessMessage(null);
-    const precheckOk = await runRobotsPrecheck();
-    if (!precheckOk) {
-      return;
-    }
 
     setIsLoading(true);
     setResults([]);
     setSelectedJobs(new Set());
     
     const allResults: ScrapeResult[] = [];
-    const scraperBase = getBrowserScraperBaseUrl();
+    const scraperBases = getBrowserScraperBaseUrls();
     for (const url of urls) {
+      let completed = false;
+      let lastError: string | null = null;
       try {
-        const res = await fetch(`${scraperBase}/api/scrape`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ url, fields, model: 'gpt-4o-mini', use_pagination: usePagination, pagination_details: paginationDetails }),
-        });
-        const text = await res.text();
-        const contentType = res.headers.get('content-type') || '';
-        let result: ScrapeResult;
-        try {
-          if (contentType.includes('application/json')) {
-            result = JSON.parse(text) as ScrapeResult;
-          } else {
-            const errMsg = res.status === 502
-              ? 'Scraper backend is not responding (502). Ensure python-scraper is running.'
-              : `Unexpected response (${res.status}): ${text.slice(0, 80)}`;
-            result = { success: false, error: errMsg };
+        for (const scraperBase of scraperBases) {
+          try {
+            const res = await fetch(`${scraperBase}/api/scrape`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ url, fields, model: 'gpt-4o-mini', use_pagination: usePagination, pagination_details: paginationDetails }),
+            });
+            const text = await res.text();
+            const contentType = res.headers.get('content-type') || '';
+            let result: ScrapeResult;
+            try {
+              if (contentType.includes('application/json')) {
+                result = JSON.parse(text) as ScrapeResult;
+              } else {
+                const errMsg = res.status === 502
+                  ? 'Scraper backend is not responding (502). Ensure python-scraper is running.'
+                  : `Unexpected response (${res.status}): ${text.slice(0, 80)}`;
+                result = { success: false, error: errMsg };
+              }
+            } catch (_parseErr) {
+              result = {
+                success: false,
+                error: 'Scraper returned invalid JSON (not running or misconfigured). Check python-scraper logs.',
+              };
+            }
+            if (!res.ok) {
+              lastError = result.error || `HTTP ${res.status}`;
+              // Try next candidate endpoint on non-OK responses (e.g. /scraper-api 404 in local dev).
+              console.warn('Scraper endpoint returned non-OK, trying fallback:', scraperBase, res.status);
+              continue;
+            }
+            console.log('Scraper API Response:', result, 'via', scraperBase);
+            allResults.push(result);
+            completed = true;
+            break;
+          } catch (err) {
+            lastError = err instanceof Error ? err.message : 'Unknown error';
+            console.warn('Scraper endpoint failed, trying fallback:', scraperBase, err);
           }
-        } catch (_parseErr) {
-          result = {
-            success: false,
-            error: `Scraper returned invalid JSON (not running or misconfigured). Check python-scraper logs.`,
-          };
         }
-        if (!res.ok && result.success !== false) {
-          result = { success: false, error: result.error || `HTTP ${res.status}` };
-        }
-        console.log('Scraper API Response:', result);
-        allResults.push(result);
       } catch (err) {
         console.error('Scraper API Error:', err);
-        allResults.push({ success: false, error: 'Failed: ' + (err instanceof Error ? err.message : 'Unknown') });
+        lastError = err instanceof Error ? err.message : 'Unknown error';
+      }
+
+      if (!completed) {
+        allResults.push({
+          success: false,
+          error: `Failed to reach scraper API. Tried: ${scraperBases.join(', ')}. Last error: ${lastError || 'Unknown'}. Start python scraper on port 8000 or configure nginx /scraper-api.`,
+        });
       }
     }
     console.log('All results:', allResults);
     setResults(allResults); 
     setIsLoading(false);
-  };
-
-  const runRobotsPrecheck = async (): Promise<boolean> => {
-    setRobotsPrecheckMessage(null);
-    setRobotsChecks([]);
-
-    try {
-      const scraperBase = getBrowserScraperBaseUrl();
-      const precheckRes = await fetch(`${scraperBase}/api/robots-check`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ urls, user_agent: 'ZaytoonzScraperBot/1.0' }),
-      });
-
-      const raw = await precheckRes.text();
-      const contentType = precheckRes.headers.get('content-type') || '';
-      let precheckPayload: {
-        success?: boolean;
-        checks?: RobotsCheckItem[];
-        detail?: string;
-      } | null = null;
-
-      if (contentType.includes('application/json')) {
-        try {
-          precheckPayload = JSON.parse(raw) as {
-            success?: boolean;
-            checks?: RobotsCheckItem[];
-            detail?: string;
-          };
-        } catch {
-          setError('Robots alignment check returned invalid JSON. Verify python-scraper is running and up to date.');
-          return false;
-        }
-      } else {
-        const hint = precheckRes.status === 404
-          ? 'Endpoint /api/robots-check not found. Restart python-scraper to load the new endpoint.'
-          : precheckRes.status === 502
-            ? 'Scraper backend is not responding (502). Ensure python-scraper is running.'
-            : `Unexpected response (${precheckRes.status}).`;
-        setError(`Robots alignment check failed: ${hint}`);
-        console.error('Non-JSON robots-check response preview:', raw.slice(0, 200));
-        return false;
-      }
-
-      if (!precheckRes.ok || !precheckPayload?.success) {
-        setError(precheckPayload?.detail || 'Robots alignment check failed. Please try again.');
-        return false;
-      }
-
-      const checks = precheckPayload.checks || [];
-      setRobotsChecks(checks);
-      const blocked = checks.filter((item) => !item.allowed);
-      if (blocked.length > 0) {
-        const blockedDetails = blocked
-          .map((item) => `${item.url} (${item.matched_rule || item.error || 'blocked by robots.txt'})`)
-          .join(' | ');
-        setError(`Scraping blocked by robots.txt for ${blocked.length} URL(s): ${blockedDetails}`);
-        setRobotsPrecheckMessage('Robots alignment: Not aligned. Remove blocked URLs before scraping.');
-        return false;
-      }
-
-      setRobotsPrecheckMessage('Robots alignment: All URLs are allowed for scraping.');
-      return true;
-    } catch (precheckErr) {
-      setError('Failed to run robots alignment check: ' + (precheckErr instanceof Error ? precheckErr.message : 'Unknown error'));
-      return false;
-    }
   };
 
   const handleSaveSelected = async () => {
@@ -804,13 +741,6 @@ export default function ScraperPage() {
 
           {/* Action Buttons */}
           <div className="flex gap-3">
-            <button
-              onClick={runRobotsPrecheck}
-              disabled={isLoading || !urls.length}
-              className="px-4 py-3 border border-[#556B2F]/30 text-[#556B2F] font-semibold rounded-lg hover:bg-[#556B2F]/10 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-            >
-              Check Alignment
-            </button>
             <button 
               onClick={handleScrape} 
               disabled={isLoading || !urls.length} 
@@ -835,32 +765,6 @@ export default function ScraperPage() {
               <TrashIcon className="h-5 w-5" />
             </button>
           </div>
-          {robotsPrecheckMessage && (
-            <div className={`mt-4 p-3 border rounded-lg text-sm ${
-              robotsPrecheckMessage.includes('Not aligned')
-                ? 'bg-amber-50 border-amber-200 text-amber-800'
-                : 'bg-green-50 border-green-200 text-green-700'
-            }`}>
-              {robotsPrecheckMessage}
-            </div>
-          )}
-          {robotsChecks.length > 0 && (
-            <div className="mt-3 max-h-32 overflow-y-auto space-y-2">
-              {robotsChecks.map((check, idx) => (
-                <div
-                  key={`${check.url}-${idx}`}
-                  className={`text-xs p-2 rounded border ${
-                    check.allowed
-                      ? 'bg-green-50 border-green-200 text-green-700'
-                      : 'bg-red-50 border-red-200 text-red-700'
-                  }`}
-                >
-                  {check.allowed ? 'ALLOWED' : 'BLOCKED'} - {check.url}
-                  {!check.allowed && check.matched_rule ? ` (rule: ${check.matched_rule})` : ''}
-                </div>
-              ))}
-            </div>
-          )}
         </div>
 
         {/* Results Panel */}

@@ -1,10 +1,12 @@
 /**
- * ROOT PAGE - This is the main entry point at URL: /
- * Shows the main landing page
+ * ROOT PAGE - Main entry at URL: /
+ * Social landing (ZaytoonzSMLanding). Full marketing landing is at /app.
  */
+import ZaytoonzSMLanding from './components/ZaytoonzSMLanding';
 
-import LandingPage from './LandingPage/LandingPage';
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
 export default function Home() {
-  return <LandingPage />;
+  return <ZaytoonzSMLanding initialShowModal={false} />;
 }

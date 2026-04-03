@@ -43,6 +43,25 @@ export function getBrowserScraperBaseUrl(): string {
   return '/scraper-api';
 }
 
+/** Browser candidates for resilient connection attempts in local/dev. */
+export function getBrowserScraperBaseUrls(): string[] {
+  const primary = getBrowserScraperBaseUrl();
+  const candidates = [primary];
+
+  if (typeof window !== 'undefined') {
+    const host = window.location.hostname;
+    const isLocalPage = host === 'localhost' || host === '127.0.0.1' || host === '[::1]';
+    if (isLocalPage && primary !== 'http://localhost:8000') {
+      candidates.push('http://localhost:8000');
+    }
+    if (isLocalPage && primary !== '/scraper-api') {
+      candidates.push('/scraper-api');
+    }
+  }
+
+  return Array.from(new Set(candidates));
+}
+
 /** Server-side (API routes, SSR): Docker network or localhost. */
 export function getServerScraperBaseUrl(): string {
   return (

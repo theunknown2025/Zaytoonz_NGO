@@ -1,0 +1,219 @@
+================================================================================
+NGINX PATH MAPPING EXPLANATION & FIX GUIDE
+================================================================================
+
+UNDERSTANDING THE PATHS:
+========================
+
+1. ON YOUR VPS HOST (Linux server):
+   File location: /opt/zaytoonz-ngo/nginx-beta.conf
+   (or wherever your project directory is)
+
+2. INSIDE DOCKER CONTAINER:
+   File location: /etc/nginx/nginx.conf
+   (This is what nginx actually reads)
+
+3. THE MAPPING (from docker-compose-beta.yml line 167):
+   ./nginx-beta.conf  →  /etc/nginx/nginx.conf
+   
+   This means:
+   - When you edit nginx-beta.conf on the VPS host
+   - It automatically becomes /etc/nginx/nginx.conf inside the container
+   - Nginx inside the container reads from /etc/nginx/nginx.conf
+   - But that file IS your nginx-beta.conf from the host
+
+================================================================================
+VERIFICATION STEPS:
+================================================================================
+
+STEP 1: Check if system nginx is installed (might conflict)
+------------------------------------------------------------
+On VPS, run:
+  sudo systemctl status nginx
+
+If it's running, you have TWO nginx instances:
+  - System nginx (on host) - uses /etc/nginx/nginx.conf on HOST
+  - Docker nginx (in container) - uses /etc/nginx/nginx.conf in CONTAINER
+
+SOLUTION: Stop system nginx if Docker nginx is what you want:
+  sudo systemctl stop nginx
+  sudo systemctl disable nginx
+
+STEP 2: Verify Docker nginx is using the correct file
+-----------------------------------------------------
+On VPS, run:
+  cd /opt/zaytoonz-ngo  # or your project directory
+  
+  # Check what file Docker is mounting
+  docker compose -f docker-compose-beta.yml config | grep nginx-beta.conf
+  
+  # Check the actual file inside the container
+  docker compose -f docker-compose-beta.yml exec nginx cat /etc/nginx/nginx.conf | head -20
+  
+  # Compare with your host file
+  head -20 nginx-beta.conf
+
+STEP 3: Verify the file on host has correct content
+----------------------------------------------------
+On VPS, run:
+  # Check for placeholders
+  grep -n "DOMAIN_PLACEHOLDER\|VPS_IP_PLACEHOLDER" nginx-beta.conf
+  
+  # Should return NOTHING. If it shows results, file has placeholders!
+  
+  # Check for deprecated HTTP/2 syntax
+  grep -n "listen.*ssl http2" nginx-beta.conf
+  
+  # Should return NOTHING. If it shows results, syntax is deprecated!
+
+STEP 4: Check what nginx sees inside container
+------------------------------------------------
+On VPS, run:
+  # Test nginx config (this reads from /etc/nginx/nginx.conf inside container)
+  docker compose -f docker-compose-beta.yml exec nginx nginx -t
+  
+  # If it shows errors at /etc/nginx/nginx.conf:59, that's line 59 of your
+  # nginx-beta.conf file on the host!
+
+================================================================================
+HOW TO FIX:
+================================================================================
+
+OPTION 1: Fix the file on VPS host (RECOMMENDED)
+--------------------------------------------------
+On VPS:
+  cd /opt/zaytoonz-ngo
+  
+  # Backup current file
+  cp nginx-beta.conf nginx-beta.conf.backup
+  
+  # Delete old file
+  rm nginx-beta.conf
+  
+  # Create new file with correct content
+  nano nginx-beta.conf
+  # (Paste content from nginx-beta-correct.txt)
+  
+  # OR copy from local machine:
+  # From your local Windows machine:
+  scp nginx-beta.conf your-username@76.13.57.178:/opt/zaytoonz-ngo/nginx-beta.conf
+  
+  # Then verify
+  grep -n "DOMAIN_PLACEHOLDER" nginx-beta.conf
+  # Should return nothing
+  
+  # Test inside container
+  docker compose -f docker-compose-beta.yml exec nginx nginx -t
+  
+  # Reload
+  docker compose -f docker-compose-beta.yml exec nginx nginx -s reload
+
+OPTION 2: Verify Docker is using the right file
+-------------------------------------------------
+On VPS:
+  # Check if file exists
+  ls -la /opt/zaytoonz-ngo/nginx-beta.conf
+  
+  # Check Docker volume mount
+  docker compose -f docker-compose-beta.yml config | grep -A 5 volumes:
+  
+  # Restart nginx container to pick up changes
+  docker compose -f docker-compose-beta.yml restart nginx
+
+OPTION 3: Check for system nginx conflict
+------------------------------------------
+On VPS:
+  # Check if system nginx is running
+  sudo systemctl status nginx
+  
+  # If it's active, stop it (Docker nginx should handle everything)
+  sudo systemctl stop nginx
+  sudo systemctl disable nginx
+  
+  # Verify Docker nginx is running
+  docker compose -f docker-compose-beta.yml ps nginx
+
+================================================================================
+COMMON ISSUES:
+================================================================================
+
+ISSUE 1: "Cannot find /etc/nginx/nginx.conf"
+---------------------------------------------
+This means the file doesn't exist on the VPS host at the expected location.
+
+Fix:
+  cd /opt/zaytoonz-ngo  # or your project directory
+  ls -la nginx-beta.conf  # Check if file exists
+  
+  If missing, copy it from local machine or create it.
+
+ISSUE 2: "Error at /etc/nginx/nginx.conf:59"
+----------------------------------------------
+This is line 59 of your nginx-beta.conf file on the VPS host.
+
+Fix:
+  # Check line 59 on VPS
+  sed -n '59p' /opt/zaytoonz-ngo/nginx-beta.conf
+  
+  # Fix the issue (usually DOMAIN_PLACEHOLDER or deprecated http2 syntax)
+  # Then restart nginx container
+
+ISSUE 3: Changes not taking effect
+------------------------------------
+Docker might be caching the old file.
+
+Fix:
+  # Restart nginx container
+  docker compose -f docker-compose-beta.yml restart nginx
+  
+  # Or recreate it
+  docker compose -f docker-compose-beta.yml up -d --force-recreate nginx
+
+ISSUE 4: System nginx conflicting with Docker nginx
+-----------------------------------------------------
+Both might be trying to use port 80/443.
+
+Fix:
+  # Stop system nginx
+  sudo systemctl stop nginx
+  sudo systemctl disable nginx
+  
+  # Use only Docker nginx
+  docker compose -f docker-compose-beta.yml up -d nginx
+
+================================================================================
+QUICK VERIFICATION COMMAND:
+================================================================================
+
+Run this on your VPS to check everything:
+
+cd /opt/zaytoonz-ngo && \
+echo "=== Checking file on host ===" && \
+ls -la nginx-beta.conf && \
+echo "" && \
+echo "=== Checking for placeholders ===" && \
+grep -n "DOMAIN_PLACEHOLDER\|VPS_IP_PLACEHOLDER" nginx-beta.conf || echo "✓ No placeholders" && \
+echo "" && \
+echo "=== Checking HTTP/2 syntax ===" && \
+grep -n "listen.*ssl http2" nginx-beta.conf || echo "✓ HTTP/2 syntax correct" && \
+echo "" && \
+echo "=== Testing nginx config in container ===" && \
+docker compose -f docker-compose-beta.yml exec nginx nginx -t
+
+================================================================================
+SUMMARY:
+================================================================================
+
+1. The file path /etc/nginx/nginx.conf in error messages refers to the file
+   INSIDE the Docker container.
+
+2. That file is actually your nginx-beta.conf from the VPS host, mounted
+   via Docker volume.
+
+3. To fix errors, edit nginx-beta.conf on the VPS host (not inside container).
+
+4. After editing, restart nginx container to pick up changes.
+
+5. Make sure system nginx isn't running if you're using Docker nginx.
+
+================================================================================

@@ -1,15 +1,3 @@
-#!/bin/bash
-
-set -e
-
-DOMAIN="beta-zaytoonz.pro"
-VPS_IP="76.13.57.178"
-NGINX_CONF="nginx-beta.conf"
-
-echo "🔧 Setting up Nginx configuration for ${DOMAIN}"
-
-# Create nginx configuration file
-cat > "$NGINX_CONF" << 'EOF'
 events {
     worker_connections 1024;
 }
@@ -29,12 +17,12 @@ http {
     gzip_comp_level 6;
     gzip_types text/plain text/css text/xml text/javascript application/json application/javascript application/xml+rss application/rss+xml font/truetype font/opentype application/vnd.ms-fontobject image/svg+xml;
 
-    # Upstream for Next.js
+    # Upstream for Next.js (using Docker service name)
     upstream nextjs_backend {
         server nextjs:3000 max_fails=3 fail_timeout=30s;
     }
 
-    # Upstream for Python Scraper
+    # Upstream for Python Scraper (using Docker service name)
     upstream scraper_backend {
         server python-scraper:8000 max_fails=3 fail_timeout=30s;
     }
@@ -43,7 +31,7 @@ http {
     server {
         listen 80;
         listen [::]:80;
-        server_name DOMAIN_PLACEHOLDER VPS_IP_PLACEHOLDER;
+        server_name beta-zaytoonz.pro 76.13.57.178;
 
         client_max_body_size 100M;
 
@@ -71,11 +59,11 @@ http {
         listen 443 ssl;
         listen [::]:443 ssl;
         http2 on;
-        server_name DOMAIN_PLACEHOLDER VPS_IP_PLACEHOLDER;
+        server_name beta-zaytoonz.pro 76.13.57.178;
 
-        # SSL Configuration (will be updated after certificate generation)
-        ssl_certificate /etc/letsencrypt/live/DOMAIN_PLACEHOLDER/fullchain.pem;
-        ssl_certificate_key /etc/letsencrypt/live/DOMAIN_PLACEHOLDER/privkey.pem;
+        # SSL Configuration
+        ssl_certificate /etc/letsencrypt/live/beta-zaytoonz.pro/fullchain.pem;
+        ssl_certificate_key /etc/letsencrypt/live/beta-zaytoonz.pro/privkey.pem;
 
         # SSL Security Settings
         ssl_protocols TLSv1.2 TLSv1.3;
@@ -179,19 +167,3 @@ http {
         }
     }
 }
-EOF
-
-# Replace placeholders
-sed -i "s/DOMAIN_PLACEHOLDER/${DOMAIN}/g" "$NGINX_CONF"
-sed -i "s/VPS_IP_PLACEHOLDER/${VPS_IP}/g" "$NGINX_CONF"
-
-# Verify replacements worked
-if grep -q "DOMAIN_PLACEHOLDER\|VPS_IP_PLACEHOLDER" "$NGINX_CONF"; then
-    echo "❌ Error: Placeholders were not replaced correctly!"
-    echo "Please check the file manually: $NGINX_CONF"
-    exit 1
-fi
-
-echo "✅ Nginx configuration file created: ${NGINX_CONF}"
-echo "✅ Placeholders verified and replaced"
-echo "📝 Note: SSL certificate paths are already configured"

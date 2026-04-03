@@ -1,4 +1,4 @@
-litellm
+litellm==1.81.13
 python-dotenv
 pydantic
 pandas

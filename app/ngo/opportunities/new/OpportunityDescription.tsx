@@ -694,7 +694,6 @@ export default function OpportunityDescription({ formData, onChange, onNext, opp
   const filteredCountries = normalizedCountrySearch
     ? COUNTRIES.filter((country) => country.toLowerCase().includes(normalizedCountrySearch))
     : COUNTRIES;
-  const visibleCountries = filteredCountries.slice(0, 10);
 
   return (
     <div className="space-y-6">
@@ -734,11 +733,13 @@ export default function OpportunityDescription({ formData, onChange, onNext, opp
               maxLength={100}
               value={formData.title}
               onChange={onChange}
-              className={`pl-10 pr-3 py-3 block w-full border-gray-300 rounded-md shadow-sm 
-                focus:ring-2 focus:ring-[#556B2F] focus:border-[#556B2F] 
-                group-hover:border-[#556B2F]/30 transition-all duration-200
+              className={`pl-10 pr-3 py-3 block w-full rounded-md shadow-sm border-2
+                focus:ring-2 focus:ring-[#556B2F] focus:ring-offset-0 focus:border-[#556B2F]
+                group-hover:border-[#556B2F] transition-all duration-200
                 text-base ${
-                errors.title ? 'border-red-300 bg-red-50' : ''
+                errors.title
+                  ? 'border-red-500 bg-red-50 focus:ring-red-500 focus:border-red-500'
+                  : 'border-[#556B2F]'
               }`}
               placeholder="e.g., Volunteer Teacher for After-School Program"
             />
@@ -844,7 +845,7 @@ export default function OpportunityDescription({ formData, onChange, onNext, opp
                     onBlur={() => {
                       setTimeout(() => setIsCountryListOpen(false), 120);
                     }}
-                    placeholder="Search and select a country..."
+                    placeholder="Start typing to search for a country..."
                     className="block w-full border border-gray-300 rounded-md shadow-sm focus:ring-2 focus:ring-[#556B2F] focus:border-[#556B2F] sm:text-sm py-2 pl-3 pr-10 hover:border-[#556B2F]/50 transition-colors"
                   />
                   {countrySearch && (
@@ -864,9 +865,9 @@ export default function OpportunityDescription({ formData, onChange, onNext, opp
                     </button>
                   )}
                 </div>
-                {isCountryListOpen && visibleCountries.length > 0 && (
-                  <div className="absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded-md shadow-lg max-h-56 overflow-auto">
-                    {visibleCountries.map((country) => (
+                {isCountryListOpen && filteredCountries.length > 0 && (
+                  <div className="absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded-md shadow-lg max-h-72 overflow-y-auto overscroll-contain">
+                    {filteredCountries.map((country) => (
                       <button
                         type="button"
                         key={country}
@@ -883,7 +884,7 @@ export default function OpportunityDescription({ formData, onChange, onNext, opp
                     ))}
                   </div>
                 )}
-                {isCountryListOpen && visibleCountries.length === 0 && (
+                {isCountryListOpen && filteredCountries.length === 0 && (
                   <div className="absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded-md shadow-lg p-3 text-sm text-gray-500">
                     No matching countries.
                   </div>
@@ -1291,11 +1292,11 @@ export default function OpportunityDescription({ formData, onChange, onNext, opp
                               id={`field-${field.id}`}
                               value={templateFields[field.id] || ''}
                               onChange={(e) => handleFieldChange(field.id, e.target.value)}
-                              className="block w-full border border-gray-300 rounded-md shadow-sm focus:ring-2 focus:ring-[#556B2F] focus:border-[#556B2F] sm:text-sm transition-all pl-3 pr-3 py-2.5 group-hover:border-[#556B2F]/50"
+                              className="block w-full border border-gray-300 rounded-md shadow-sm focus:ring-2 focus:ring-[#556B2F] focus:border-[#556B2F] sm:text-sm transition-all pl-10 pr-3 py-2.5 group-hover:border-[#556B2F]/50"
                               placeholder={field.placeholder || "Enter location"}
                             />
-                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none z-10">
+                              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-400 shrink-0 group-hover:text-[#556B2F]/70 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
                               </svg>

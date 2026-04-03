@@ -18,7 +18,7 @@ services:
       - NODE_ENV=${NODE_ENV:-production}
       - PORT=${PORT:-3000}
       # Note: NEXT_PUBLIC_BASE_PATH is intentionally not set - app runs at root (/)
-      # Root page (/) redirects to /social which shows ZaytoonzSMLanding (SM page)
+      # Root page (/) shows ZaytoonzSMLanding; /social redirects to /
       # Full LandingPage is available at /app route
       - NEXT_PUBLIC_SUPABASE_URL=${NEXT_PUBLIC_SUPABASE_URL}
       - NEXT_PUBLIC_SUPABASE_ANON_KEY=${NEXT_PUBLIC_SUPABASE_ANON_KEY}
@@ -66,7 +66,7 @@ services:
   python-scraper:
     image: python:3.11-slim
     container_name: zaytoonz-scraper
-    working_dir: /app/Scrape_Master
+    working_dir: /app/python_scraper
     command: >
       sh -c "
         apt-get update -qq &&
@@ -89,7 +89,7 @@ services:
       - NEXT_PUBLIC_SUPABASE_ANON_KEY=${NEXT_PUBLIC_SUPABASE_ANON_KEY}
       - OPENAI_API_KEY=${OPENAI_API_KEY}
     volumes:
-      - ./Scrape_Master:/app/Scrape_Master:ro
+      - ./python_scraper:/app/python_scraper:ro
       - scraper-cache:/app/.cache
     restart: unless-stopped
     networks:

@@ -181,8 +181,9 @@ http {
     }
 
     server {
-        listen 443 ssl http2;
-        listen [::]:443 ssl http2;
+        listen 443 ssl;
+        listen [::]:443 ssl;
+        http2 on;
         server_name ${DOMAIN} ${VPS_IP};
 
         ssl_certificate /etc/letsencrypt/live/${DOMAIN}/fullchain.pem;

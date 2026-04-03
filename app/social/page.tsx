@@ -1,10 +1,6 @@
-// Force dynamic rendering to prevent caching issues
-export const dynamic = 'force-dynamic';
-export const revalidate = 0;
+import { redirect } from 'next/navigation';
 
-import ZaytoonzSMLanding from '../components/ZaytoonzSMLanding';
-
+/** Canonical home is `/`; keep route for old links. */
 export default function SocialPage() {
-  return <ZaytoonzSMLanding initialShowModal={false} />;
+  redirect('/');
 }
-

@@ -29,7 +29,7 @@ export default function ZaytoonzSMLanding({
 
   const handleGoToSocial = () => {
     setShowModal(false);
-    router.push('/social');
+    router.push('/');
   };
 
   const handleSelectTestApp = () => {

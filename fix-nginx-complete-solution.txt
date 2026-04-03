@@ -1,0 +1,143 @@
+================================================================================
+COMPLETE FIX FOR NGINX RESTARTING ISSUE
+================================================================================
+
+The container is restarting because nginx can't start. This is because:
+1. SSL certificate doesn't exist yet
+2. Nginx needs a certificate to start with SSL enabled
+
+SOLUTION: Create temporary certificate first, then get real one.
+
+================================================================================
+STEP-BY-STEP FIX:
+================================================================================
+
+STEP 1: Check why nginx is failing
+-----------------------------------
+Run on VPS:
+  docker compose -f docker-compose-beta.yml logs nginx --tail=50
+
+This will show the actual error.
+
+STEP 2: Create temporary certificate (so nginx can start)
+---------------------------------------------------------
+Run on VPS:
+  cd /opt/zaytoonz-ngo
+  
+  # Create certbot directories if they don't exist
+  mkdir -p ./certbot/conf/live/beta-zaytoonz.pro
+  mkdir -p ./certbot/www
+  
+  # Create temporary self-signed certificate
+  docker compose -f docker-compose-beta.yml run --rm --entrypoint "\
+    openssl req -x509 -nodes -newkey rsa:4096 -days 1\
+      -keyout '/etc/letsencrypt/live/beta-zaytoonz.pro/privkey.pem' \
+      -out '/etc/letsencrypt/live/beta-zaytoonz.pro/fullchain.pem' \
+      -subj '/CN=beta-zaytoonz.pro'" certbot
+
+STEP 3: Verify certificate was created
+---------------------------------------
+Run on VPS:
+  ls -la ./certbot/conf/live/beta-zaytoonz.pro/
+  
+  # Should show:
+  # fullchain.pem
+  # privkey.pem
+
+STEP 4: Start nginx with temporary certificate
+-----------------------------------------------
+Run on VPS:
+  docker compose -f docker-compose-beta.yml up -d nginx
+  
+  # Wait a moment
+  sleep 5
+  
+  # Check if it's running (not restarting)
+  docker compose -f docker-compose-beta.yml ps nginx
+  
+  # Should show "Up" not "Restarting"
+
+STEP 5: Test nginx configuration
+--------------------------------
+Run on VPS:
+  docker compose -f docker-compose-beta.yml exec nginx nginx -t
+  
+  # Should show "test is successful"
+
+STEP 6: Verify nginx is serving on port 80
+-------------------------------------------
+Run on VPS:
+  curl -I http://localhost/health
+  
+  # Should return HTTP 200
+
+STEP 7: Get real Let's Encrypt certificate
+------------------------------------------
+Run on VPS:
+  # Remove temporary certificate
+  docker compose -f docker-compose-beta.yml run --rm --entrypoint "\
+    rm -Rf /etc/letsencrypt/live/beta-zaytoonz.pro && \
+    rm -Rf /etc/letsencrypt/archive/beta-zaytoonz.pro && \
+    rm -Rf /etc/letsencrypt/renewal/beta-zaytoonz.pro.conf" certbot
+  
+  # Request real certificate
+  docker compose -f docker-compose-beta.yml run --rm --entrypoint "\
+    certbot certonly --webroot -w /var/www/certbot \
+      -m support@zaytoonz.com \
+      -d beta-zaytoonz.pro \
+      --rsa-key-size 4096 \
+      --agree-tos \
+      --force-renewal" certbot
+
+STEP 8: Reload nginx with real certificate
+------------------------------------------
+Run on VPS:
+  docker compose -f docker-compose-beta.yml exec nginx nginx -s reload
+  
+  # Or restart if reload doesn't work
+  docker compose -f docker-compose-beta.yml restart nginx
+
+STEP 9: Verify HTTPS works
+---------------------------
+Run on VPS:
+  curl -I https://beta-zaytoonz.pro
+  
+  # Should return HTTP 200 or 301
+
+================================================================================
+QUICK ONE-LINER SCRIPT (Run on VPS):
+================================================================================
+
+cd /opt/zaytoonz-ngo && \
+mkdir -p ./certbot/conf/live/beta-zaytoonz.pro ./certbot/www && \
+docker compose -f docker-compose-beta.yml run --rm --entrypoint "openssl req -x509 -nodes -newkey rsa:4096 -days 1 -keyout '/etc/letsencrypt/live/beta-zaytoonz.pro/privkey.pem' -out '/etc/letsencrypt/live/beta-zaytoonz.pro/fullchain.pem' -subj '/CN=beta-zaytoonz.pro'" certbot && \
+docker compose -f docker-compose-beta.yml up -d nginx && \
+sleep 5 && \
+docker compose -f docker-compose-beta.yml exec nginx nginx -t
+
+================================================================================
+TROUBLESHOOTING:
+================================================================================
+
+If nginx still restarts after Step 4:
+
+1. Check logs:
+   docker compose -f docker-compose-beta.yml logs nginx --tail=50
+
+2. Check if certificate files exist:
+   ls -la ./certbot/conf/live/beta-zaytoonz.pro/
+
+3. Check file permissions:
+   ls -la ./certbot/conf/live/beta-zaytoonz.pro/*.pem
+   # Should be readable
+
+4. Check nginx config syntax:
+   docker compose -f docker-compose-beta.yml exec nginx nginx -t
+
+5. Check if port 80/443 are already in use:
+   sudo netstat -tlnp | grep -E ':80|:443'
+
+6. Check Docker network:
+   docker network ls | grep zaytoonz-network
+
+================================================================================

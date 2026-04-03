@@ -27,6 +27,7 @@ from pagination import paginate_urls
 from markdown import fetch_and_store_markdowns
 from assets import MODELS_USED, OPENAI_MODEL_FULLNAME
 from api_management import get_supabase_client
+from robots_guard import check_url_allowed
 
 # Initialize FastAPI app
 app = FastAPI(title="Scrape Master API", version="1.0.0")
@@ -60,6 +61,10 @@ class ScrapeRequest(BaseModel):
     model: Optional[str] = OPENAI_MODEL_FULLNAME
     use_pagination: Optional[bool] = False
     pagination_details: Optional[str] = ""
+
+class RobotsCheckRequest(BaseModel):
+    urls: List[str] = Field(default_factory=list)
+    user_agent: Optional[str] = "ZaytoonzScraperBot/1.0"
 
 class JobData(BaseModel):
     title: Optional[str] = None
@@ -202,6 +207,14 @@ async def scrape_job(request: ScrapeRequest):
         # Validate URL
         if not request.url:
             raise HTTPException(status_code=400, detail="URL is required")
+
+        robots_status = check_url_allowed(request.url)
+        if not robots_status.get("allowed", True):
+            matched_rule = robots_status.get("matched_rule") or "Disallow rule"
+            raise HTTPException(
+                status_code=403,
+                detail=f"Blocked by robots.txt ({matched_rule}) for URL: {request.url}"
+            )
             
         # Validate model
         if request.model not in MODELS_USED:
@@ -338,6 +351,15 @@ async def get_raw_content(request: ScrapeRequest):
         # Validate URL
         if not request.url:
             raise HTTPException(status_code=400, detail="URL is required")
+
+        robots_status = check_url_allowed(request.url)
+        if not robots_status.get("allowed", True):
+            return {
+                "success": False,
+                "error": f"Blocked by robots.txt ({robots_status.get('matched_rule') or 'Disallow rule'})",
+                "url": request.url,
+                "robots": robots_status,
+            }
         
         # Fetch markdown content directly without AI processing
         print(f"🌐 Fetching FULL raw content for: {request.url}")
@@ -365,7 +387,8 @@ async def get_raw_content(request: ScrapeRequest):
             "url": request.url,
             "raw_content": markdown_content,
             "content_length": len(markdown_content),
-            "unique_name": unique_name
+            "unique_name": unique_name,
+            "robots": robots_status,
         }
         
     except Exception as e:
@@ -376,8 +399,35 @@ async def get_raw_content(request: ScrapeRequest):
         return {
             "success": False,
             "error": error_msg,
-            "url": request.url
+            "url": request.url,
+            "robots": robots_status if "robots_status" in locals() else None,
         }
+
+@app.post("/api/robots-check")
+async def robots_check(request: RobotsCheckRequest):
+    if not request.urls:
+        raise HTTPException(status_code=400, detail="At least one URL is required")
+
+    checks = []
+    for raw_url in request.urls:
+        try:
+            check = check_url_allowed(raw_url, user_agent=request.user_agent or "ZaytoonzScraperBot/1.0")
+            checks.append(check)
+        except Exception as exc:
+            checks.append({
+                "url": raw_url,
+                "allowed": False,
+                "error": str(exc),
+                "matched_rule": "Invalid URL",
+            })
+
+    blocked = [c for c in checks if not c.get("allowed", False)]
+    return {
+        "success": True,
+        "all_allowed": len(blocked) == 0,
+        "blocked_count": len(blocked),
+        "checks": checks,
+    }
 
 @app.get("/health")
 async def health_check():

@@ -6,6 +6,7 @@ from typing import List
 from api_management import get_supabase_client
 from utils import generate_unique_name
 from crawl4ai import AsyncWebCrawler
+from robots_guard import check_url_allowed
 
 # Apply nest_asyncio only on Windows - it conflicts with uvloop on Linux
 if sys.platform.startswith('win'):
@@ -19,6 +20,11 @@ async def get_fit_markdown_async(url: str) -> str:
     Async function using crawl4ai's AsyncWebCrawler to produce the regular raw markdown.
     (Reverting from the 'fit' approach back to normal.)
     """
+
+    robots_status = check_url_allowed(url)
+    if not robots_status.get("allowed", True):
+        print(f"🚫 Blocked by robots.txt: {url} | rule: {robots_status.get('matched_rule')}")
+        return ""
 
     async with AsyncWebCrawler() as crawler:
         result = await crawler.arun(url=url)

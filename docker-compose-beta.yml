@@ -51,7 +51,7 @@ services:
   python-scraper:
     image: python:3.11-slim
     container_name: zaytoonz-scraper-beta
-    working_dir: /app/Scrape_Master
+    working_dir: /app/python_scraper
     command: >
       sh -c "
         apt-get update -qq &&
@@ -74,7 +74,7 @@ services:
       - NEXT_PUBLIC_SUPABASE_ANON_KEY=${NEXT_PUBLIC_SUPABASE_ANON_KEY}
       - OPENAI_API_KEY=${OPENAI_API_KEY}
     volumes:
-      - ./Scrape_Master:/app/Scrape_Master:ro
+      - ./python_scraper:/app/python_scraper:ro
       - scraper-cache:/app/.cache
     restart: unless-stopped
     networks:

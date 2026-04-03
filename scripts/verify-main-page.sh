@@ -15,7 +15,7 @@ echo "1. Checking app/page.tsx (root page code):"
 if [ -f "app/page.tsx" ]; then
     echo "   ✓ File exists"
     echo "   Content preview:"
-    head -20 app/page.tsx | grep -E "(redirect|ZaytoonzSMLanding|LandingPage|export default)" || echo "   (No matches found)"
+    head -25 app/page.tsx | grep -E "(ZaytoonzSMLanding|LandingPage|export default)" || echo "   (No matches found)"
 else
     echo "   ✗ File not found!"
 fi
@@ -25,7 +25,7 @@ echo "2. Checking app/social/page.tsx:"
 if [ -f "app/social/page.tsx" ]; then
     echo "   ✓ File exists"
     echo "   Content preview:"
-    cat app/social/page.tsx | grep -E "(ZaytoonzSMLanding|LandingPage|export default)" || echo "   (No matches found)"
+    cat app/social/page.tsx | grep -E "(redirect|ZaytoonzSMLanding|export default)" || echo "   (No matches found)"
 else
     echo "   ✗ File not found!"
 fi

@@ -8,18 +8,18 @@ import sys
 import asyncio
 import argparse
 
-# Apply event loop fixes for Windows and nested loops
-# Only apply nest_asyncio on Windows - it conflicts with uvloop on Linux
+# Keep event loop setup minimal here.
+# Do NOT apply nest_asyncio globally in launcher; it breaks uvicorn startup on recent versions.
 if sys.platform.startswith('win'):
     asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
-    # Allow nested event loops (Windows only - conflicts with uvloop on Linux)
-    import nest_asyncio
-    nest_asyncio.apply()
 
 def launch_streamlit():
     """Launch the Streamlit application"""
     import subprocess
     import os
+    if sys.platform.startswith('win'):
+        import nest_asyncio
+        nest_asyncio.apply()
     
     # Get the directory of this script
     script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -33,11 +33,12 @@ def launch_api():
     import uvicorn
     from api_wrapper import app
     
-    print("🚀 Starting Scrape Master API...")
-    print("📖 API Documentation: http://localhost:8000/docs")
-    print("🔗 Health Check: http://localhost:8000/health")
+    print("Starting Scrape Master API...")
+    print("API Documentation: http://localhost:8000/docs")
+    print("Health Check: http://localhost:8000/health")
     
-    uvicorn.run(app, host="0.0.0.0", port=8000, reload=True)
+    # When launching programmatically, keep reload disabled (reload needs import-string style app).
+    uvicorn.run(app, host="0.0.0.0", port=8000, reload=False)
 
 def main():
     parser = argparse.ArgumentParser(description="Launch Scrape Master Application")
@@ -54,10 +55,10 @@ def main():
         args.mode = "streamlit"
     
     if args.mode == "streamlit":
-        print("🎯 Launching Streamlit Web Interface...")
+        print("Launching Streamlit Web Interface...")
         launch_streamlit()
     elif args.mode == "api":
-        print("🔧 Launching FastAPI REST API...")
+        print("Launching FastAPI REST API...")
         launch_api()
 
 if __name__ == "__main__":
