@@ -35,11 +35,16 @@ app = FastAPI(title="Scrape Master API", version="1.0.0")
 # Configure CORS to allow your Next.js frontend
 # Build allowed origins list
 allowed_origins = [
-    "http://localhost:3000",  # Local Next.js development
-    "http://localhost:3001",  # Local Next.js production port
-    "http://72.62.26.162",     # VPS IP address
-    "https://*.netlify.app",   # Netlify deployments
-    "https://*.vercel.app",    # Vercel deployments (if needed)
+    "http://localhost:3000",
+    "http://localhost:3001",
+    "https://zaytoonz.com",
+    "https://www.zaytoonz.com",
+    "https://zaytoonz.org",
+    "https://www.zaytoonz.org",
+    "http://zaytoonz.com",
+    "http://zaytoonz.org",
+    "https://*.netlify.app",
+    "https://*.vercel.app",
 ]
 
 # In production, allow all origins (restrict this for better security)

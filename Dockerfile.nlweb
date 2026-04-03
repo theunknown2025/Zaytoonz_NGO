@@ -1,0 +1,29 @@
+FROM python:3.13-slim
+
+# ── System dependencies ────────────────────────────────────────────────────
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# ── Copy NLWeb source ──────────────────────────────────────────────────────
+COPY NLWeb-main/ ./NLWeb-main/
+
+# ── Install Python dependencies ────────────────────────────────────────────
+RUN cd NLWeb-main/code/python && pip install --no-cache-dir -r requirements.txt
+
+# ── Runtime environment ────────────────────────────────────────────────────
+ENV PYTHONUNBUFFERED=1
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONPATH=/app/NLWeb-main/code/python
+ENV PORT=8000
+ENV NLWEB_CONFIG_DIR=/app/NLWeb-main/config
+ENV NLWEB_OUTPUT_DIR=/app/NLWeb-main/data/nlweb
+ENV NLWEB_OUTPUT_DIR_RELATIVE=../data/nlweb
+
+WORKDIR /app/NLWeb-main
+
+EXPOSE 8000
+
+CMD ["python", "code/python/app-file.py"]
