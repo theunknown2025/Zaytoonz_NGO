@@ -1,30 +1,34 @@
 # =============================================================================
-# Zaytoonz NGO — Hostinger Docker Manager
+# Zaytoonz NGO — Web App Deployment (Phase 1)
 # Domains: zaytoonz.com  |  zaytoonz.org
 #
-# Services:
-#   nextjs         — Next.js web app (Social Page + full web app)
-#   python-scraper — FastAPI scraper with Chrome/Playwright
-#   nlweb          — NLWeb AI service
-#   nginx          — Reverse proxy (HTTP → HTTPS, domain redirects)
-#   certbot        — Let's Encrypt SSL auto-renewal
+# Services in this phase:
+#   nextjs   — Next.js web app (Social Page + full web app)
+#   nginx    — Reverse proxy with SSL (auto-switches HTTP ↔ HTTPS)
+#   certbot  — Let's Encrypt SSL auto-renewal
 #
-# DEPLOYMENT PHASES
-# ─────────────────
-# Phase 1 — First deploy (no SSL yet):
-#   docker compose up -d
-#   docker compose exec certbot certbot certonly --webroot \
-#     -w /var/www/certbot \
-#     -d zaytoonz.com -d www.zaytoonz.com \
-#     --email you@example.com --agree-tos --non-interactive
-#   docker compose exec certbot certbot certonly --webroot \
-#     -w /var/www/certbot \
-#     -d zaytoonz.org -d www.zaytoonz.org \
-#     --email you@example.com --agree-tos --non-interactive
-#   docker compose restart nginx
+# Scraper and NLWeb are NOT included in this phase.
+# NEXT_PUBLIC_USE_EXTERNAL_SCRAPER=false in .env disables scraper UI features.
 #
-# Phase 2 — Subsequent deploys (certs exist, nginx auto-selects HTTPS):
-#   git pull && docker compose build && docker compose up -d
+# DEPLOYMENT STEPS (PuTTY)
+# ─────────────────────────
+# 1. git clone + create .env  (copy .env.production, fill OPENAI_API_KEY)
+# 2. mkdir -p certbot/conf certbot/www
+# 3. docker compose build
+# 4. docker compose up -d
+#    → nginx starts in HTTP mode (no certs yet)
+# 5. Get SSL certs:
+#      docker compose run --rm certbot certonly --webroot \
+#        -w /var/www/certbot \
+#        -d zaytoonz.com -d www.zaytoonz.com \
+#        --email you@example.com --agree-tos --non-interactive
+#
+#      docker compose run --rm certbot certonly --webroot \
+#        -w /var/www/certbot \
+#        -d zaytoonz.org -d www.zaytoonz.org \
+#        --email you@example.com --agree-tos --non-interactive
+# 6. docker compose restart nginx
+#    → nginx auto-detects certs and switches to HTTPS
 # =============================================================================
 
 services:
@@ -38,9 +42,9 @@ services:
         - NEXT_PUBLIC_SUPABASE_URL=${NEXT_PUBLIC_SUPABASE_URL}
         - NEXT_PUBLIC_SUPABASE_ANON_KEY=${NEXT_PUBLIC_SUPABASE_ANON_KEY}
         - NEXT_PUBLIC_OPENAI_API_KEY=${NEXT_PUBLIC_OPENAI_API_KEY}
-        - NEXT_PUBLIC_USE_EXTERNAL_SCRAPER=${NEXT_PUBLIC_USE_EXTERNAL_SCRAPER:-true}
-        - NEXT_PUBLIC_EXTERNAL_SCRAPER_URL=${NEXT_PUBLIC_EXTERNAL_SCRAPER_URL:-https://zaytoonz.com/scraper-api}
-        - NEXT_PUBLIC_FALLBACK_TO_LOCAL=${NEXT_PUBLIC_FALLBACK_TO_LOCAL:-true}
+        - NEXT_PUBLIC_USE_EXTERNAL_SCRAPER=${NEXT_PUBLIC_USE_EXTERNAL_SCRAPER:-false}
+        - NEXT_PUBLIC_EXTERNAL_SCRAPER_URL=${NEXT_PUBLIC_EXTERNAL_SCRAPER_URL:-}
+        - NEXT_PUBLIC_FALLBACK_TO_LOCAL=${NEXT_PUBLIC_FALLBACK_TO_LOCAL:-false}
     image: zaytoonz-nextjs:latest
     container_name: zaytoonz-nextjs
     ports:
@@ -54,16 +58,12 @@ services:
       - NEXT_PUBLIC_OPENAI_API_KEY=${NEXT_PUBLIC_OPENAI_API_KEY}
       - OPENAI_MODEL=${OPENAI_MODEL:-gpt-4o-mini}
       - OPENAI_MAX_TOKENS=${OPENAI_MAX_TOKENS:-2000}
-      - NEXT_PUBLIC_USE_EXTERNAL_SCRAPER=${NEXT_PUBLIC_USE_EXTERNAL_SCRAPER:-true}
-      - NEXT_PUBLIC_EXTERNAL_SCRAPER_URL=${NEXT_PUBLIC_EXTERNAL_SCRAPER_URL:-https://zaytoonz.com/scraper-api}
-      - SCRAPER_INTERNAL_URL=http://python-scraper:8000
-      - NEXT_PUBLIC_FALLBACK_TO_LOCAL=${NEXT_PUBLIC_FALLBACK_TO_LOCAL:-true}
-      - NLWEB_URL=http://nlweb:8000
+      - NEXT_PUBLIC_USE_EXTERNAL_SCRAPER=${NEXT_PUBLIC_USE_EXTERNAL_SCRAPER:-false}
+      - NEXT_PUBLIC_EXTERNAL_SCRAPER_URL=${NEXT_PUBLIC_EXTERNAL_SCRAPER_URL:-}
+      - NEXT_PUBLIC_FALLBACK_TO_LOCAL=${NEXT_PUBLIC_FALLBACK_TO_LOCAL:-false}
     volumes:
       - ./public:/app/public:ro
     restart: unless-stopped
-    depends_on:
-      - nlweb
     networks:
       - zaytoonz-network
     healthcheck:
@@ -86,122 +86,9 @@ services:
         max-size: "10m"
         max-file: "3"
 
-  # ── Python Scraper (FastAPI + Chrome + Playwright) ─────────────────────────
-  python-scraper:
-    build:
-      context: .
-      dockerfile: Dockerfile.scraper
-    image: zaytoonz-scraper:latest
-    container_name: zaytoonz-scraper
-    ports:
-      - "8000:8000"
-    environment:
-      - PYTHONUNBUFFERED=1
-      - PYTHONDONTWRITEBYTECODE=1
-      - ENVIRONMENT=production
-      - NEXT_PUBLIC_SUPABASE_URL=${NEXT_PUBLIC_SUPABASE_URL}
-      - NEXT_PUBLIC_SUPABASE_ANON_KEY=${NEXT_PUBLIC_SUPABASE_ANON_KEY}
-      - OPENAI_API_KEY=${OPENAI_API_KEY}
-      - OPENAI_MODEL=${OPENAI_MODEL:-gpt-4o-mini}
-    volumes:
-      - scraper-cache:/root/.cache
-    restart: unless-stopped
-    networks:
-      - zaytoonz-network
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 60s
-    deploy:
-      resources:
-        limits:
-          cpus: '2.0'
-          memory: 3G
-        reservations:
-          cpus: '0.5'
-          memory: 1G
-    logging:
-      driver: json-file
-      options:
-        max-size: "10m"
-        max-file: "3"
-
-  # ── NLWeb AI Service ────────────────────────────────────────────────────────
-  nlweb:
-    build:
-      context: .
-      dockerfile: Dockerfile.nlweb
-    image: zaytoonz-nlweb:latest
-    container_name: zaytoonz-nlweb
-    ports:
-      - "8002:8000"
-    environment:
-      - PYTHONUNBUFFERED=1
-      - PYTHONDONTWRITEBYTECODE=1
-      - PYTHONPATH=/app/NLWeb-main/code/python
-      - PORT=8000
-      - NLWEB_CONFIG_DIR=/app/NLWeb-main/config
-      - NLWEB_OUTPUT_DIR=/app/NLWeb-main/data/nlweb
-      - NLWEB_OUTPUT_DIR_RELATIVE=../data/nlweb
-      - NLWEB_LOGGING_PROFILE=production
-      - OPENAI_API_KEY=${OPENAI_API_KEY}
-      - OPENAI_ENDPOINT=${OPENAI_ENDPOINT:-https://api.openai.com/v1/chat/completions}
-      - AZURE_OPENAI_ENDPOINT=${AZURE_OPENAI_ENDPOINT:-}
-      - AZURE_OPENAI_API_KEY=${AZURE_OPENAI_API_KEY:-}
-      - AZURE_VECTOR_SEARCH_ENDPOINT=${AZURE_VECTOR_SEARCH_ENDPOINT:-}
-      - AZURE_VECTOR_SEARCH_API_KEY=${AZURE_VECTOR_SEARCH_API_KEY:-}
-      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
-      - INCEPTION_ENDPOINT=${INCEPTION_ENDPOINT:-}
-      - INCEPTION_API_KEY=${INCEPTION_API_KEY:-}
-      - SNOWFLAKE_ACCOUNT_URL=${SNOWFLAKE_ACCOUNT_URL:-}
-      - SNOWFLAKE_PAT=${SNOWFLAKE_PAT:-}
-      - SNOWFLAKE_EMBEDDING_MODEL=${SNOWFLAKE_EMBEDDING_MODEL:-}
-      - SNOWFLAKE_CORTEX_SEARCH_SERVICE=${SNOWFLAKE_CORTEX_SEARCH_SERVICE:-}
-      - MILVUS_ENDPOINT=${MILVUS_ENDPOINT:-}
-      - MILVUS_TOKEN=${MILVUS_TOKEN:-}
-      - QDRANT_URL=${QDRANT_URL:-}
-      - QDRANT_API_KEY=${QDRANT_API_KEY:-}
-      - OPENSEARCH_ENDPOINT=${OPENSEARCH_ENDPOINT:-}
-      - OPENSEARCH_CREDENTIALS=${OPENSEARCH_CREDENTIALS:-}
-      - OLLAMA_URL=${OLLAMA_URL:-}
-      - ELASTICSEARCH_URL=${ELASTICSEARCH_URL:-}
-      - ELASTICSEARCH_API_KEY=${ELASTICSEARCH_API_KEY:-}
-      - POSTGRES_CONNECTION_STRING=${POSTGRES_CONNECTION_STRING:-}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-}
-      - HF_TOKEN=${HF_TOKEN:-}
-      - CLOUDFLARE_API_TOKEN=${CLOUDFLARE_API_TOKEN:-}
-      - CLOUDFLARE_RAG_ID_ENV=${CLOUDFLARE_RAG_ID_ENV:-}
-      - CLOUDFLARE_ACCOUNT_ID=${CLOUDFLARE_ACCOUNT_ID:-}
-    volumes:
-      - nlweb-data:/app/NLWeb-main/data
-    restart: unless-stopped
-    networks:
-      - zaytoonz-network
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
-      interval: 60s
-      timeout: 10s
-      retries: 3
-      start_period: 120s
-    deploy:
-      resources:
-        limits:
-          cpus: '2.0'
-          memory: 3G
-        reservations:
-          cpus: '0.5'
-          memory: 1G
-    logging:
-      driver: json-file
-      options:
-        max-size: "10m"
-        max-file: "3"
-
   # ── Nginx Reverse Proxy ────────────────────────────────────────────────────
-  # Auto-selects HTTP-only config (nginx-init.conf) when no certs exist,
-  # or full HTTPS config (nginx-webapp.conf) when certs are present.
+  # Auto-selects HTTP-only config when no certs exist,
+  # or full HTTPS config once Let's Encrypt certs are in place.
   nginx:
     image: nginx:alpine
     container_name: zaytoonz-nginx
@@ -242,10 +129,10 @@ services:
       resources:
         limits:
           cpus: '1.0'
-          memory: 512M
+          memory: 256M
         reservations:
           cpus: '0.25'
-          memory: 128M
+          memory: 64M
     logging:
       driver: json-file
       options:
@@ -271,8 +158,8 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '0.5'
-          memory: 256M
+          cpus: '0.25'
+          memory: 128M
     logging:
       driver: json-file
       options:
@@ -283,16 +170,9 @@ services:
 networks:
   zaytoonz-network:
     driver: bridge
-    ipam:
-      config:
-        - subnet: 172.28.0.0/16
 
 # ── Named Volumes ──────────────────────────────────────────────────────────
 volumes:
-  scraper-cache:
-    driver: local
-  nlweb-data:
-    driver: local
   nginx-cache:
     driver: local
   nginx-logs:
