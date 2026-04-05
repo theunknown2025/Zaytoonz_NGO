@@ -204,11 +204,6 @@ async def scrape_job(request: ScrapeRequest):
     Main scraping endpoint that processes a URL and returns structured job data
     """
     try:
-        # Validate Supabase connection
-        supabase = get_supabase_client()
-        if not supabase:
-            raise HTTPException(status_code=500, detail="Supabase not configured")
-            
         # Validate URL
         if not request.url:
             raise HTTPException(status_code=400, detail="URL is required")
@@ -348,11 +343,6 @@ async def get_raw_content(request: ScrapeRequest):
     This returns the complete page content as-is, not summarized.
     """
     try:
-        # Validate Supabase connection
-        supabase = get_supabase_client()
-        if not supabase:
-            raise HTTPException(status_code=500, detail="Supabase not configured")
-            
         # Validate URL
         if not request.url:
             raise HTTPException(status_code=400, detail="URL is required")
