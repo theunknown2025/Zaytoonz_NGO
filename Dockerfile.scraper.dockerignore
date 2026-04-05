@@ -1,0 +1,56 @@
+# Ignore file for Dockerfile.scraper builds only.
+# This replaces the root .dockerignore when building with Dockerfile.scraper.
+# python_scraper/ is intentionally NOT excluded here.
+
+node_modules/
+.next/
+out/
+build/
+dist/
+
+.env
+.env.*
+
+.git/
+.gitignore
+
+.vscode/
+.idea/
+*.swp
+*.swo
+
+.DS_Store
+Thumbs.db
+
+Deployment/
+docker-compose*.yml
+*.md
+*.sh
+*.ps1
+
+database/
+sql/
+*.sql
+
+logs/
+*.log
+
+certbot/
+
+Scrape_Master/
+NLWeb-main/
+morchid-ai-service/
+browser-extension/
+app/
+public/
+
+*.tar.gz
+*.zip
+
+.coverage
+coverage/
+.nyc_output/
+
+# Block secrets inside python_scraper
+python_scraper/.env
+python_scraper/.env.*
