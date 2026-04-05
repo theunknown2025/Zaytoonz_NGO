@@ -49,22 +49,10 @@ services:
         max-file: "3"
 
   python-scraper:
-    image: python:3.11-slim
+    build:
+      context: .
+      dockerfile: Dockerfile.scraper
     container_name: zaytoonz-scraper-beta
-    working_dir: /app/python_scraper
-    command: >
-      sh -c "
-        apt-get update -qq &&
-        apt-get install -y -qq wget gnupg ca-certificates curl &&
-        mkdir -p /etc/apt/keyrings &&
-        wget -q -O /etc/apt/keyrings/google-chrome.gpg https://dl-ssl.google.com/linux/linux_signing_key.pub &&
-        echo 'deb [arch=amd64 signed-by=/etc/apt/keyrings/google-chrome.gpg] http://dl.google.com/linux/chrome/deb/ stable main' > /etc/apt/sources.list.d/google-chrome.list &&
-        apt-get update -qq &&
-        apt-get install -y -qq google-chrome-stable &&
-        pip install --no-cache-dir -r requirements.txt &&
-        playwright install chromium --with-deps &&
-        uvicorn api_wrapper:app --host 0.0.0.0 --port 8000 --workers 2
-      "
     ports:
       - "8000:8000"
     environment:
@@ -78,16 +66,16 @@ services:
       - ENVIRONMENT=production
     volumes:
       - ./python_scraper:/app/python_scraper:ro
-      - scraper-cache:/app/.cache
+      - scraper-cache:/root/.cache/ms-playwright
     restart: unless-stopped
     networks:
       - zaytoonz-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health || exit 1"]
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 120s
+      start_period: 30s
     logging:
       driver: "json-file"
       options:
