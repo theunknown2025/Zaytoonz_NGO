@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import {
   MagnifyingGlassCircleIcon,
   PlusIcon,
@@ -112,6 +112,10 @@ export default function ScraperPage() {
   const [isExtracting, setIsExtracting] = useState(false);
   const [extractionProgress, setExtractionProgress] = useState({ current: 0, total: 0 });
   const [opportunityType, setOpportunityType] = useState<'job' | 'funding' | 'training'>('job');
+  const [extractNgoList, setExtractNgoList] = useState<{ id: string; name: string }[]>([]);
+  const [extractNgoLoading, setExtractNgoLoading] = useState(false);
+  const [extractNgoSearch, setExtractNgoSearch] = useState('');
+  const [selectedExtractNgo, setSelectedExtractNgo] = useState<{ id: string; name: string } | null>(null);
 
   // Saved Sources tab state
   const [savedSources, setSavedSources] = useState<SavedSource[]>([]);
@@ -368,6 +372,11 @@ export default function ScraperPage() {
       return;
     }
 
+    if (!selectedExtractNgo) {
+      setError('Please select the NGO this listing should appear under');
+      return;
+    }
+
     setIsExtracting(true);
     setError(null);
     setSuccessMessage(null);
@@ -385,6 +394,7 @@ export default function ScraperPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          ngo_profile_id: selectedExtractNgo.id,
           opportunities: opportunitiesToExtract,
         }),
       });
@@ -454,6 +464,38 @@ export default function ScraperPage() {
       loadSavedSources();
     }
   }, [activeTab, loadSavedSources]);
+
+  useEffect(() => {
+    if (!showExtractModal) return;
+    let cancelled = false;
+    (async () => {
+      setExtractNgoLoading(true);
+      try {
+        const res = await fetch('/api/admin/ngos');
+        const data = await res.json();
+        if (cancelled || !res.ok) return;
+        const rows = (data.ngos || []).map((n: { id: string; name?: string }) => ({
+          id: n.id,
+          name: (n.name && String(n.name).trim()) || 'Unnamed NGO',
+        }));
+        rows.sort((a: { name: string }, b: { name: string }) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
+        setExtractNgoList(rows);
+      } catch {
+        if (!cancelled) setExtractNgoList([]);
+      } finally {
+        if (!cancelled) setExtractNgoLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [showExtractModal]);
+
+  const filteredExtractNgos = useMemo(() => {
+    const q = extractNgoSearch.trim().toLowerCase();
+    if (!q) return extractNgoList;
+    return extractNgoList.filter((n) => n.name.toLowerCase().includes(q));
+  }, [extractNgoList, extractNgoSearch]);
 
   const handleSaveSource = async () => {
     if (!sourceForm.name || !sourceForm.url) {
@@ -1136,7 +1178,7 @@ export default function ScraperPage() {
       {/* Extract Modal */}
       {showExtractModal && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => !isExtracting && setShowExtractModal(false)}>
-          <div className="bg-white rounded-xl max-w-md w-full overflow-hidden" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white rounded-xl max-w-lg w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             {/* Modal Header */}
             <div className="bg-blue-600 p-6 text-white">
               <div className="flex justify-between items-center">
@@ -1174,6 +1216,60 @@ export default function ScraperPage() {
                     {type}
                   </button>
                 ))}
+              </div>
+
+              <label className="block text-sm font-medium text-gray-700 mt-6 mb-2">
+                Attribute to NGO
+              </label>
+              <p className="text-xs text-gray-500 mb-2">
+                Search and select the organization. Extracted listings use this NGO on the public seeker page and on the NGO&apos;s public profile.
+              </p>
+              <input
+                type="search"
+                value={extractNgoSearch}
+                onChange={(e) => setExtractNgoSearch(e.target.value)}
+                disabled={isExtracting}
+                placeholder="Type to filter NGOs…"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:opacity-50"
+              />
+              {selectedExtractNgo && (
+                <div className="mt-2 flex items-center justify-between gap-2 px-3 py-2 bg-blue-50 border border-blue-200 rounded-lg text-sm">
+                  <span className="text-blue-900 font-medium truncate" title={selectedExtractNgo.name}>
+                    {selectedExtractNgo.name}
+                  </span>
+                  <button
+                    type="button"
+                    disabled={isExtracting}
+                    onClick={() => setSelectedExtractNgo(null)}
+                    className="text-blue-700 hover:text-blue-900 shrink-0 disabled:opacity-50"
+                  >
+                    Clear
+                  </button>
+                </div>
+              )}
+              <div className="mt-2 border border-gray-200 rounded-lg max-h-40 overflow-y-auto bg-white">
+                {extractNgoLoading ? (
+                  <div className="p-4 text-sm text-gray-500 text-center">Loading NGOs…</div>
+                ) : filteredExtractNgos.length === 0 ? (
+                  <div className="p-4 text-sm text-gray-500 text-center">No NGOs match your search.</div>
+                ) : (
+                  <ul className="divide-y divide-gray-100">
+                    {filteredExtractNgos.map((n) => (
+                      <li key={n.id}>
+                        <button
+                          type="button"
+                          disabled={isExtracting}
+                          onClick={() => setSelectedExtractNgo({ id: n.id, name: n.name })}
+                          className={`w-full text-left px-3 py-2.5 text-sm hover:bg-blue-50 disabled:opacity-50 ${
+                            selectedExtractNgo?.id === n.id ? 'bg-blue-50 font-medium text-blue-900' : 'text-gray-800'
+                          }`}
+                        >
+                          {n.name}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </div>
               
               <div className="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
@@ -1217,7 +1313,7 @@ export default function ScraperPage() {
               </button>
               <button
                 onClick={handleExtractSelected}
-                disabled={isExtracting}
+                disabled={isExtracting || !selectedExtractNgo}
                 className="inline-flex items-center gap-2 px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg disabled:opacity-50 transition-colors"
               >
                 {isExtracting ? (

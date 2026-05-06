@@ -53,6 +53,64 @@ export interface Opportunity {
   mainInformation?: string;
   extractedFromScrapedId?: string | null;
   sortTimestamp?: number;
+  /** When set, this extracted listing is attributed to this NGO profile */
+  ngoProfileId?: string | null;
+}
+
+function linkedNgoFromExtractedRow(item: any): { id: string; name: string; email: string; profileImage?: string } | null {
+  const raw = item.ngo_profile;
+  const ngo = Array.isArray(raw) ? raw[0] : raw;
+  if (!ngo?.id || !ngo?.name) return null;
+  return {
+    id: ngo.id,
+    name: ngo.name,
+    email: ngo.email || '',
+    profileImage: ngo.profile_image_url,
+  };
+}
+
+function transformExtractedOpportunityRows(extractedData: any[] | null): Opportunity[] {
+  return (extractedData || []).map((item: any) => {
+    const deadlineString = item.deadline ? new Date(item.deadline).toLocaleDateString() : undefined;
+    const mainInformation = [item.location, item.salary_range, item.job_type].filter(Boolean).join(' • ');
+    const linked = linkedNgoFromExtractedRow(item);
+    const orgName = linked?.name || item.company || 'External Organization';
+
+    return {
+      id: `extracted_${item.id}`,
+      title: item.title,
+      organization: orgName,
+      organizationProfile: linked
+        ? { name: linked.name, email: linked.email, profileImage: linked.profileImage }
+        : { name: orgName, email: item.contact_info || '', profileImage: undefined },
+      location: item.location || 'Not specified',
+      compensation: item.salary_range || 'Competitive',
+      type: item.job_type || getTypeLabel(item.opportunity_type),
+      category: item.opportunity_type as 'job' | 'funding' | 'training',
+      posted: formatDate(item.extracted_at || item.created_at),
+      description: item.description || item.raw_content || 'No description available',
+      deadline: deadlineString,
+      status: item.extraction_status === 'completed' ? 'published' : item.extraction_status,
+      hours: item.responsibilities || undefined,
+      contactEmails: item.contact_info ? [item.contact_info] : [],
+      referenceCodes: [],
+      metadata: item.structured_content || {},
+      criteria: {
+        contractType: item.job_type || undefined,
+        location: item.location || undefined,
+        deadline: deadlineString,
+        customFilters: item.structured_content?.tags || [],
+      },
+      sourceUrl: item.source_url,
+      isExtracted: true,
+      rawContent: item.raw_content,
+      structuredContent: item.structured_content,
+      mainInformation: mainInformation || undefined,
+      extractedFromScrapedId: item.scraped_opportunity_id || null,
+      sortTimestamp: item.extracted_at || item.created_at ? new Date(item.extracted_at || item.created_at).getTime() : 0,
+      ngoProfileId: linked?.id ?? item.ngo_profile_id ?? null,
+    };
+  });
 }
 
 // Enhanced function to fetch all opportunities with complete information (both internal and scraped)
@@ -144,7 +202,15 @@ export async function getOpportunities(): Promise<{ opportunities: Opportunity[]
     // Fetch extracted opportunities (full-content)
     const { data: extractedData, error: extractedError } = await supabase
       .from('extracted_opportunity_content')
-      .select('*')
+      .select(`
+        *,
+        ngo_profile (
+          id,
+          name,
+          email,
+          profile_image_url
+        )
+      `)
       .eq('extraction_status', 'completed')
       .order('extracted_at', { ascending: false })
       .order('created_at', { ascending: false });
@@ -256,51 +322,7 @@ export async function getOpportunities(): Promise<{ opportunities: Opportunity[]
       };
     });
 
-    // Transform extracted opportunities (full-content)
-    const extractedOpportunities: Opportunity[] = (extractedData || []).map((item: any) => {
-      const deadlineString = item.deadline ? new Date(item.deadline).toLocaleDateString() : undefined;
-      const mainInformation = [
-        item.location,
-        item.salary_range,
-        item.job_type
-      ].filter(Boolean).join(' • ');
-
-      return {
-        id: `extracted_${item.id}`,
-        title: item.title,
-        organization: item.company || 'External Organization',
-        organizationProfile: {
-          name: item.company || 'External Organization',
-          email: item.contact_info || '',
-          profileImage: undefined
-        },
-        location: item.location || 'Not specified',
-        compensation: item.salary_range || 'Competitive',
-        type: item.job_type || getTypeLabel(item.opportunity_type),
-        category: item.opportunity_type as 'job' | 'funding' | 'training',
-        posted: formatDate(item.extracted_at || item.created_at),
-        description: item.description || item.raw_content || 'No description available',
-        deadline: deadlineString,
-        status: item.extraction_status === 'completed' ? 'published' : item.extraction_status,
-        hours: item.responsibilities || undefined,
-        contactEmails: item.contact_info ? [item.contact_info] : [],
-        referenceCodes: [],
-        metadata: item.structured_content || {},
-        criteria: {
-          contractType: item.job_type || undefined,
-          location: item.location || undefined,
-          deadline: deadlineString,
-          customFilters: item.structured_content?.tags || []
-        },
-        sourceUrl: item.source_url,
-        isExtracted: true,
-        rawContent: item.raw_content,
-        structuredContent: item.structured_content,
-        mainInformation: mainInformation || undefined,
-        extractedFromScrapedId: item.scraped_opportunity_id || null,
-        sortTimestamp: (item.extracted_at || item.created_at) ? new Date(item.extracted_at || item.created_at).getTime() : 0
-      };
-    });
+    const extractedOpportunities = transformExtractedOpportunityRows(extractedData);
 
     // Combine and sort all opportunities by creation date (newest first)
     const allOpportunities = [...internalOpportunities, ...scrapedOpportunities, ...extractedOpportunities]
@@ -399,7 +421,15 @@ export async function getOpportunitiesByCategory(category: 'job' | 'funding' | '
     // Fetch extracted opportunities by category
     const { data: extractedData, error: extractedError } = await supabase
       .from('extracted_opportunity_content')
-      .select('*')
+      .select(`
+        *,
+        ngo_profile (
+          id,
+          name,
+          email,
+          profile_image_url
+        )
+      `)
       .eq('opportunity_type', category)
       .eq('extraction_status', 'completed')
       .order('extracted_at', { ascending: false })
@@ -495,51 +525,7 @@ export async function getOpportunitiesByCategory(category: 'job' | 'funding' | '
       };
     });
 
-    // Transform extracted opportunities
-    const extractedOpportunities: Opportunity[] = (extractedData || []).map((item: any) => {
-      const deadlineString = item.deadline ? new Date(item.deadline).toLocaleDateString() : undefined;
-      const mainInformation = [
-        item.location,
-        item.salary_range,
-        item.job_type
-      ].filter(Boolean).join(' • ');
-
-      return {
-        id: `extracted_${item.id}`,
-        title: item.title,
-        organization: item.company || 'External Organization',
-        organizationProfile: {
-          name: item.company || 'External Organization',
-          email: item.contact_info || '',
-          profileImage: undefined
-        },
-        location: item.location || 'Not specified',
-        compensation: item.salary_range || 'Competitive',
-        type: item.job_type || getTypeLabel(item.opportunity_type),
-        category: item.opportunity_type as 'job' | 'funding' | 'training',
-        posted: formatDate(item.extracted_at || item.created_at),
-        description: item.description || item.raw_content || 'No description available',
-        deadline: deadlineString,
-        status: item.extraction_status === 'completed' ? 'published' : item.extraction_status,
-        hours: item.responsibilities || undefined,
-        contactEmails: item.contact_info ? [item.contact_info] : [],
-        referenceCodes: [],
-        metadata: item.structured_content || {},
-        criteria: {
-          contractType: item.job_type || undefined,
-          location: item.location || undefined,
-          deadline: deadlineString,
-          customFilters: item.structured_content?.tags || []
-        },
-        sourceUrl: item.source_url,
-        isExtracted: true,
-        rawContent: item.raw_content,
-        structuredContent: item.structured_content,
-        mainInformation: mainInformation || undefined,
-        extractedFromScrapedId: item.scraped_opportunity_id || null,
-        sortTimestamp: (item.extracted_at || item.created_at) ? new Date(item.extracted_at || item.created_at).getTime() : 0
-      };
-    });
+    const extractedOpportunities = transformExtractedOpportunityRows(extractedData);
 
     // Combine and sort all opportunities by creation date (newest first)
     const allOpportunities = [...internalOpportunities, ...scrapedOpportunities, ...extractedOpportunities]
@@ -663,6 +649,39 @@ export async function searchOpportunities(searchQuery: string, category?: 'job' 
       return { opportunities: null, error: scrapedError.message };
     }
 
+    // Search extracted (full-content) opportunities
+    let extractedQuery = supabase
+      .from('extracted_opportunity_content')
+      .select(`
+        *,
+        ngo_profile (
+          id,
+          name,
+          email,
+          profile_image_url
+        )
+      `)
+      .eq('extraction_status', 'completed');
+
+    if (category) {
+      extractedQuery = extractedQuery.eq('opportunity_type', category);
+    }
+
+    if (searchQuery) {
+      extractedQuery = extractedQuery.or(
+        `title.ilike.%${searchQuery}%,description.ilike.%${searchQuery}%,company.ilike.%${searchQuery}%`
+      );
+    }
+
+    const { data: extractedSearchData, error: extractedSearchError } = await extractedQuery.order('created_at', {
+      ascending: false,
+    });
+
+    if (extractedSearchError) {
+      console.error('Error searching extracted opportunities:', extractedSearchError);
+      return { opportunities: null, error: extractedSearchError.message };
+    }
+
     // Transform internal opportunities
     const internalOpportunities: Opportunity[] = (internalData || []).map((item: any) => {
       const description = item.opportunity_description[0];
@@ -746,13 +765,16 @@ export async function searchOpportunities(searchQuery: string, category?: 'job' 
       };
     });
 
+    const extractedOpportunities = transformExtractedOpportunityRows(extractedSearchData);
+
     // Combine and sort all opportunities by creation date (newest first)
-    const allOpportunities = [...internalOpportunities, ...scrapedOpportunities]
-      .sort((a, b) => {
-        const dateA = new Date(a.posted);
-        const dateB = new Date(b.posted);
-        return dateB.getTime() - dateA.getTime();
-      });
+    const allOpportunities = [...internalOpportunities, ...scrapedOpportunities, ...extractedOpportunities].sort(
+      (a, b) => {
+        const dateA = a.sortTimestamp ?? new Date(a.posted).getTime();
+        const dateB = b.sortTimestamp ?? new Date(b.posted).getTime();
+        return dateB - dateA;
+      }
+    );
 
     return { opportunities: allOpportunities, error: null };
   } catch (error: any) {

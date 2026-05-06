@@ -13,6 +13,7 @@ import {
   ArrowLeftIcon
 } from '@heroicons/react/24/outline';
 import { saveAdminFormTemplate, updateAdminFormTemplate, getAdminFormTemplateById } from './services/formService';
+import { AuthService } from '@/app/lib/auth';
 import { FormData, Section, Question, QuestionType } from './types';
 
 interface NewFormProps {
@@ -200,9 +201,10 @@ export default function NewForm({ onFormSaved, onCancel, editTemplateId = null }
         sections: sections
       };
 
-      const result = editTemplateId 
+      const { user } = await AuthService.getUser();
+      const result = editTemplateId
         ? await updateAdminFormTemplate(editTemplateId, formData)
-        : await saveAdminFormTemplate(formData);
+        : await saveAdminFormTemplate(formData, user?.id);
 
       if (result.success) {
         alert(`Template ${editTemplateId ? 'updated' : 'saved'} successfully!`);

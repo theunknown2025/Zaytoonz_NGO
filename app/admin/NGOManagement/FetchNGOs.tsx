@@ -21,6 +21,7 @@ export const useFetchNGOs = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [approvingNGO, setApprovingNGO] = useState<string | null>(null);
+  const [deletingNGO, setDeletingNGO] = useState<string | null>(null);
 
   const fetchAllNGOs = async () => {
     try {
@@ -134,6 +135,37 @@ export const useFetchNGOs = () => {
     }
   };
 
+  const handleDeleteNGO = async (ngoId: string) => {
+    try {
+      setDeletingNGO(ngoId);
+      const response = await fetch(`/api/admin/ngos/${ngoId}`, { method: 'DELETE' });
+      const payload = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        throw new Error(payload.error || 'Failed to delete NGO');
+      }
+
+      toast.success('NGO account deleted permanently');
+
+      const perPage = 10;
+      const nextTotal = Math.max(0, totalCount - 1);
+      const maxPage = Math.max(1, Math.ceil(nextTotal / perPage) || 1);
+      const page = Math.min(currentPage, maxPage);
+
+      if (searchTerm) {
+        await searchNGOs(searchTerm, page);
+      } else {
+        await fetchPaginatedNGOs(page);
+      }
+      await fetchStats();
+    } catch (err: unknown) {
+      console.error('Error deleting NGO:', err);
+      toast.error(err instanceof Error ? err.message : 'Failed to delete NGO');
+    } finally {
+      setDeletingNGO(null);
+    }
+  };
+
   const filteredNGOs = ngos.filter(ngo => {
     const matchesSearch = searchTerm === "" || 
       ngo.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -161,11 +193,13 @@ export const useFetchNGOs = () => {
     searchTerm,
     statusFilter,
     approvingNGO,
+    deletingNGO,
     setStatusFilter,
     fetchAllNGOs,
     fetchPaginatedNGOs,
     searchNGOs,
     handleApproval,
+    handleDeleteNGO,
     setSearchTerm
   };
 };

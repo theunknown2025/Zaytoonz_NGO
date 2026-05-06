@@ -4,8 +4,52 @@ import { supabase } from '@/app/lib/supabase';
 // Force dynamic rendering since we use Supabase which requires runtime environment variables
 export const dynamic = 'force-dynamic';
 
-// Default admin user UUID from the database (admin@zaytoonz.com)
-const DEFAULT_ADMIN_USER_ID = 'bd360d39-542f-4aa0-8826-3e0a831de9bd';
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+async function userIdExistsInUsers(id: string): Promise<boolean> {
+  const { data } = await supabase.from('users').select('id').eq('id', id).maybeSingle();
+  return !!data;
+}
+
+/**
+ * forms_templates.user_id must reference an existing public.users.id.
+ * Prefer the logged-in admin from the request body, then env, then any Admin user row.
+ */
+async function resolveAdminFormsTemplateOwnerId(
+  preferredUserId?: string
+): Promise<{ userId: string | null; error: string | null }> {
+  if (preferredUserId && UUID_RE.test(preferredUserId) && (await userIdExistsInUsers(preferredUserId))) {
+    return { userId: preferredUserId, error: null };
+  }
+
+  const envId = process.env.ADMIN_FORMS_TEMPLATE_USER_ID?.trim();
+  if (envId && UUID_RE.test(envId) && (await userIdExistsInUsers(envId))) {
+    return { userId: envId, error: null };
+  }
+
+  const { data: adminRow, error } = await supabase
+    .from('users')
+    .select('id')
+    .eq('user_type', 'Admin')
+    .order('created_at', { ascending: true })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    console.error('resolveAdminFormsTemplateOwnerId:', error);
+    return { userId: null, error: 'Could not look up an Admin user for template ownership.' };
+  }
+
+  if (adminRow?.id) {
+    return { userId: adminRow.id, error: null };
+  }
+
+  return {
+    userId: null,
+    error:
+      'No Admin user found in users table. Create an Admin account or set ADMIN_FORMS_TEMPLATE_USER_ID in .env.local to a valid users.id UUID.',
+  };
+}
 
 export async function GET(request: NextRequest) {
   try {
@@ -21,7 +65,6 @@ export async function GET(request: NextRequest) {
         .select('*')
         .eq('id', id)
         .eq('is_admin_template', true)
-        .eq('user_id', DEFAULT_ADMIN_USER_ID) // Only show forms created by admin
         .single();
 
       if (error) {
@@ -42,7 +85,6 @@ export async function GET(request: NextRequest) {
         .from('forms_templates')
         .select('*')
         .eq('is_admin_template', true)
-        .eq('user_id', DEFAULT_ADMIN_USER_ID) // Only show forms created by admin
         .order('created_at', { ascending: false });
 
       if (error) {
@@ -74,6 +116,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'At least one section is required' }, { status: 400 });
     }
     
+    const { userId: ownerId, error: resolveError } = await resolveAdminFormsTemplateOwnerId(
+      typeof body.user_id === 'string' ? body.user_id : undefined
+    );
+
+    if (!ownerId) {
+      return NextResponse.json({ error: resolveError || 'Could not resolve template owner user_id' }, { status: 400 });
+    }
+
     const templateData = {
       title: body.title,
       description: body.description || '',
@@ -81,7 +131,7 @@ export async function POST(request: NextRequest) {
       status: 'draft',
       published: false,
       is_admin_template: true,
-      user_id: body.user_id || DEFAULT_ADMIN_USER_ID
+      user_id: ownerId,
     };
 
     console.log('Inserting template data:', templateData);

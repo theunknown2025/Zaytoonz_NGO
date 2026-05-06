@@ -35,10 +35,12 @@ interface DisplayNGOsProps {
   searchTerm: string;
   statusFilter: string;
   approvingNGO: string | null;
+  deletingNGO: string | null;
   setStatusFilter: (filter: string) => void;
   fetchPaginatedNGOs: (page: number) => void;
   searchNGOs: (term: string, page: number) => void;
   handleApproval: (ngoId: string, action: 'approve' | 'reject', notes?: string) => void;
+  handleDeleteNGO: (ngoId: string) => void;
   setSearchTerm: (term: string) => void;
 }
 
@@ -51,10 +53,12 @@ export default function DisplayNGOs({
   searchTerm,
   statusFilter,
   approvingNGO,
+  deletingNGO,
   setStatusFilter,
   fetchPaginatedNGOs,
   searchNGOs,
   handleApproval,
+  handleDeleteNGO,
   setSearchTerm
 }: DisplayNGOsProps) {
   const [localSearchTerm, setLocalSearchTerm] = useState(searchTerm);
@@ -649,16 +653,22 @@ export default function DisplayNGOs({
                               
                               {/* Delete Icon */}
                               <button
+                                type="button"
+                                disabled={deletingNGO === ngo.id || !!approvingNGO}
                                 onClick={() => {
-                                  // TODO: Implement delete functionality
-                                  if (confirm('Are you sure you want to delete this NGO? This action cannot be undone.')) {
-                                    toast.success('Delete functionality coming soon');
+                                  if (
+                                    !confirm(
+                                      `Delete "${ngo.name}" permanently? This removes the NGO profile, login account, and related data per your database rules. This cannot be undone.`
+                                    )
+                                  ) {
+                                    return;
                                   }
+                                  handleDeleteNGO(ngo.id);
                                 }}
-                                className="p-2 text-red-600 hover:text-red-800 hover:bg-red-50 rounded-lg transition-colors duration-200"
+                                className="p-2 text-red-600 hover:text-red-800 hover:bg-red-50 rounded-lg transition-colors duration-200 disabled:opacity-40 disabled:cursor-not-allowed"
                                 title="Delete NGO Account"
                               >
-                                <TrashIcon className="h-5 w-5" />
+                                <TrashIcon className={`h-5 w-5 ${deletingNGO === ngo.id ? 'animate-pulse' : ''}`} />
                               </button>
                             </div>
                           )}

@@ -3,11 +3,14 @@ import { supabase } from '@/app/lib/supabase';
 import { getServerScraperBaseUrl } from '@/app/lib/scraper-url';
 
 interface ExtractRequest {
+  /** NGO this batch is attributed to (required for new rows; updates existing rows when URL already extracted) */
+  ngo_profile_id: string;
   opportunities: {
     title: string;
     url: string;
     opportunity_type: 'job' | 'funding' | 'training';
     scraped_opportunity_id?: string;
+    ngo_profile_id?: string;
   }[];
 }
 
@@ -95,10 +98,14 @@ const MAIN_INFO_FIELDS = {
 export async function POST(request: NextRequest) {
   try {
     const body: ExtractRequest = await request.json();
-    const { opportunities } = body;
+    const { opportunities, ngo_profile_id: bodyNgoId } = body;
 
     if (!opportunities || !Array.isArray(opportunities) || opportunities.length === 0) {
       return NextResponse.json({ error: 'Opportunities array is required' }, { status: 400 });
+    }
+
+    if (!bodyNgoId || typeof bodyNgoId !== 'string') {
+      return NextResponse.json({ error: 'ngo_profile_id is required' }, { status: 400 });
     }
 
     const results = [];
@@ -111,6 +118,8 @@ export async function POST(request: NextRequest) {
           continue;
         }
 
+        const resolvedNgoId = opp.ngo_profile_id ?? bodyNgoId;
+
         // Check if already extracted
         const { data: existing } = await supabase
           .from('extracted_opportunity_content')
@@ -119,12 +128,17 @@ export async function POST(request: NextRequest) {
           .single();
 
         if (existing) {
+          await supabase
+            .from('extracted_opportunity_content')
+            .update({ ngo_profile_id: resolvedNgoId, updated_at: new Date().toISOString() })
+            .eq('id', existing.id);
+
           results.push({ 
             id: existing.id, 
             title: opp.title, 
             url: opp.url, 
             status: 'already_extracted',
-            message: 'Content already extracted for this URL'
+            message: 'Content already extracted for this URL; NGO attribution updated'
           });
           continue;
         }
@@ -182,6 +196,7 @@ export async function POST(request: NextRequest) {
               opportunity_type: opp.opportunity_type,
               source_url: opp.url,
               scraped_opportunity_id: opp.scraped_opportunity_id || null,
+              ngo_profile_id: resolvedNgoId,
               extraction_status: 'failed',
               extraction_error: scraperResult.error || 'Extraction failed',
               extracted_at: new Date().toISOString(),
@@ -233,6 +248,7 @@ export async function POST(request: NextRequest) {
             opportunity_type: opp.opportunity_type,
             source_url: opp.url,
             scraped_opportunity_id: opp.scraped_opportunity_id || null,
+            ngo_profile_id: resolvedNgoId,
             // FULL RAW CONTENT - not summarized by AI
             raw_content: filteredContent || fullRawContent || null,
             description: filteredContent || fullRawContent || null, // Use trimmed content as description
@@ -299,18 +315,30 @@ export async function POST(request: NextRequest) {
   }
 }
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
 // GET - List extracted opportunities
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const type = searchParams.get('type');
     const status = searchParams.get('status');
+    const ngoProfileIdParam = searchParams.get('ngo_profile_id');
     const limit = parseInt(searchParams.get('limit') || '50');
     const offset = parseInt(searchParams.get('offset') || '0');
 
     let query = supabase
       .from('extracted_opportunity_content')
-      .select('*', { count: 'exact' })
+      .select(
+        `
+        *,
+        ngo_profile (
+          id,
+          name
+        )
+      `,
+        { count: 'exact' }
+      )
       .order('created_at', { ascending: false })
       .range(offset, offset + limit - 1);
 
@@ -320,6 +348,12 @@ export async function GET(request: NextRequest) {
 
     if (status && ['pending', 'processing', 'completed', 'failed'].includes(status)) {
       query = query.eq('extraction_status', status);
+    }
+
+    if (ngoProfileIdParam === 'unassigned') {
+      query = query.is('ngo_profile_id', null);
+    } else if (ngoProfileIdParam && UUID_RE.test(ngoProfileIdParam)) {
+      query = query.eq('ngo_profile_id', ngoProfileIdParam);
     }
 
     const { data, error, count } = await query;

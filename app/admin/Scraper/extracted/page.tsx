@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   DocumentTextIcon,
   ArrowPathIcon,
@@ -23,6 +23,7 @@ import {
   ClipboardDocumentIcon,
   ArrowDownTrayIcon,
   Squares2X2Icon,
+  ChevronDownIcon,
 } from '@heroicons/react/24/outline';
 import { 
   exportToExcel, 
@@ -62,6 +63,14 @@ interface ExtractedOpportunity {
   created_at: string;
   updated_at: string;
   content_polished_at: string | null;
+  ngo_profile_id?: string | null;
+  ngo_profile?: { id: string; name: string } | { id: string; name: string }[] | null;
+}
+
+function attributedNgoName(opp: ExtractedOpportunity): string | null {
+  const raw = opp.ngo_profile;
+  const row = Array.isArray(raw) ? raw[0] : raw;
+  return row?.name?.trim() || null;
 }
 
 export default function ExtractedOpportunitiesPage() {
@@ -74,6 +83,12 @@ export default function ExtractedOpportunitiesPage() {
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [countryFilter, setCountryFilter] = useState<string>('all');
+  /** all | unassigned | NGO profile UUID */
+  const [organizationFilter, setOrganizationFilter] = useState<string>('all');
+  const [orgFilterSearch, setOrgFilterSearch] = useState('');
+  const [orgFilterOpen, setOrgFilterOpen] = useState(false);
+  const [ngoOptions, setNgoOptions] = useState<{ id: string; name: string }[]>([]);
+  const orgFilterRef = useRef<HTMLDivElement | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   
   // Excel Export
@@ -107,6 +122,12 @@ export default function ExtractedOpportunitiesPage() {
       const params = new URLSearchParams();
       if (typeFilter !== 'all') params.set('type', typeFilter);
       if (statusFilter !== 'all') params.set('status', statusFilter);
+      if (organizationFilter !== 'all') {
+        params.set(
+          'ngo_profile_id',
+          organizationFilter === 'unassigned' ? 'unassigned' : organizationFilter
+        );
+      }
       params.set('limit', itemsPerPage.toString());
       params.set('offset', ((currentPage - 1) * itemsPerPage).toString());
       
@@ -129,11 +150,66 @@ export default function ExtractedOpportunitiesPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [typeFilter, statusFilter, currentPage]);
+  }, [typeFilter, statusFilter, organizationFilter, currentPage]);
 
   useEffect(() => {
     fetchOpportunities();
   }, [fetchOpportunities]);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch('/api/admin/ngos');
+        const data = await res.json();
+        if (cancelled || !res.ok) return;
+        const rows = (data.ngos || []).map((n: { id: string; name?: string }) => ({
+          id: n.id,
+          name: (n.name && String(n.name).trim()) || 'Unnamed NGO',
+        }));
+        rows.sort((a: { name: string }, b: { name: string }) =>
+          a.name.localeCompare(b.name, undefined, { sensitivity: 'base' })
+        );
+        setNgoOptions(rows);
+      } catch {
+        if (!cancelled) setNgoOptions([]);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!orgFilterOpen) return;
+    const onDown = (e: MouseEvent) => {
+      if (orgFilterRef.current && !orgFilterRef.current.contains(e.target as Node)) {
+        setOrgFilterOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', onDown);
+    return () => document.removeEventListener('mousedown', onDown);
+  }, [orgFilterOpen]);
+
+  const filteredNgoOptions = useMemo(() => {
+    const q = orgFilterSearch.trim().toLowerCase();
+    if (!q) return ngoOptions;
+    return ngoOptions.filter((n) => n.name.toLowerCase().includes(q));
+  }, [ngoOptions, orgFilterSearch]);
+
+  const organizationFilterLabel = useMemo(() => {
+    if (organizationFilter === 'all') return 'All organizations';
+    if (organizationFilter === 'unassigned') return 'Unassigned';
+    const found = ngoOptions.find((n) => n.id === organizationFilter);
+    return found?.name || 'Organization';
+  }, [organizationFilter, ngoOptions]);
+
+  const selectOrganizationFilter = (value: string) => {
+    setOrganizationFilter(value);
+    setCurrentPage(1);
+    setOrgFilterOpen(false);
+    setOrgFilterSearch('');
+  };
 
   const handleDelete = async (id: string) => {
     setIsDeleting(true);
@@ -282,11 +358,13 @@ export default function ExtractedOpportunitiesPage() {
     // Search filter
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
+      const orgName = attributedNgoName(opp);
       return (
         opp.title.toLowerCase().includes(query) ||
         opp.company?.toLowerCase().includes(query) ||
         opp.location?.toLowerCase().includes(query) ||
-        opp.description?.toLowerCase().includes(query)
+        opp.description?.toLowerCase().includes(query) ||
+        (orgName && orgName.toLowerCase().includes(query))
       );
     }
     
@@ -498,6 +576,80 @@ export default function ExtractedOpportunitiesPage() {
               <option value="processing">Processing</option>
               <option value="failed">Failed</option>
             </select>
+
+            {/* Organization filter (searchable) */}
+            <div className="relative min-w-[220px]" ref={orgFilterRef}>
+              <button
+                type="button"
+                onClick={() => setOrgFilterOpen((o) => !o)}
+                className="w-full flex items-center justify-between gap-2 px-3 py-2 border border-gray-300 rounded-lg text-sm text-left bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+              >
+                <span className="flex items-center gap-2 min-w-0">
+                  <BuildingOfficeIcon className="h-4 w-4 text-gray-400 flex-shrink-0" />
+                  <span className="truncate text-gray-800">{organizationFilterLabel}</span>
+                </span>
+                <ChevronDownIcon className={`h-4 w-4 text-gray-400 flex-shrink-0 transition ${orgFilterOpen ? 'rotate-180' : ''}`} />
+              </button>
+              {orgFilterOpen && (
+                <div className="absolute z-50 mt-1 w-[min(100vw-2rem,320px)] rounded-lg border border-gray-200 bg-white shadow-lg">
+                  <div className="p-2 border-b border-gray-100">
+                    <div className="relative">
+                      <MagnifyingGlassIcon className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                      <input
+                        type="search"
+                        value={orgFilterSearch}
+                        onChange={(e) => setOrgFilterSearch(e.target.value)}
+                        placeholder="Search organizations…"
+                        className="w-full pl-8 pr-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                        autoFocus
+                      />
+                    </div>
+                  </div>
+                  <ul className="max-h-52 overflow-y-auto py-1">
+                    <li>
+                      <button
+                        type="button"
+                        onClick={() => selectOrganizationFilter('all')}
+                        className={`w-full text-left px-3 py-2 text-sm hover:bg-gray-50 ${
+                          organizationFilter === 'all' ? 'bg-blue-50 text-blue-900 font-medium' : 'text-gray-800'
+                        }`}
+                      >
+                        All organizations
+                      </button>
+                    </li>
+                    <li>
+                      <button
+                        type="button"
+                        onClick={() => selectOrganizationFilter('unassigned')}
+                        className={`w-full text-left px-3 py-2 text-sm hover:bg-gray-50 ${
+                          organizationFilter === 'unassigned' ? 'bg-blue-50 text-blue-900 font-medium' : 'text-gray-800'
+                        }`}
+                      >
+                        Unassigned (no NGO)
+                      </button>
+                    </li>
+                    {filteredNgoOptions.length === 0 ? (
+                      <li className="px-3 py-2 text-sm text-gray-500">No matches</li>
+                    ) : (
+                      filteredNgoOptions.map((n) => (
+                        <li key={n.id}>
+                          <button
+                            type="button"
+                            onClick={() => selectOrganizationFilter(n.id)}
+                            className={`w-full text-left px-3 py-2 text-sm hover:bg-gray-50 truncate ${
+                              organizationFilter === n.id ? 'bg-blue-50 text-blue-900 font-medium' : 'text-gray-800'
+                            }`}
+                            title={n.name}
+                          >
+                            {n.name}
+                          </button>
+                        </li>
+                      ))
+                    )}
+                  </ul>
+                </div>
+              )}
+            </div>
             
             {/* Country Filter */}
             <select
@@ -513,7 +665,7 @@ export default function ExtractedOpportunitiesPage() {
           </div>
           
           {/* Active Filters Display */}
-          {(typeFilter !== 'all' || statusFilter !== 'all' || countryFilter !== 'all' || searchQuery) && (
+          {(typeFilter !== 'all' || statusFilter !== 'all' || organizationFilter !== 'all' || countryFilter !== 'all' || searchQuery) && (
             <div className="flex items-center gap-2 mt-3 pt-3 border-t border-gray-200">
               <span className="text-sm text-gray-500">Active filters:</span>
               {typeFilter !== 'all' && (
@@ -528,6 +680,18 @@ export default function ExtractedOpportunitiesPage() {
                 <span className="inline-flex items-center gap-1 px-2 py-1 bg-purple-100 text-purple-700 rounded text-xs">
                   Status: {statusFilter}
                   <button onClick={() => setStatusFilter('all')} className="hover:text-purple-900">
+                    <XMarkIcon className="h-3 w-3" />
+                  </button>
+                </span>
+              )}
+              {organizationFilter !== 'all' && (
+                <span className="inline-flex items-center gap-1 px-2 py-1 bg-teal-100 text-teal-800 rounded text-xs max-w-[240px]">
+                  <span className="truncate">Org: {organizationFilterLabel}</span>
+                  <button
+                    type="button"
+                    onClick={() => { setOrganizationFilter('all'); setCurrentPage(1); }}
+                    className="hover:text-teal-900 flex-shrink-0"
+                  >
                     <XMarkIcon className="h-3 w-3" />
                   </button>
                 </span>
@@ -593,6 +757,7 @@ export default function ExtractedOpportunitiesPage() {
                   <thead className="bg-gray-50 border-b border-gray-200">
                     <tr>
                       <th className="px-4 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider w-[200px]">Title</th>
+                      <th className="px-4 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider w-[140px]">Organization</th>
                       <th className="px-4 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider w-[180px]">URL</th>
                       <th className="px-4 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider w-[280px]">Main Information</th>
                       <th className="px-4 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Content</th>
@@ -600,7 +765,9 @@ export default function ExtractedOpportunitiesPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">
-                    {filteredOpportunities.map((opp) => (
+                    {filteredOpportunities.map((opp) => {
+                      const attrOrg = attributedNgoName(opp);
+                      return (
                       <tr key={opp.id} className="hover:bg-gray-50 transition-colors">
                         {/* Title Column */}
                         <td className="px-4 py-4 align-top">
@@ -619,6 +786,19 @@ export default function ExtractedOpportunitiesPage() {
                                 </span>
                               )}
                             </div>
+                          </div>
+                        </td>
+
+                        {/* Attributed NGO */}
+                        <td className="px-4 py-4 align-top">
+                          <div className="max-w-[140px] text-sm">
+                            {attrOrg ? (
+                              <span className="text-gray-800 font-medium line-clamp-2" title={attrOrg}>
+                                {attrOrg}
+                              </span>
+                            ) : (
+                              <span className="text-gray-400 italic">Unassigned</span>
+                            )}
                           </div>
                         </td>
                         
@@ -750,7 +930,8 @@ export default function ExtractedOpportunitiesPage() {
                           </div>
                         </td>
                       </tr>
-                    ))}
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -809,6 +990,12 @@ export default function ExtractedOpportunitiesPage() {
                     )}
                   </div>
                   <h2 className="text-xl font-bold">{selectedOpportunity.title}</h2>
+                  {attributedNgoName(selectedOpportunity) && (
+                    <p className="mt-2 text-sm text-blue-100">
+                      Attributed NGO:{' '}
+                      <span className="font-medium text-white">{attributedNgoName(selectedOpportunity)}</span>
+                    </p>
+                  )}
                 </div>
                 <button 
                   onClick={() => setShowDetailModal(false)} 

@@ -25,7 +25,7 @@ interface Opportunity {
   location: string;
   hours: string;
   status: string;
-  source?: 'saved' | 'scraped';
+  source?: 'ngo' | 'scraped' | 'extracted' | 'saved';
   source_url?: string;
   company?: string;
 }
@@ -73,268 +73,25 @@ const RecentOpportunities: React.FC<RecentOpportunitiesProps> = ({ lang, transla
 
   const fetchOpportunities = async () => {
     try {
-      // Fetch both saved and scraped opportunities
-      const [savedResponse, scrapedResponse] = await Promise.all([
-        fetch('/api/opportunities/recent'),
-        fetch('/api/admin/scraped-opportunities?status=active&limit=15')
-      ]);
-
-      let savedOpportunities: Opportunity[] = [];
-      let scrapedOpportunities: Opportunity[] = [];
-
-      // Handle saved opportunities
-      if (savedResponse.ok) {
-        const savedData = await savedResponse.json();
-        savedOpportunities = savedData.map((opp: any) => ({
-          ...opp,
-          source: 'saved' as const
-        }));
+      setLoading(true);
+      const response = await fetch('/api/opportunities/recent');
+      if (!response.ok) {
+        throw new Error('Failed to load opportunities');
       }
 
-      // Handle scraped opportunities
-      if (scrapedResponse.ok) {
-        const scrapedData = await scrapedResponse.json();
-        scrapedOpportunities = (scrapedData.opportunities || []).map((opp: any) => ({
-          id: opp.id,
-          title: opp.title,
-          description_title: opp.metadata?.title || opp.title,
-          opportunity_type: opp.opportunity_type,
-          // Prefer scraped_at but fall back to created_at if missing
-          created_at: opp.scraped_at || opp.created_at,
-          description: opp.description || opp.metadata?.original_data?.description || '',
-          location: opp.location || opp.metadata?.location || '',
-          hours: opp.hours || opp.metadata?.hours || '',
-          status: opp.status || 'active',
-          source: 'scraped' as const,
-          source_url: opp.source_url || opp.metadata?.link,
-          company: opp.company
-        }));
-      }
-
-      // Combine and group opportunities
-      const allOpportunities = [...savedOpportunities, ...scrapedOpportunities];
-      
-      // Sort by created_at/scraped_at date (most recent first)
-      allOpportunities.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+      const allOpportunities: Opportunity[] = await response.json();
 
       const grouped = {
-        job: allOpportunities.filter(opp => opp.opportunity_type === 'job').slice(0, 5),
-        funding: allOpportunities.filter(opp => opp.opportunity_type === 'funding').slice(0, 5),
-        training: allOpportunities.filter(opp => opp.opportunity_type === 'training').slice(0, 5)
+        job: allOpportunities.filter((opp) => opp.opportunity_type === 'job').slice(0, 5),
+        funding: allOpportunities.filter((opp) => opp.opportunity_type === 'funding').slice(0, 5),
+        training: allOpportunities.filter((opp) => opp.opportunity_type === 'training').slice(0, 5),
       };
 
       setOpportunities(grouped);
-      setLoading(false);
     } catch (error) {
       console.error('Error fetching opportunities:', error);
-      
-      // Fallback to mock data for development
-      const mockData: Opportunity[] = [
-        // Jobs
-        {
-          id: '1',
-          title: 'Senior Program Manager',
-          opportunity_type: 'job',
-          created_at: '2025-01-15T10:00:00Z',
-          description_title: 'Lead Development Programs',
-          description: 'Join our team to lead innovative development programs across Africa. We are looking for an experienced program manager with strong leadership skills.',
-          location: 'Nairobi, Kenya',
-          hours: 'Full-time',
-          status: 'published',
-          source: 'saved'
-        },
-        {
-          id: '4',
-          title: 'Data Analyst Position',
-          opportunity_type: 'job',
-          created_at: '2025-01-12T08:00:00Z',
-          description_title: 'Analyze Impact Data',
-          description: 'We are seeking a data analyst to help us measure and improve our program effectiveness through comprehensive data analysis.',
-          location: 'Remote',
-          hours: 'Part-time',
-          status: 'published',
-          source: 'scraped',
-          source_url: 'https://example.com/job/data-analyst',
-          company: 'TechForGood Inc'
-        },
-        {
-          id: '6',
-          title: 'Communications Specialist',
-          opportunity_type: 'job',
-          created_at: '2025-01-11T14:00:00Z',
-          description_title: 'Drive Communication Strategy',
-          description: 'Looking for a creative communications specialist to develop and execute our outreach and engagement strategies.',
-          location: 'London, UK',
-          hours: 'Full-time',
-          status: 'published',
-          source: 'saved'
-        },
-        {
-          id: '7',
-          title: 'Field Coordinator',
-          opportunity_type: 'job',
-          created_at: '2025-01-10T12:00:00Z',
-          description_title: 'Coordinate Field Operations',
-          description: 'Coordinate field operations and manage local partnerships in rural communities.',
-          location: 'Bangladesh',
-          hours: 'Full-time',
-          status: 'published',
-          source: 'scraped',
-          source_url: 'https://example.com/job/field-coordinator',
-          company: 'Global Aid Network'
-        },
-        {
-          id: '8',
-          title: 'Project Manager',
-          opportunity_type: 'job',
-          created_at: '2025-01-09T10:00:00Z',
-          description_title: 'Manage Development Projects',
-          description: 'Lead cross-functional teams to deliver impactful development projects on time and within budget.',
-          location: 'São Paulo, Brazil',
-          hours: 'Full-time',
-          status: 'published',
-          source: 'saved'
-        },
-        // Funding
-        {
-          id: '2',
-          title: 'Climate Action Grant',
-          opportunity_type: 'funding',
-          created_at: '2025-01-14T15:30:00Z',
-          description_title: 'Support Climate Initiatives',
-          description: 'Funding opportunity for innovative climate action projects. Up to $50,000 available for qualifying organizations.',
-          location: 'Global',
-          hours: '',
-          status: 'published',
-          source: 'saved'
-        },
-        {
-          id: '5',
-          title: 'Youth Empowerment Grant',
-          opportunity_type: 'funding',
-          created_at: '2025-01-11T14:00:00Z',
-          description_title: 'Empower Young Leaders',
-          description: 'Funding available for projects focused on youth leadership development and community engagement initiatives.',
-          location: 'Africa',
-          hours: '',
-          status: 'published',
-          source: 'scraped',
-          source_url: 'https://example.com/grant/youth-empowerment',
-          company: 'Global Youth Foundation'
-        },
-        {
-          id: '9',
-          title: 'Education Innovation Fund',
-          opportunity_type: 'funding',
-          created_at: '2025-01-10T11:00:00Z',
-          description_title: 'Innovation in Education',
-          description: 'Supporting innovative educational programs that improve learning outcomes for underserved communities.',
-          location: 'Asia-Pacific',
-          hours: '',
-          status: 'published',
-          source: 'saved'
-        },
-        {
-          id: '10',
-          title: 'Community Health Grant',
-          opportunity_type: 'funding',
-          created_at: '2025-01-09T13:00:00Z',
-          description_title: 'Strengthen Health Systems',
-          description: 'Grants available for community-based health initiatives and health system strengthening projects.',
-          location: 'Sub-Saharan Africa',
-          hours: '',
-          status: 'published',
-          source: 'scraped',
-          source_url: 'https://example.com/grant/community-health',
-          company: 'Health Foundation'
-        },
-        {
-          id: '11',
-          title: 'Women Empowerment Fund',
-          opportunity_type: 'funding',
-          created_at: '2025-01-08T16:00:00Z',
-          description_title: 'Empower Women Leaders',
-          description: 'Financial support for programs promoting women\'s economic empowerment and leadership development.',
-          location: 'Latin America',
-          hours: '',
-          status: 'published',
-          source: 'saved'
-        },
-        // Training
-        {
-          id: '3',
-          title: 'Digital Skills Workshop',
-          opportunity_type: 'training',
-          created_at: '2025-01-13T09:15:00Z',
-          description_title: 'Build Digital Capacity',
-          description: 'Comprehensive training program on digital skills for NGO professionals. Includes social media, data analysis, and online fundraising.',
-          location: 'Online',
-          hours: '20 hours',
-          status: 'published',
-          source: 'saved'
-        },
-        {
-          id: '12',
-          title: 'Leadership Development Program',
-          opportunity_type: 'training',
-          created_at: '2025-01-12T14:00:00Z',
-          description_title: 'Develop Leadership Skills',
-          description: 'Intensive leadership development program for emerging leaders in the nonprofit sector.',
-          location: 'New York, USA',
-          hours: '40 hours',
-          status: 'published',
-          source: 'scraped',
-          source_url: 'https://example.com/training/leadership',
-          company: 'Leadership Institute'
-        },
-        {
-          id: '13',
-          title: 'Financial Management Course',
-          opportunity_type: 'training',
-          created_at: '2025-01-11T10:00:00Z',
-          description_title: 'Master Financial Management',
-          description: 'Learn essential financial management skills for nonprofit organizations and development projects.',
-          location: 'Geneva, Switzerland',
-          hours: '30 hours',
-          status: 'published',
-          source: 'saved'
-        },
-        {
-          id: '14',
-          title: 'Project Evaluation Training',
-          opportunity_type: 'training',
-          created_at: '2025-01-10T15:00:00Z',
-          description_title: 'Learn Evaluation Methods',
-          description: 'Training on project evaluation methodologies and impact measurement for development practitioners.',
-          location: 'Online',
-          hours: '25 hours',
-          status: 'published',
-          source: 'scraped',
-          source_url: 'https://example.com/training/evaluation',
-          company: 'Evaluation Network'
-        },
-        {
-          id: '15',
-          title: 'Fundraising Masterclass',
-          opportunity_type: 'training',
-          created_at: '2025-01-09T12:00:00Z',
-          description_title: 'Master Fundraising Techniques',
-          description: 'Comprehensive training on modern fundraising strategies and donor relationship management.',
-          location: 'London, UK',
-          hours: '35 hours',
-          status: 'published',
-          source: 'saved'
-        }
-      ];
-
-      // Group by type
-      const grouped = {
-        job: mockData.filter(opp => opp.opportunity_type === 'job').slice(0, 5),
-        funding: mockData.filter(opp => opp.opportunity_type === 'funding').slice(0, 5),
-        training: mockData.filter(opp => opp.opportunity_type === 'training').slice(0, 5)
-      };
-
-      setOpportunities(grouped);
+      setOpportunities({ job: [], funding: [], training: [] });
+    } finally {
       setLoading(false);
     }
   };
@@ -362,7 +119,9 @@ const RecentOpportunities: React.FC<RecentOpportunitiesProps> = ({ lang, transla
   };
 
   const stripHtml = (html: string) => {
-    return html.replace(/<[^>]*>/g, '').substring(0, 150) + '...';
+    if (!html) return '';
+    const plain = html.replace(/<[^>]*>/g, '');
+    return plain.length > 150 ? `${plain.substring(0, 150)}...` : plain;
   };
 
   const getTabColor = (type: string) => {
@@ -379,11 +138,11 @@ const RecentOpportunities: React.FC<RecentOpportunitiesProps> = ({ lang, transla
   };
 
   const getSourceBadge = (source: string) => {
-    if (source === 'scraped') {
+    if (source === 'scraped' || source === 'extracted') {
       return (
         <div className="flex items-center space-x-1 bg-blue-100 text-blue-700 px-2 py-1 rounded-full text-xs font-medium">
           <Globe className="h-3 w-3" />
-                      <span>{translations.external}</span>
+          <span>{translations.external}</span>
         </div>
       );
     }
@@ -500,7 +259,7 @@ const RecentOpportunities: React.FC<RecentOpportunitiesProps> = ({ lang, transla
                       <span className="bg-olive-100 text-olive-700 px-3 py-1 rounded-full text-sm font-medium">
                         {opportunity.opportunity_type}
                       </span>
-                      {getSourceBadge(opportunity.source || 'saved')}
+                      {getSourceBadge(opportunity.source || 'ngo')}
                     </div>
                   </div>
 
@@ -545,8 +304,10 @@ const RecentOpportunities: React.FC<RecentOpportunitiesProps> = ({ lang, transla
                   </div>
 
                   {/* Action Button */}
-                  {opportunity.source === 'scraped' ? (
-                    <a 
+                  {opportunity.source === 'scraped' &&
+                  opportunity.source_url &&
+                  /^https?:\/\//i.test(opportunity.source_url) ? (
+                    <a
                       href={opportunity.source_url}
                       target="_blank"
                       rel="noopener noreferrer"
@@ -556,11 +317,15 @@ const RecentOpportunities: React.FC<RecentOpportunitiesProps> = ({ lang, transla
                       <ChevronRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
                     </a>
                   ) : (
-                    <a 
+                    <a
                       href={`/seeker/opportunities/${opportunity.id}`}
                       className="w-full bg-gradient-to-r from-olive-500 to-olive-600 hover:from-olive-600 hover:to-olive-700 text-white py-3 px-4 rounded-lg font-semibold hover:shadow-lg transition-all duration-300 flex items-center justify-center space-x-2 group"
                     >
-                      <span>{translations.viewDetails}</span>
+                      <span>
+                        {opportunity.source === 'ngo'
+                          ? translations.viewDetails
+                          : translations.viewOpportunity}
+                      </span>
                       <ChevronRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
                     </a>
                   )}

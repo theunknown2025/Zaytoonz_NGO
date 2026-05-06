@@ -292,11 +292,15 @@ function OpportunitiesPageContent() {
       });
     }
 
-    // Source filter (internal vs scraped)
+    // Source filter (internal vs external: scraped + AI-extracted)
     if (filters.source !== 'all') {
       filtered = filtered.filter(opp => {
-        const isScraped = opp.isScraped || opp.id.startsWith('scraped_');
-        return filters.source === 'external' ? isScraped : !isScraped;
+        const isExternal =
+          opp.isScraped ||
+          opp.isExtracted ||
+          opp.id.startsWith('scraped_') ||
+          opp.id.startsWith('extracted_');
+        return filters.source === 'external' ? isExternal : !isExternal;
       });
     }
 

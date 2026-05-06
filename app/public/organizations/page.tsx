@@ -27,30 +27,64 @@ interface NGO {
   total_opportunities: number;
 }
 
+const PAGE_SIZE = 16;
+const SEARCH_DEBOUNCE_MS = 320;
+
 export default function OrganizationsPage() {
-  const [ngos, setNgos] = useState<NGO[]>([]);
-  const [filteredNGOs, setFilteredNGOs] = useState<NGO[]>([]);
+  const [browseNgos, setBrowseNgos] = useState<NGO[]>([]);
+  const [browseHasMore, setBrowseHasMore] = useState(false);
+  const [searchNgos, setSearchNgos] = useState<NGO[]>([]);
+  const [searchHasMore, setSearchHasMore] = useState(false);
+  const [searchTotalMatches, setSearchTotalMatches] = useState<number | null>(null);
+
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [searchLoading, setSearchLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [totalApprovedAll, setTotalApprovedAll] = useState<number | null>(null);
+
+  const trimmedSearch = searchTerm.trim();
+  const debouncedTrimmed = debouncedSearch.trim();
+  const isBrowseMode = trimmedSearch.length === 0;
+  const awaitingDebounce =
+    trimmedSearch.length > 0 && debouncedTrimmed !== trimmedSearch;
+  const displayNgos = isBrowseMode ? browseNgos : searchNgos;
+  const hasMore = isBrowseMode ? browseHasMore : searchHasMore;
+  const showSearchActivity = !isBrowseMode && (awaitingDebounce || searchLoading);
+
+  useEffect(() => {
+    const t = window.setTimeout(() => {
+      setDebouncedSearch(searchTerm.trim());
+    }, SEARCH_DEBOUNCE_MS);
+    return () => window.clearTimeout(t);
+  }, [searchTerm]);
 
   useEffect(() => {
     const fetchNGOs = async () => {
       try {
         setLoading(true);
-        const response = await fetch('/api/public/ngos');
+        setError(null);
+        const response = await fetch(`/api/public/ngos?limit=${PAGE_SIZE}&offset=0`);
         const data = await response.json();
 
         if (data.error) {
           setError(data.error);
+          setBrowseNgos([]);
         } else {
-          setNgos(data.ngos || []);
-          setFilteredNGOs(data.ngos || []);
+          const list = data.ngos || [];
+          setBrowseNgos(list);
+          setBrowseHasMore(Boolean(data.has_more));
+          setTotalApprovedAll(
+            typeof data.total_approved === 'number' ? data.total_approved : null
+          );
         }
       } catch (err) {
         console.error('Error fetching NGOs:', err);
         setError('Failed to load organizations');
+        setBrowseNgos([]);
       } finally {
         setLoading(false);
       }
@@ -59,21 +93,115 @@ export default function OrganizationsPage() {
     fetchNGOs();
   }, []);
 
-  // Filter NGOs by search term
   useEffect(() => {
-    if (!searchTerm.trim()) {
-      setFilteredNGOs(ngos);
+    const q = debouncedSearch.trim();
+    if (!q) {
+      setSearchNgos([]);
+      setSearchHasMore(false);
+      setSearchTotalMatches(null);
+      setSearchLoading(false);
       return;
     }
 
-    const filtered = ngos.filter(ngo =>
-      ngo.name.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-    setFilteredNGOs(filtered);
-  }, [searchTerm, ngos]);
+    let cancelled = false;
+
+    (async () => {
+      try {
+        setSearchLoading(true);
+        setError(null);
+        const response = await fetch(
+          `/api/public/ngos?limit=${PAGE_SIZE}&offset=0&q=${encodeURIComponent(q)}`
+        );
+        const data = await response.json();
+
+        if (cancelled) return;
+
+        if (data.error) {
+          setError(data.error);
+          setSearchNgos([]);
+          setSearchHasMore(false);
+          setSearchTotalMatches(null);
+          return;
+        }
+
+        setSearchNgos(data.ngos || []);
+        setSearchHasMore(Boolean(data.has_more));
+        setSearchTotalMatches(
+          typeof data.total_approved === 'number' ? data.total_approved : null
+        );
+      } catch (err: unknown) {
+        if (cancelled) return;
+        console.error('Error searching NGOs:', err);
+        setError('Failed to search organizations');
+        setSearchNgos([]);
+        setSearchHasMore(false);
+        setSearchTotalMatches(null);
+      } finally {
+        if (!cancelled) {
+          setSearchLoading(false);
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [debouncedSearch]);
+
+  const loadMore = async () => {
+    if (loadingMore || !hasMore) return;
+    const q = debouncedTrimmed;
+    const searchMode = q.length > 0;
+
+    try {
+      setLoadingMore(true);
+      setError(null);
+      const offset = searchMode ? searchNgos.length : browseNgos.length;
+      const url = searchMode
+        ? `/api/public/ngos?limit=${PAGE_SIZE}&offset=${offset}&q=${encodeURIComponent(q)}`
+        : `/api/public/ngos?limit=${PAGE_SIZE}&offset=${offset}`;
+
+      const response = await fetch(url);
+      const data = await response.json();
+
+      if (data.error) {
+        setError(data.error);
+        return;
+      }
+
+      const next = (data.ngos || []) as NGO[];
+      if (searchMode) {
+        setSearchNgos((prev) => {
+          const seen = new Set(prev.map((n) => n.id));
+          const merged = next.filter((n) => !seen.has(n.id));
+          return [...prev, ...merged];
+        });
+        setSearchHasMore(Boolean(data.has_more));
+        if (typeof data.total_approved === 'number') {
+          setSearchTotalMatches(data.total_approved);
+        }
+      } else {
+        setBrowseNgos((prev) => {
+          const seen = new Set(prev.map((n) => n.id));
+          const merged = next.filter((n) => !seen.has(n.id));
+          return [...prev, ...merged];
+        });
+        setBrowseHasMore(Boolean(data.has_more));
+        if (typeof data.total_approved === 'number') {
+          setTotalApprovedAll(data.total_approved);
+        }
+      }
+    } catch (err) {
+      console.error('Error loading more NGOs:', err);
+      setError('Failed to load more organizations');
+    } finally {
+      setLoadingMore(false);
+    }
+  };
 
   const clearSearch = () => {
     setSearchTerm('');
+    setDebouncedSearch('');
   };
 
   const handleSearch = (e: React.FormEvent) => {
@@ -125,27 +253,31 @@ export default function OrganizationsPage() {
             {/* Quick Stats */}
             <div className="flex flex-wrap justify-center gap-8 mt-10">
               <div className="text-center">
-                <div className="text-3xl md:text-4xl font-bold text-white">{filteredNGOs.length}</div>
+                <div className="text-3xl md:text-4xl font-bold text-white">
+                  {isBrowseMode
+                    ? totalApprovedAll ?? browseNgos.length
+                    : searchTotalMatches ?? searchNgos.length}
+                </div>
                 <div className="text-olive-200 text-sm font-medium">Organizations</div>
               </div>
               <div className="w-px h-12 bg-white/20 hidden sm:block"></div>
               <div className="text-center">
                 <div className="text-3xl md:text-4xl font-bold text-white">
-                  {ngos.reduce((sum, ngo) => sum + ngo.jobs_count, 0)}
+                  {displayNgos.reduce((sum, ngo) => sum + ngo.jobs_count, 0)}
                 </div>
                 <div className="text-olive-200 text-sm font-medium">Jobs</div>
               </div>
               <div className="w-px h-12 bg-white/20 hidden sm:block"></div>
               <div className="text-center">
                 <div className="text-3xl md:text-4xl font-bold text-white">
-                  {ngos.reduce((sum, ngo) => sum + ngo.fundings_count, 0)}
+                  {displayNgos.reduce((sum, ngo) => sum + ngo.fundings_count, 0)}
                 </div>
                 <div className="text-olive-200 text-sm font-medium">Funding</div>
               </div>
               <div className="w-px h-12 bg-white/20 hidden sm:block"></div>
               <div className="text-center">
                 <div className="text-3xl md:text-4xl font-bold text-white">
-                  {ngos.reduce((sum, ngo) => sum + ngo.trainings_count, 0)}
+                  {displayNgos.reduce((sum, ngo) => sum + ngo.trainings_count, 0)}
                 </div>
                 <div className="text-olive-200 text-sm font-medium">Training</div>
               </div>
@@ -198,7 +330,11 @@ export default function OrganizationsPage() {
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 gap-4">
           <div>
             <h3 className="text-xl font-semibold text-olive-800">
-              {loading ? 'Loading organizations...' : `${filteredNGOs.length} Organizations Found`}
+              {loading
+                ? 'Loading organizations...'
+                : showSearchActivity
+                  ? 'Searching organizations...'
+                  : `${displayNgos.length} Organizations Found`}
             </h3>
             {searchTerm && (
               <div className="flex flex-wrap items-center gap-2 mt-2">
@@ -261,44 +397,81 @@ export default function OrganizationsPage() {
           </div>
         )}
           
+        {/* Search in progress (server query) */}
+        {!loading && showSearchActivity && displayNgos.length === 0 && !error && (
+          <div className="text-center py-16 bg-white rounded-2xl shadow-sm border border-olive-100">
+            <div className="inline-flex items-center justify-center w-16 h-16 bg-olive-100 rounded-full mb-6">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-olive-600" />
+            </div>
+            <p className="text-olive-700 font-medium">Searching all organizations…</p>
+          </div>
+        )}
+
         {/* Empty State */}
-        {!loading && filteredNGOs.length === 0 && !error && (
+        {!loading &&
+          !showSearchActivity &&
+          displayNgos.length === 0 &&
+          !error && (
           <div className="text-center py-16 bg-white rounded-2xl shadow-sm border border-olive-100">
             <div className="inline-flex items-center justify-center w-20 h-20 bg-olive-100 rounded-full mb-6">
               <BuildingOfficeIcon className="w-10 h-10 text-olive-500" />
             </div>
             <h3 className="text-2xl font-semibold text-olive-800 mb-4">No organizations found</h3>
             <p className="text-lg text-olive-600 mb-6 max-w-md mx-auto">
-              {searchTerm
-                ? 'No organizations match your search. Try adjusting your search criteria.'
-                : 'No organizations are currently available'
-              }
+              {trimmedSearch
+                ? 'No organizations match your search. Try a different name or email fragment.'
+                : 'No organizations are currently available'}
             </p>
-            {searchTerm && (
-              <button 
-                onClick={clearSearch}
-                className="inline-flex items-center gap-2 px-6 py-3 bg-olive-700 text-white rounded-lg hover:bg-olive-800 transition-colors font-medium"
-              >
-                Clear Search
-              </button>
-            )}
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+              {trimmedSearch && (
+                <button
+                  onClick={clearSearch}
+                  className="inline-flex items-center gap-2 px-6 py-3 bg-olive-700 text-white rounded-lg hover:bg-olive-800 transition-colors font-medium"
+                >
+                  Clear Search
+                </button>
+              )}
+              {!trimmedSearch && hasMore && (
+                <button
+                  type="button"
+                  onClick={loadMore}
+                  disabled={loadingMore}
+                  className="text-olive-700 hover:text-olive-900 disabled:text-olive-400 disabled:cursor-not-allowed text-base font-medium underline underline-offset-4"
+                >
+                  {loadingMore ? 'Loading…' : 'Preview More Organization'}
+                </button>
+              )}
+            </div>
           </div>
         )}
         
         {/* Organizations Display */}
-        {!loading && filteredNGOs.length > 0 && (
+        {!loading && displayNgos.length > 0 && (
           <>
             {viewMode === 'grid' ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {filteredNGOs.map(ngo => (
+                {displayNgos.map(ngo => (
                   <OrganizationCard key={ngo.id} ngo={ngo} />
                 ))}
               </div>
             ) : (
               <div className="space-y-4">
-                {filteredNGOs.map(ngo => (
+                {displayNgos.map(ngo => (
                   <OrganizationRow key={ngo.id} ngo={ngo} />
                 ))}
+              </div>
+            )}
+
+            {hasMore && (
+              <div className="flex flex-col items-center mt-10 pb-4">
+                <button
+                  type="button"
+                  onClick={loadMore}
+                  disabled={loadingMore}
+                  className="text-olive-700 hover:text-olive-900 disabled:text-olive-400 disabled:cursor-not-allowed text-base font-medium underline underline-offset-4 decoration-olive-400 hover:decoration-olive-700 transition-colors bg-transparent border-0 cursor-pointer"
+                >
+                  {loadingMore ? 'Loading…' : 'Preview More Organization'}
+                </button>
               </div>
             )}
           </>

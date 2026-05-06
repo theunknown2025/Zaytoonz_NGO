@@ -26,9 +26,6 @@ function getSupabaseClient() {
   return createClient(supabaseUrl, supabaseKey);
 }
 
-// Admin user UUID from the database (admin@zaytoonz.com)
-const ADMIN_USER_ID = 'bd360d39-542f-4aa0-8826-3e0a831de9bd';
-
 interface FormTemplate {
   id: string;
   title: string;
@@ -58,14 +55,13 @@ export default function ZaytoonzTemplates({ onUseTemplate }: ZaytoonzTemplatesPr
     try {
       setLoading(true);
       
-      // Fetch only published form templates created by admin user
+      // Published catalog templates (any admin workshop owner)
       const supabase = getSupabaseClient();
       const { data, error } = await supabase
         .from('forms_templates')
         .select('*')
         .eq('is_admin_template', true)
-        .eq('user_id', ADMIN_USER_ID) // Only admin-created templates
-        .eq('published', true) // Only published templates
+        .eq('published', true)
         .order('created_at', { ascending: false });
 
       if (error) {

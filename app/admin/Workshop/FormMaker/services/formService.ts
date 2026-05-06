@@ -1,10 +1,8 @@
 import { FormData, FormTemplate } from '../types';
 
-// Default admin user UUID from the database (admin@zaytoonz.com)
-const DEFAULT_ADMIN_USER_ID = 'bd360d39-542f-4aa0-8826-3e0a831de9bd';
-
 /**
- * Save an admin form template
+ * Save an admin form template.
+ * Pass the signed-in Admin user's id when available; the API falls back to env or first Admin user in DB.
  */
 export async function saveAdminFormTemplate(
   formData: FormData,
@@ -18,13 +16,15 @@ export async function saveAdminFormTemplate(
       return { success: false, error: 'Form must have at least one section' };
     }
 
-    const templateData = {
+    const templateData: Record<string, unknown> = {
       title: formData.title,
       description: formData.description || '',
       sections: formData.sections,
-      user_id: userId || DEFAULT_ADMIN_USER_ID,
-      is_admin_template: true // Explicitly set this flag
+      is_admin_template: true,
     };
+    if (userId) {
+      templateData.user_id = userId;
+    }
 
     console.log('Saving admin form template with data:', templateData);
 

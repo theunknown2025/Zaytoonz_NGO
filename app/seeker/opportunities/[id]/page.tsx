@@ -20,7 +20,15 @@ export default async function OpportunityDetailPage({
       const extractedId = params.id.replace('extracted_', '');
       const { data: extracted, error: extractedError } = await supabase
         .from('extracted_opportunity_content')
-        .select('*')
+        .select(`
+          *,
+          ngo_profile (
+            id,
+            name,
+            email,
+            profile_image_url
+          )
+        `)
         .eq('id', extractedId)
         .single();
 
@@ -44,6 +52,9 @@ export default async function OpportunityDetailPage({
         extracted.job_type
       ].filter(Boolean).join(' • ');
       const pageUrl = `${process.env.NEXT_PUBLIC_SITE_URL || ''}/seeker/opportunities/extracted_${extracted.id}`;
+      const linkedNgo = Array.isArray((extracted as { ngo_profile?: unknown }).ngo_profile)
+        ? (extracted as { ngo_profile: { id: string; name: string }[] }).ngo_profile[0]
+        : (extracted as { ngo_profile?: { id: string; name: string } | null }).ngo_profile;
 
       return (
         <div className="min-h-screen bg-olive-50">
@@ -79,8 +90,19 @@ export default async function OpportunityDetailPage({
                 {extracted.opportunity_type}
               </p>
               <h1 className="text-3xl md:text-4xl font-bold leading-tight drop-shadow-sm text-white">{extracted.title}</h1>
-              {extracted.company && (
-                <p className="mt-2 text-olive-100 text-sm">{extracted.company}</p>
+              {(linkedNgo?.name || extracted.company) && (
+                <p className="mt-2 text-olive-100 text-sm">
+                  {linkedNgo ? (
+                    <a
+                      href={`/public/ngo/${linkedNgo.id}`}
+                      className="underline decoration-olive-200/80 hover:text-white"
+                    >
+                      {linkedNgo.name}
+                    </a>
+                  ) : (
+                    extracted.company
+                  )}
+                </p>
               )}
               {mainInfo && (
                 <p className="mt-1 text-olive-100/90 text-sm">{mainInfo}</p>

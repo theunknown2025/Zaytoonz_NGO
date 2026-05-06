@@ -64,19 +64,42 @@ export async function GET(
       };
     });
 
+    // Extracted listings attributed to this NGO (admin scraper → extract flow)
+    const { data: extractedForNgo, error: extractedErr } = await supabase
+      .from('extracted_opportunity_content')
+      .select('id, title, opportunity_type, created_at')
+      .eq('ngo_profile_id', id)
+      .eq('extraction_status', 'completed')
+      .order('created_at', { ascending: false });
+
+    if (extractedErr) {
+      console.error('Error fetching extracted opportunities for NGO:', extractedErr);
+    }
+
+    const formattedExtracted = (extractedForNgo || []).map((row: any) => ({
+      id: `extracted_${row.id}`,
+      title: row.title || 'Untitled Opportunity',
+      type: row.opportunity_type,
+      created_at: row.created_at,
+    }));
+
+    const allPublicOpportunities = [...formattedOpportunities, ...formattedExtracted].sort(
+      (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    );
+
     // Count opportunities by type
-    const jobsCount = formattedOpportunities.filter((o: any) => o.type === 'job').length;
-    const fundingsCount = formattedOpportunities.filter((o: any) => o.type === 'funding').length;
-    const trainingsCount = formattedOpportunities.filter((o: any) => o.type === 'training').length;
+    const jobsCount = allPublicOpportunities.filter((o: any) => o.type === 'job').length;
+    const fundingsCount = allPublicOpportunities.filter((o: any) => o.type === 'funding').length;
+    const trainingsCount = allPublicOpportunities.filter((o: any) => o.type === 'training').length;
 
     return NextResponse.json({
       profile: ngoProfile,
-      opportunities: formattedOpportunities,
+      opportunities: allPublicOpportunities,
       stats: {
         jobs_count: jobsCount,
         fundings_count: fundingsCount,
         trainings_count: trainingsCount,
-        total_opportunities: formattedOpportunities.length
+        total_opportunities: allPublicOpportunities.length
       },
       error: null
     });

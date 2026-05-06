@@ -16,10 +16,12 @@ export default function NGOManagementPage() {
     searchTerm,
     statusFilter,
     approvingNGO,
+    deletingNGO,
     setStatusFilter,
     fetchPaginatedNGOs,
     searchNGOs,
     handleApproval,
+    handleDeleteNGO,
     setSearchTerm
   } = useFetchNGOs();
 
@@ -33,10 +35,12 @@ export default function NGOManagementPage() {
       searchTerm={searchTerm}
       statusFilter={statusFilter}
       approvingNGO={approvingNGO}
+      deletingNGO={deletingNGO}
       setStatusFilter={setStatusFilter}
       fetchPaginatedNGOs={fetchPaginatedNGOs}
       searchNGOs={searchNGOs}
       handleApproval={handleApproval}
+      handleDeleteNGO={handleDeleteNGO}
       setSearchTerm={setSearchTerm}
     />
   );

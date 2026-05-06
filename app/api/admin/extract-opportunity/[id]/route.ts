@@ -86,7 +86,7 @@ export async function PATCH(
       'title', 'description', 'company', 'location', 'salary_range',
       'job_type', 'deadline', 'requirements', 'benefits', 'responsibilities',
       'qualifications', 'application_instructions', 'contact_info', 'raw_content',
-      'content_polished_at'
+      'content_polished_at', 'ngo_profile_id'
     ];
 
     const updates: Record<string, unknown> = {};

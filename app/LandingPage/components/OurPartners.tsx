@@ -35,7 +35,7 @@ export default function OurPartners({ translations }: OurPartnersProps) {
     const fetchNGOs = async () => {
       try {
         setLoading(true);
-        const response = await fetch('/api/public/ngos');
+        const response = await fetch('/api/public/ngos?limit=5');
         const data = await response.json();
 
         if (data.error) {
