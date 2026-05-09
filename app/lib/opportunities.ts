@@ -5,6 +5,7 @@ export interface Opportunity {
   title: string;
   organization?: string;
   organizationProfile?: {
+    id?: string;
     name: string;
     email: string;
     profileImage?: string;
@@ -55,6 +56,68 @@ export interface Opportunity {
   sortTimestamp?: number;
   /** When set, this extracted listing is attributed to this NGO profile */
   ngoProfileId?: string | null;
+  /** True when the opportunity description owner is an Admin (manual / platform postings). */
+  isAdminPosted?: boolean;
+}
+
+/** Public listing query shape: published NGO posts plus admin-only `completed` posts (see getOpportunities). */
+const OPPORTUNITY_PUBLIC_LIST_SELECT = `
+        id,
+        title,
+        opportunity_type,
+        created_at,
+        updated_at,
+        opportunity_description (
+          id,
+          title,
+          description,
+          location,
+          hours,
+          status,
+          metadata,
+          criteria,
+          created_at,
+          updated_at,
+          user_id,
+          users!opportunity_description_user_id_fkey (
+            id,
+            full_name,
+            email,
+            user_type,
+            ngo_profile!ngo_profile_user_id_fkey (
+              id,
+              name,
+              email,
+              profile_image_url
+            )
+          )
+        ),
+        opportunity_form_email (
+          contact_emails,
+          reference_codes
+        ),
+        opportunity_form_choice!fk_opportunity_form_choice_opportunity (
+          form_id,
+          forms_templates (
+            id,
+            title,
+            sections,
+            description,
+            status,
+            published
+          )
+        )
+      `;
+
+function pickOpportunityDescriptionRow(item: any): any | null {
+  const raw = item.opportunity_description;
+  const list = Array.isArray(raw) ? raw : raw ? [raw] : [];
+  if (list.length === 0) return null;
+  return (
+    list.find((d: any) => d?.status === 'published') ||
+    list.find((d: any) => d?.status === 'completed') ||
+    list[0]
+  );
 }
 
 function linkedNgoFromExtractedRow(item: any): { id: string; name: string; email: string; profileImage?: string } | null {
@@ -113,6 +176,49 @@ function transformExtractedOpportunityRows(extractedData: any[] | null): Opportu
   });
 }
 
+/** Map one `scraped_opportunities` row (with joined `scraped_opportunity_details`) to the public `Opportunity` shape. */
+export function opportunityFromScrapedRecord(item: any): Opportunity {
+  const details = item.scraped_opportunity_details?.[0];
+  const deadline = details?.deadline ? new Date(details.deadline).toLocaleDateString() : undefined;
+  const specificUrl = details?.metadata?.link || item.source_url;
+
+  return {
+    id: `scraped_${item.id}`,
+    title: item.title,
+    organization: details?.company || 'External Organization',
+    organizationProfile: {
+      name: details?.company || 'External Organization',
+      email: details?.contact_info || '',
+      profileImage: undefined
+    },
+    location: details?.location || 'Not specified',
+    compensation: details?.salary_range || 'Competitive',
+    type: getTypeLabel(item.opportunity_type),
+    category: item.opportunity_type as 'job' | 'funding' | 'training',
+    posted: formatDate(item.created_at),
+    description: details?.description || 'No description available',
+    deadline,
+    status: 'published',
+    hours: details?.hours || undefined,
+    contactEmails: details?.contact_info ? [details.contact_info] : [],
+    referenceCodes: [],
+    metadata: details?.metadata || {},
+    criteria: {
+      contractType: details?.requirements || undefined,
+      location: details?.location || undefined,
+      deadline,
+      customFilters: details?.tags || []
+    },
+    sourceUrl: specificUrl,
+    isScraped: true,
+    sortTimestamp: item.created_at ? new Date(item.created_at).getTime() : 0
+  };
+}
+
+export function opportunityFromExtractedRecord(item: any): Opportunity {
+  return transformExtractedOpportunityRows([item])[0];
+}
+
 // Enhanced function to fetch all opportunities with complete information (both internal and scraped)
 export async function getOpportunities(): Promise<{ opportunities: Opportunity[] | null, error: string | null }> {
   try {
@@ -125,55 +231,9 @@ export async function getOpportunities(): Promise<{ opportunities: Opportunity[]
       return { opportunities: [], error: null };
     }
 
-    // Fetch internal NGO opportunities
     const { data: internalData, error: internalError } = await supabase
       .from('opportunities')
-      .select(`
-        id,
-        title,
-        opportunity_type,
-        created_at,
-        updated_at,
-        opportunity_description (
-          id,
-          title,
-          description,
-          location,
-          hours,
-          status,
-          metadata,
-          criteria,
-          created_at,
-          updated_at,
-          user_id,
-          users!opportunity_description_user_id_fkey (
-            id,
-            full_name,
-            email,
-            ngo_profile!ngo_profile_user_id_fkey (
-              id,
-              name,
-              email,
-              profile_image_url
-            )
-          )
-        ),
-        opportunity_form_email (
-          contact_emails,
-          reference_codes
-        ),
-        opportunity_form_choice!fk_opportunity_form_choice_opportunity (
-          form_id,
-          forms_templates (
-            id,
-            title,
-            sections,
-            description,
-            status,
-            published
-          )
-        )
-      `)
+      .select(OPPORTUNITY_PUBLIC_LIST_SELECT)
       .eq('opportunity_description.status', 'published')
       .order('created_at', { ascending: false });
 
@@ -181,6 +241,51 @@ export async function getOpportunities(): Promise<{ opportunities: Opportunity[]
       console.error('Error fetching internal opportunities:', internalError);
       return { opportunities: null, error: internalError.message };
     }
+
+    const { data: adminDescRows, error: adminDescError } = await supabase
+      .from('opportunity_description')
+      .select(`
+        opportunity_id,
+        users!opportunity_description_user_id_fkey ( user_type )
+      `)
+      .eq('status', 'completed')
+      .not('opportunity_id', 'is', null);
+
+    if (adminDescError) {
+      console.error('Error fetching admin opportunity descriptions:', adminDescError);
+    }
+
+    const adminCompletedIds = Array.from(
+      new Set(
+        (adminDescRows || [])
+          .filter((row: any) => {
+            const u = row.users;
+            const ur = Array.isArray(u) ? u[0] : u;
+            return ur?.user_type === 'Admin' && row.opportunity_id;
+          })
+          .map((row: any) => row.opportunity_id as string)
+      )
+    );
+
+    const publishedIds = new Set((internalData || []).map((r: any) => r.id));
+    const adminIdsToFetch = adminCompletedIds.filter((id) => !publishedIds.has(id));
+
+    let adminInternalRows: any[] = [];
+    if (adminIdsToFetch.length > 0) {
+      const { data: adminOpps, error: adminOppsError } = await supabase
+        .from('opportunities')
+        .select(OPPORTUNITY_PUBLIC_LIST_SELECT)
+        .in('id', adminIdsToFetch)
+        .order('created_at', { ascending: false });
+
+      if (adminOppsError) {
+        console.error('Error fetching admin completed opportunities:', adminOppsError);
+      } else if (adminOpps) {
+        adminInternalRows = adminOpps;
+      }
+    }
+
+    const internalRows = [...(internalData || []), ...adminInternalRows];
 
     // Fetch scraped opportunities
     const { data: scrapedData, error: scrapedError } = await supabase
@@ -220,107 +325,78 @@ export async function getOpportunities(): Promise<{ opportunities: Opportunity[]
       return { opportunities: null, error: extractedError.message };
     }
 
-    // Transform internal opportunities
-    const internalOpportunities: Opportunity[] = (internalData || []).map((item: any) => {
-      // Handle both array and single object cases for opportunity_description
-      const description = Array.isArray(item.opportunity_description) 
-        ? item.opportunity_description[0] 
-        : item.opportunity_description;
-      
-      const metadata = description?.metadata || {};
-      const criteria = description?.criteria || {};
-      
-      // Fix: users is not an array, it's a single object
-      const user = description?.users;
-      const ngoProfile = user?.ngo_profile?.[0];
-      
-      const emailData = item.opportunity_form_email?.[0];
-      const formChoice = item.opportunity_form_choice?.[0];
-      const formTemplates = formChoice?.forms_templates as any;
-      const formData = Array.isArray(formTemplates) ? formTemplates[0] : formTemplates;
-      
-      // Get location from criteria if description.location is null
-      const location = description?.location || criteria?.location || null;
-      
-      // Get type from criteria or metadata
-      const type = criteria?.contractType || metadata?.employment_type || metadata?.funding_type || getTypeLabel(item.opportunity_type);
-      
-      // Get compensation from criteria or metadata
-      const compensation = criteria?.amountRange || metadata?.compensation || metadata?.salary || metadata?.funding_amount || null;
-      
-      return {
-        id: item.id,
-        title: description?.title || item.title,
-        organization: ngoProfile?.name || user?.full_name || 'Organization',
-        organizationProfile: ngoProfile ? {
-          name: ngoProfile.name,
-          email: ngoProfile.email,
-          profileImage: ngoProfile.profile_image_url
-        } : undefined,
-        location: location,
-        compensation: compensation,
-        type: type,
-        category: item.opportunity_type as 'job' | 'funding' | 'training',
-        posted: formatDate(item.created_at),
-        sortTimestamp: item.created_at ? new Date(item.created_at).getTime() : 0,
-        description: description?.description || 'No description available',
-        deadline: criteria?.deadline || metadata?.deadline || metadata?.application_deadline,
-        status: description?.status,
-        hours: description?.hours || criteria?.duration || metadata?.duration,
-        contactEmails: emailData?.contact_emails || [],
-        referenceCodes: emailData?.reference_codes || [],
-        applicationForm: formData ? {
-          id: formData.id,
-          title: formData.title,
-          form_structure: formData.sections,
-          instructions: formData.description,
-          status: formData.status
-        } : undefined,
-        metadata: metadata,
-        criteria: criteria
-      };
-    });
+    const internalOpportunities: Opportunity[] = (internalRows || [])
+      .map((item: any) => {
+        const description = pickOpportunityDescriptionRow(item);
+        if (!description) return null;
 
-    // Transform scraped opportunities
-    const scrapedOpportunities: Opportunity[] = (scrapedData || []).map((item: any) => {
-      const details = item.scraped_opportunity_details?.[0];
-      const deadline = details?.deadline ? new Date(details.deadline).toLocaleDateString() : undefined;
-      
-      // Get the specific opportunity URL from metadata.link, fallback to source_url
-      const specificUrl = details?.metadata?.link || item.source_url;
-      
-      return {
-        id: `scraped_${item.id}`, // Prefix to distinguish from internal opportunities
-        title: item.title,
-        organization: details?.company || 'External Organization',
-        organizationProfile: {
-          name: details?.company || 'External Organization',
-          email: details?.contact_info || '',
-          profileImage: undefined
-        },
-        location: details?.location || 'Not specified',
-        compensation: details?.salary_range || 'Competitive',
-        type: getTypeLabel(item.opportunity_type),
-        category: item.opportunity_type as 'job' | 'funding' | 'training',
-        posted: formatDate(item.created_at),
-        description: details?.description || 'No description available',
-        deadline: deadline,
-        status: 'published',
-        hours: details?.hours || undefined,
-        contactEmails: details?.contact_info ? [details.contact_info] : [],
-        referenceCodes: [],
-        metadata: details?.metadata || {},
-        criteria: {
-          contractType: details?.requirements || undefined,
-          location: details?.location || undefined,
-          deadline: deadline,
-          customFilters: details?.tags || []
-        },
-        sourceUrl: specificUrl,
-        isScraped: true,
-        sortTimestamp: item.created_at ? new Date(item.created_at).getTime() : 0
-      };
-    });
+        const metadata = description?.metadata || {};
+        const criteria = description?.criteria || {};
+
+        const user = description?.users;
+        const userRow = Array.isArray(user) ? user[0] : user;
+        const ngoRaw = userRow?.ngo_profile;
+        const ngoProfile = Array.isArray(ngoRaw) ? ngoRaw[0] : ngoRaw;
+
+        const emailData = item.opportunity_form_email?.[0];
+        const formChoice = item.opportunity_form_choice?.[0];
+        const formTemplates = formChoice?.forms_templates as any;
+        const formData = Array.isArray(formTemplates) ? formTemplates[0] : formTemplates;
+
+        const location = description?.location || criteria?.location || null;
+        const type =
+          criteria?.contractType ||
+          metadata?.employment_type ||
+          metadata?.funding_type ||
+          getTypeLabel(item.opportunity_type);
+        const compensation =
+          criteria?.amountRange ||
+          metadata?.compensation ||
+          metadata?.salary ||
+          metadata?.funding_amount ||
+          null;
+
+        return {
+          id: item.id,
+          title: description?.title || item.title,
+          organization: ngoProfile?.name || userRow?.full_name || 'Organization',
+          organizationProfile: ngoProfile
+            ? {
+                id: ngoProfile.id,
+                name: ngoProfile.name,
+                email: ngoProfile.email,
+                profileImage: ngoProfile.profile_image_url
+              }
+            : undefined,
+          location: location,
+          compensation: compensation,
+          type: type,
+          category: item.opportunity_type as 'job' | 'funding' | 'training',
+          posted: formatDate(item.created_at),
+          sortTimestamp: item.created_at ? new Date(item.created_at).getTime() : 0,
+          description: description?.description || 'No description available',
+          deadline: criteria?.deadline || metadata?.deadline || metadata?.application_deadline,
+          status: description?.status,
+          hours: description?.hours || criteria?.duration || metadata?.duration,
+          contactEmails: emailData?.contact_emails || [],
+          referenceCodes: emailData?.reference_codes || [],
+          applicationForm: formData
+            ? {
+                id: formData.id,
+                title: formData.title,
+                form_structure: formData.sections,
+                instructions: formData.description,
+                status: formData.status
+              }
+            : undefined,
+          metadata: metadata,
+          criteria: criteria,
+          isAdminPosted: userRow?.user_type === 'Admin'
+        };
+      })
+      .filter(Boolean) as Opportunity[];
+
+    const scrapedOpportunities: Opportunity[] = (scrapedData || []).map(opportunityFromScrapedRecord);
 
     const extractedOpportunities = transformExtractedOpportunityRows(extractedData);
 
@@ -484,46 +560,7 @@ export async function getOpportunitiesByCategory(category: 'job' | 'funding' | '
       };
     });
 
-    // Transform scraped opportunities
-    const scrapedOpportunities: Opportunity[] = (scrapedData || []).map((item: any) => {
-      const details = item.scraped_opportunity_details?.[0];
-      const deadline = details?.deadline ? new Date(details.deadline).toLocaleDateString() : undefined;
-      
-      // Get the specific opportunity URL from metadata.link, fallback to source_url
-      const specificUrl = details?.metadata?.link || item.source_url;
-      
-      return {
-        id: `scraped_${item.id}`,
-        title: item.title,
-        organization: details?.company || 'External Organization',
-        organizationProfile: {
-          name: details?.company || 'External Organization',
-          email: details?.contact_info || '',
-          profileImage: undefined
-        },
-        location: details?.location || 'Not specified',
-        compensation: details?.salary_range || 'Competitive',
-        type: getTypeLabel(item.opportunity_type),
-        category: item.opportunity_type as 'job' | 'funding' | 'training',
-        posted: formatDate(item.created_at),
-        description: details?.description || 'No description available',
-        deadline: deadline,
-        status: 'published',
-        hours: details?.hours || undefined,
-        contactEmails: details?.contact_info ? [details.contact_info] : [],
-        referenceCodes: [],
-        metadata: details?.metadata || {},
-        criteria: {
-          contractType: details?.requirements || undefined,
-          location: details?.location || undefined,
-          deadline: deadline,
-          customFilters: details?.tags || []
-        },
-        sourceUrl: specificUrl,
-        isScraped: true,
-        sortTimestamp: item.created_at ? new Date(item.created_at).getTime() : 0
-      };
-    });
+    const scrapedOpportunities: Opportunity[] = (scrapedData || []).map(opportunityFromScrapedRecord);
 
     const extractedOpportunities = transformExtractedOpportunityRows(extractedData);
 
@@ -725,45 +762,7 @@ export async function searchOpportunities(searchQuery: string, category?: 'job' 
       };
     });
 
-    // Transform scraped opportunities
-    const scrapedOpportunities: Opportunity[] = (scrapedData || []).map((item: any) => {
-      const details = item.scraped_opportunity_details?.[0];
-      const deadline = details?.deadline ? new Date(details.deadline).toLocaleDateString() : undefined;
-      
-      // Get the specific opportunity URL from metadata.link, fallback to source_url
-      const specificUrl = details?.metadata?.link || item.source_url;
-      
-      return {
-        id: `scraped_${item.id}`,
-        title: item.title,
-        organization: details?.company || 'External Organization',
-        organizationProfile: {
-          name: details?.company || 'External Organization',
-          email: details?.contact_info || '',
-          profileImage: undefined
-        },
-        location: details?.location || 'Not specified',
-        compensation: details?.salary_range || 'Competitive',
-        type: getTypeLabel(item.opportunity_type),
-        category: item.opportunity_type as 'job' | 'funding' | 'training',
-        posted: formatDate(item.created_at),
-        description: details?.description || 'No description available',
-        deadline: deadline,
-        status: 'published',
-        hours: details?.hours || undefined,
-        contactEmails: details?.contact_info ? [details.contact_info] : [],
-        referenceCodes: [],
-        metadata: details?.metadata || {},
-        criteria: {
-          contractType: details?.requirements || undefined,
-          location: details?.location || undefined,
-          deadline: deadline,
-          customFilters: details?.tags || []
-        },
-        sourceUrl: specificUrl,
-        isScraped: true
-      };
-    });
+    const scrapedOpportunities: Opportunity[] = (scrapedData || []).map(opportunityFromScrapedRecord);
 
     const extractedOpportunities = transformExtractedOpportunityRows(extractedSearchData);
 
@@ -845,6 +844,7 @@ export async function getOpportunityById(id: string): Promise<{ opportunity: Opp
             id,
             full_name,
             email,
+            user_type,
             ngo_profile!ngo_profile_user_id_fkey (
               id,
               name,
@@ -871,27 +871,30 @@ export async function getOpportunityById(id: string): Promise<{ opportunity: Opp
       return { opportunity: null, error: 'Opportunity not found' };
     }
 
-    // Filter for published description - only show published opportunities to public
+    // Keep detail visibility aligned with listing visibility.
+    // Admin-created opportunities can be marked as `completed` and should still be openable.
     let description: any = null;
     const oppDesc = data.opportunity_description as any;
     
     if (oppDesc) {
       if (Array.isArray(oppDesc)) {
-        // Array case - find published description
-        description = oppDesc.find((desc: any) => desc?.status === 'published');
+        // Array case - find the first user-visible description variant
+        description = oppDesc.find((desc: any) =>
+          desc?.status === 'published' || desc?.status === 'completed'
+        );
       } else {
-        // Single object case - check if it's published
-        if (oppDesc.status === 'published') {
+        // Single object case - check if it's user-visible
+        if (oppDesc.status === 'published' || oppDesc.status === 'completed') {
           description = oppDesc;
         }
       }
     }
 
-    // If no published description found, the opportunity is not available
+    // If no visible description found, the opportunity is not available
     if (!description) {
       return { 
         opportunity: null, 
-        error: 'Opportunity not found or not published yet.' 
+        error: 'Opportunity not found or not available yet.' 
       };
     }
 
@@ -919,38 +922,53 @@ export async function getOpportunityById(id: string): Promise<{ opportunity: Opp
       formData = Array.isArray(formTemplates) ? formTemplates[0] : formTemplates;
     }
 
-    // Transform the data
     const metadata = description?.metadata || {};
-    // Handle both array and single object cases for users
-    const user = Array.isArray(description?.users) 
-      ? description?.users[0] 
+    const criteria = description?.criteria || {};
+    const user = Array.isArray(description?.users)
+      ? description?.users[0]
       : description?.users;
-    // Handle both array and single object cases for ngo_profile
-    const ngoProfile = Array.isArray(user?.ngo_profile) 
-      ? user?.ngo_profile[0] 
-      : user?.ngo_profile;
-    const emailData = Array.isArray(data.opportunity_form_email) 
-      ? data.opportunity_form_email[0] 
+    const ngoRaw = user?.ngo_profile;
+    const ngoProfile = Array.isArray(ngoRaw) ? ngoRaw[0] : ngoRaw;
+    const emailData = Array.isArray(data.opportunity_form_email)
+      ? data.opportunity_form_email[0]
       : data.opportunity_form_email;
+
+    const location = description?.location || criteria?.location || 'Location not specified';
+    const compensation =
+      criteria?.amountRange ||
+      metadata?.compensation ||
+      metadata?.salary ||
+      metadata?.funding_amount ||
+      'Not specified';
+    const type =
+      criteria?.contractType ||
+      metadata?.employment_type ||
+      metadata?.funding_type ||
+      getTypeLabel(data.opportunity_type);
+    const deadline = criteria?.deadline || metadata?.deadline || metadata?.application_deadline;
+    const hours = description?.hours || criteria?.duration || metadata?.duration;
 
     const opportunity: Opportunity = {
       id: data.id,
       title: description?.title || data.title,
       organization: ngoProfile?.name || user?.full_name || 'Organization',
-      organizationProfile: ngoProfile ? {
-        name: ngoProfile.name,
-        email: ngoProfile.email,
-        profileImage: ngoProfile.profile_image_url
-      } : undefined,
-      location: description?.location || 'Location not specified',
-      compensation: metadata?.compensation || metadata?.salary || metadata?.funding_amount || 'Not specified',
-      type: metadata?.employment_type || metadata?.funding_type || getTypeLabel(data.opportunity_type),
+      organizationProfile: ngoProfile
+        ? {
+            id: ngoProfile.id,
+            name: ngoProfile.name,
+            email: ngoProfile.email,
+            profileImage: ngoProfile.profile_image_url
+          }
+        : undefined,
+      location,
+      compensation,
+      type,
       category: data.opportunity_type as 'job' | 'funding' | 'training',
       posted: formatDate(data.created_at),
       description: description?.description || 'No description available',
-      deadline: metadata?.deadline || metadata?.application_deadline,
+      deadline,
       status: description?.status,
-      hours: description?.hours || metadata?.duration,
+      hours,
       contactEmails: emailData?.contact_emails || [],
       referenceCodes: emailData?.reference_codes || [],
       applicationForm: formData ? {
@@ -961,7 +979,8 @@ export async function getOpportunityById(id: string): Promise<{ opportunity: Opp
         status: formData.status
       } : undefined,
       metadata: metadata,
-      criteria: description?.criteria || {}
+      criteria: criteria,
+      isAdminPosted: user?.user_type === 'Admin'
     };
 
     return { opportunity, error: null };

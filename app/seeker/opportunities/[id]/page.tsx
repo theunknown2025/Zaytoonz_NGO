@@ -1,10 +1,13 @@
 import React from 'react';
-import { getOpportunityById, type Opportunity } from '@/app/lib/opportunities';
+import {
+  getOpportunityById,
+  opportunityFromExtractedRecord,
+  opportunityFromScrapedRecord
+} from '@/app/lib/opportunities';
 import OpportunityPageWrapper from './OpportunityPageWrapper';
+import LandingStyleOpportunityDetail from './LandingStyleOpportunityDetail';
+import UnifiedSeekerOpportunityDetail from './UnifiedSeekerOpportunityDetail';
 import { supabase } from '@/app/lib/supabase';
-import { redirect } from 'next/navigation';
-import ShareOpportunity from './ShareOpportunity';
-import FavoriteOpportunity from './FavoriteOpportunity';
 
 // Server component that fetches data dynamically
 export default async function OpportunityDetailPage({ 
@@ -45,149 +48,45 @@ export default async function OpportunityDetailPage({
         );
       }
 
-      const deadline = extracted.deadline ? new Date(extracted.deadline).toLocaleDateString() : null;
-      const mainInfo = [
-        extracted.location,
-        extracted.salary_range,
-        extracted.job_type
-      ].filter(Boolean).join(' • ');
-      const pageUrl = `${process.env.NEXT_PUBLIC_SITE_URL || ''}/seeker/opportunities/extracted_${extracted.id}`;
-      const linkedNgo = Array.isArray((extracted as { ngo_profile?: unknown }).ngo_profile)
-        ? (extracted as { ngo_profile: { id: string; name: string }[] }).ngo_profile[0]
-        : (extracted as { ngo_profile?: { id: string; name: string } | null }).ngo_profile;
+      const oppBase = opportunityFromExtractedRecord(extracted);
+      const extractedOpportunity = {
+        ...oppBase,
+        description:
+          (extracted as { raw_content?: string; description?: string }).raw_content ||
+          (extracted as { raw_content?: string; description?: string }).description ||
+          oppBase.description
+      };
+      const pageUrl = `${process.env.NEXT_PUBLIC_SITE_URL || ''}/seeker/opportunities/${extractedOpportunity.id}`;
 
       return (
-        <div className="min-h-screen bg-olive-50">
-          {/* Landing-style header to match the main site */}
-          <header className="bg-white/95 backdrop-blur-sm border-b border-olive-200">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <img src="/image.png" alt="Zaytoonz" className="h-10 w-auto" />
-                
-              </div>
-              <nav className="hidden md:flex items-center space-x-6 text-olive-700 text-sm font-medium">
-                <a href="/#home" className="hover:text-olive-600">Home</a>
-                <a href="/#jobs" className="hover:text-olive-600">Jobs</a>
-                <a href="/#training" className="hover:text-olive-600">Training</a>
-                <a href="/#funding" className="hover:text-olive-600">Funding</a>
-                <a href="/#about" className="hover:text-olive-600">About</a>
-              </nav>
-              <div className="hidden md:flex items-center gap-3">
-                <a href="/auth/signin" className="text-olive-700 hover:text-olive-600 text-sm font-medium">Sign in</a>
-                <a href="/auth/signup" className="bg-olive-700 text-white px-4 py-2 rounded-full text-sm font-semibold hover:bg-olive-800 transition">
-                  Get started
-                </a>
-              </div>
-            </div>
-          </header>
-
-          {/* Banner */}
-          <div className="relative overflow-hidden bg-gradient-to-r from-olive-900 via-olive-800 to-olive-600 text-white">
-            <div className="absolute inset-0 opacity-20" style={{ backgroundImage: 'radial-gradient(circle at 20% 20%, rgba(255,255,255,0.25), transparent 30%), radial-gradient(circle at 80% 0%, rgba(255,255,255,0.15), transparent 35%)' }} />
-            <div className="absolute -right-24 -bottom-24 w-72 h-72 bg-white/10 blur-3xl rounded-full" />
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 relative">
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-olive-100 mb-3">
-                {extracted.opportunity_type}
-              </p>
-              <h1 className="text-3xl md:text-4xl font-bold leading-tight drop-shadow-sm text-white">{extracted.title}</h1>
-              {(linkedNgo?.name || extracted.company) && (
-                <p className="mt-2 text-olive-100 text-sm">
-                  {linkedNgo ? (
-                    <a
-                      href={`/public/ngo/${linkedNgo.id}`}
-                      className="underline decoration-olive-200/80 hover:text-white"
-                    >
-                      {linkedNgo.name}
-                    </a>
-                  ) : (
-                    extracted.company
-                  )}
-                </p>
-              )}
-              {mainInfo && (
-                <p className="mt-1 text-olive-100/90 text-sm">{mainInfo}</p>
-              )}
-
-              <div className="mt-5 flex flex-wrap gap-2">
-                {extracted.location && (
-                  <span className="inline-flex items-center px-3 py-1 rounded-full bg-white/15 border border-white/20 text-sm">
-                    📍 {extracted.location}
-                  </span>
-                )}
-                {extracted.salary_range && (
-                  <span className="inline-flex items-center px-3 py-1 rounded-full bg-white/15 border border-white/20 text-sm">
-                    💰 {extracted.salary_range}
-                  </span>
-                )}
-                {extracted.job_type && (
-                  <span className="inline-flex items-center px-3 py-1 rounded-full bg-white/15 border border-white/20 text-sm">
-                    📝 {extracted.job_type}
-                  </span>
-                )}
-                {deadline && (
-                  <span className="inline-flex items-center px-3 py-1 rounded-full bg-white/15 border border-white/20 text-sm">
-                    ⏰ Deadline: {deadline}
-                  </span>
-                )}
-              </div>
-            </div>
-          </div>
-
-          <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 -mt-8 pb-12">
-            <div className="bg-white rounded-2xl shadow-sm border border-olive-100 p-6 md:p-8">
-              <div className="flex items-center justify-between gap-3 flex-wrap">
-                <div className="flex flex-wrap gap-2">
-                  <FavoriteOpportunity opportunityId={`extracted_${extracted.id}`} title={extracted.title} />
-                  <ShareOpportunity title={extracted.title} pageUrl={pageUrl} />
-                </div>
-              </div>
-
-              <div className="mt-2 grid gap-6">
-                <div className="bg-olive-50 border border-olive-100 rounded-xl p-4">
-                  <h2 className="text-lg font-semibold text-olive-900 mb-2">Opportunity details</h2>
-                  <div className="text-olive-800 text-sm whitespace-pre-line leading-relaxed">
-                    {extracted.raw_content || extracted.description || 'No content available.'}
-                  </div>
-                </div>
-              </div>
-
-              {extracted.source_url && (
-                <div className="mt-8">
-                  <a
-                    href={extracted.source_url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex w-full items-center justify-center px-6 py-3 rounded-xl bg-olive-700 text-white font-semibold shadow-sm hover:bg-olive-800 transition"
-                  >
-                    Apply
-                  </a>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
+        <UnifiedSeekerOpportunityDetail
+          opportunity={extractedOpportunity}
+          pageUrl={pageUrl}
+          applyAuthRequired={false}
+          listingKind="external_feed"
+          richDescription={false}
+        />
       );
     }
 
-    // Check if this is a scraped opportunity (starts with "scraped_")
     if (params.id.startsWith('scraped_')) {
-      // Extract the actual scraped opportunity ID
       const scrapedId = params.id.replace('scraped_', '');
-      
-      // Fetch the scraped opportunity to get its source URL
-      const { data: scrapedOpportunity, error: scrapedError } = await supabase
+
+      const { data: scrapedRow, error: scrapedError } = await supabase
         .from('scraped_opportunities')
-        .select(`
-          source_url,
+        .select(
+          `
+          *,
           scraped_opportunity_details (
-            metadata
+            *
           )
-        `)
+        `
+        )
         .eq('id', scrapedId)
         .eq('status', 'active')
         .single();
 
-      if (scrapedError || !scrapedOpportunity) {
+      if (scrapedError || !scrapedRow) {
         return (
           <div className="min-h-screen bg-gray-50">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -204,12 +103,18 @@ export default async function OpportunityDetailPage({
         );
       }
 
-      // Get the specific opportunity URL from metadata.link, fallback to source_url
-      const details = scrapedOpportunity.scraped_opportunity_details?.[0];
-      const specificUrl = details?.metadata?.link || scrapedOpportunity.source_url;
+      const scrapedOpportunity = opportunityFromScrapedRecord(scrapedRow);
+      const pageUrl = `${process.env.NEXT_PUBLIC_SITE_URL || ''}/seeker/opportunities/${scrapedOpportunity.id}`;
 
-      // Redirect to the specific opportunity URL
-      redirect(specificUrl);
+      return (
+        <UnifiedSeekerOpportunityDetail
+          opportunity={scrapedOpportunity}
+          pageUrl={pageUrl}
+          applyAuthRequired={false}
+          listingKind="external_feed"
+          richDescription
+        />
+      );
     }
 
     // Handle internal NGO opportunities
@@ -232,7 +137,14 @@ export default async function OpportunityDetailPage({
       );
     }
 
-    // Pass the opportunity to the client wrapper component
+    const pageUrl = `${process.env.NEXT_PUBLIC_SITE_URL || ''}/seeker/opportunities/${opportunity.id}`;
+
+    if (opportunity.isAdminPosted) {
+      return (
+        <LandingStyleOpportunityDetail opportunity={opportunity} pageUrl={pageUrl} />
+      );
+    }
+
     return <OpportunityPageWrapper opportunity={opportunity} />;
     
   } catch (error) {

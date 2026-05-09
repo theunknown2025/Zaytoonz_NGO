@@ -298,6 +298,7 @@ function OpportunitiesPageContent() {
         const isExternal =
           opp.isScraped ||
           opp.isExtracted ||
+          opp.isAdminPosted ||
           opp.id.startsWith('scraped_') ||
           opp.id.startsWith('extracted_');
         return filters.source === 'external' ? isExternal : !isExternal;

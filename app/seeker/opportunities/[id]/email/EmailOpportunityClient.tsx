@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { 
   BriefcaseIcon, 
@@ -17,12 +18,14 @@ import {
   EnvelopeIcon,
   UserIcon,
   InformationCircleIcon,
+  ExclamationTriangleIcon,
   ClipboardDocumentIcon,
   CheckCircleIcon,
   PaperClipIcon
 } from '@heroicons/react/24/outline';
 import { HeartIcon as HeartSolidIcon } from '@heroicons/react/24/solid';
 import { type Opportunity } from '@/app/lib/opportunities';
+import { AuthService, type User } from '@/app/lib/auth';
 
 interface EmailOpportunityClientProps {
   opportunity: Opportunity;
@@ -32,6 +35,22 @@ export default function EmailOpportunityClient({ opportunity }: EmailOpportunity
   const router = useRouter();
   const [isSaved, setIsSaved] = useState(false);
   const [copiedEmail, setCopiedEmail] = useState<string | null>(null);
+  const [sessionUser, setSessionUser] = useState<User | null | undefined>(undefined);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const { user } = await AuthService.getUser();
+        if (!cancelled) setSessionUser(user ?? null);
+      } catch {
+        if (!cancelled) setSessionUser(null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const getCategoryIcon = (type: string) => {
     switch (type) {
@@ -169,6 +188,53 @@ Best regards,
   const categoryIcon = getCategoryIcon(opportunity.category);
   const categoryColor = getCategoryColor(opportunity.category);
   const deadlineStatus = getDeadlineStatus(opportunity.deadline);
+
+  const isNgoPartnerFlow = opportunity.isAdminPosted !== true;
+  const authResolved = sessionUser !== undefined;
+
+  if (isNgoPartnerFlow && !authResolved) {
+    return (
+      <div className="min-h-screen bg-olive-50 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-olive-600" />
+      </div>
+    );
+  }
+
+  if (isNgoPartnerFlow && authResolved && !sessionUser) {
+    return (
+      <div className="min-h-screen bg-olive-50 flex items-center justify-center px-4">
+        <div className="max-w-md w-full bg-white rounded-2xl border border-olive-200 shadow-sm p-8 text-center space-y-4">
+          <ExclamationTriangleIcon className="w-12 h-12 text-olive-600 mx-auto" />
+          <h1 className="text-xl font-semibold text-olive-900">Sign in required</h1>
+          <p className="text-sm text-olive-700 leading-relaxed">
+            Email application details for partner opportunities are available to signed-in seekers. Create an account or
+            sign in to continue.
+          </p>
+          <div className="flex flex-col gap-3 pt-2">
+            <Link
+              href="/auth/signin"
+              className="w-full inline-flex justify-center px-6 py-3 rounded-xl bg-olive-700 text-white font-semibold hover:bg-olive-800 transition"
+            >
+              Sign in
+            </Link>
+            <Link
+              href="/auth/signup"
+              className="w-full inline-flex justify-center px-6 py-3 rounded-xl border-2 border-olive-700 text-olive-800 font-semibold hover:bg-olive-50 transition"
+            >
+              Create account
+            </Link>
+            <button
+              type="button"
+              onClick={() => router.push(`/seeker/opportunities/${opportunity.id}`)}
+              className="w-full text-sm text-olive-600 hover:text-olive-800 font-medium pt-2"
+            >
+              Back to opportunity
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
