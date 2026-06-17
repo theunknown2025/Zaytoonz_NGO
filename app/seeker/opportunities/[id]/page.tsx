@@ -10,6 +10,9 @@ import LandingStyleOpportunityDetail from './LandingStyleOpportunityDetail';
 import UnifiedSeekerOpportunityDetail from './UnifiedSeekerOpportunityDetail';
 import { supabase } from '@/app/lib/supabase';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 // Server component that fetches data dynamically
 export default async function OpportunityDetailPage({ 
   params,

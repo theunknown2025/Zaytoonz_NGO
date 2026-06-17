@@ -16,7 +16,7 @@ import OpportunityEvaluation from './new/OpportunityEvaluation';
 import Recap from './new/Recap';
 import { toast } from 'react-hot-toast';
 import ListOpportunities from './liste/ListOpportunities';
-import { createInitialOpportunity as createOpportunityService, type OpportunityType, getOpportunityById, saveOpportunityProgress } from './services/opportunityService';
+import { createInitialOpportunity as createOpportunityService, type OpportunityType, getOpportunityById, saveOpportunityProgress, updateOpportunityType } from './services/opportunityService';
 import { getOpportunityFlowSteps } from './services/opportunityFlowService';
 import { supabase } from '@/app/lib/supabase';
 import type { OpportunityFlowStep } from '@/app/lib/opportunityFlow';
@@ -493,12 +493,23 @@ export default function OpportunitiesManagementPage() {
     setSelectedFormTitle(title);
   };
 
-  const handleOpportunityTypeChange = (type: 'job' | 'funding' | 'training') => {
+  const handleOpportunityTypeChange = async (type: 'job' | 'funding' | 'training') => {
     setOpportunityType(type);
     setFormData(prev => ({
       ...prev,
       opportunityType: type
     }));
+
+    if (opportunitySaved && opportunityId) {
+      try {
+        const result = await updateOpportunityType(opportunityId, type);
+        if (!result.success) {
+          console.error('Failed to update opportunity type:', result.error);
+        }
+      } catch (error) {
+        console.error('Error updating opportunity type:', error);
+      }
+    }
   };
 
   const handleCriteriaChange = (criteria: any) => {

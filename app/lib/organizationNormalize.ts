@@ -95,7 +95,7 @@ export function buildOrganizationCanonicalMap(
   }
 
   const map = new Map<string, string>();
-  for (const [key, candidates] of groups) {
+  for (const [key, candidates] of Array.from(groups.entries())) {
     const label = pickDisplayLabel(candidates);
     if (label) map.set(key, label);
   }

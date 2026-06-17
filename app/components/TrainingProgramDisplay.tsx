@@ -4,6 +4,7 @@ import { ClockIcon, MapPinIcon } from '@heroicons/react/24/outline';
 import { FlowStepIcon } from '@/app/lib/flowStepIcons';
 import {
   getTrainingFormatLabel,
+  getVisibleTrainingDays,
   type TrainingDay,
 } from '@/app/lib/opportunityTrainingProgram';
 
@@ -16,13 +17,7 @@ export default function TrainingProgramDisplay({
   days,
   mode = 'display',
 }: TrainingProgramDisplayProps) {
-  const visibleDays = days
-    .map((day, index) => ({
-      ...day,
-      dayOrder: index,
-      activities: day.activities.filter((activity) => activity.name.trim()),
-    }))
-    .filter((day) => day.activities.length > 0);
+  const visibleDays = getVisibleTrainingDays(days);
 
   if (visibleDays.length === 0) {
     return null;

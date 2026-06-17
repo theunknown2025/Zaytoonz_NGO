@@ -753,6 +753,7 @@ export default function OpportunityDescription({
         fileUrls,
         criteria,
         documents: includeDocuments ? documents : [],
+        opportunityType: formData.opportunityType,
       };
       
       // Prepare data for saving

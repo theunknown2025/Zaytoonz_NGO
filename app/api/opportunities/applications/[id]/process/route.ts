@@ -26,7 +26,26 @@ function mapStepRow(row: any) {
   };
 }
 
-async function buildProcessState(supabase: ReturnType<typeof getSupabaseClient>, applicationId: string) {
+type ProcessStep = ReturnType<typeof mapStepRow>;
+
+type ProcessStateError = { error: string; status: number };
+type ProcessStateSuccess = {
+  application: {
+    id: string;
+    opportunityId: string;
+    currentStepIndex: number;
+    processStatus: string;
+    status: string;
+  };
+  steps: ProcessStep[];
+  submissions: Record<string, { formId?: string; submissionData: unknown; submittedAt: string }>;
+  navigableStepIndices: number[];
+};
+
+async function buildProcessState(
+  supabase: ReturnType<typeof getSupabaseClient>,
+  applicationId: string
+): Promise<ProcessStateError | ProcessStateSuccess> {
   const { data: application, error: appError } = await supabase
     .from('opportunity_applications')
     .select('id, opportunity_id, current_step_index, process_status, status')
@@ -99,7 +118,7 @@ export async function GET(
   try {
     const supabase = getSupabaseClient();
     const result = await buildProcessState(supabase, params.id);
-    if ('error' in result && result.error) {
+    if ('error' in result) {
       return NextResponse.json({ error: result.error }, { status: result.status || 500 });
     }
     return NextResponse.json(result);
@@ -119,7 +138,7 @@ export async function POST(
     const { action, submissionData, notes } = body;
 
     const state = await buildProcessState(supabase, params.id);
-    if ('error' in state && state.error) {
+    if ('error' in state) {
       return NextResponse.json({ error: state.error }, { status: state.status || 500 });
     }
 

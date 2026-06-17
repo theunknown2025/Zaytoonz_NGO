@@ -81,12 +81,16 @@ export const createInitialOpportunity = async (
     
     const { data, error } = await supabase
       .from('opportunities')
-      .insert({
-        id: opportunityId,
-        title: 'Draft Opportunity', // Placeholder title that will be updated later
-        opportunity_type: opportunityType,
-        user_id: user_id, // Include user_id from authenticated user
-      })
+      .upsert(
+        {
+          id: opportunityId,
+          title: 'Draft Opportunity',
+          opportunity_type: opportunityType,
+          user_id: user_id,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: 'id' }
+      )
       .select()
       .single();
       
@@ -404,14 +408,18 @@ export async function saveOpportunityProgress(data: OpportunityProgressData) {
       
       if (!opportunity) {
         console.log('Opportunity does not exist, creating it first...');
-        // Create the opportunity first with user_id
+        const metadataType = data.metadata?.opportunityType;
+        const opportunityType: OpportunityType =
+          metadataType === 'job' || metadataType === 'funding' || metadataType === 'training'
+            ? metadataType
+            : 'job';
         const { data: newOpportunity, error: createError } = await supabase
           .from('opportunities')
           .insert({
             id: data.opportunity_id,
             title: data.title || 'Draft Opportunity',
-            opportunity_type: 'job', // Default type, will be updated later
-            user_id: userId, // Include user_id
+            opportunity_type: opportunityType,
+            user_id: userId,
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString()
           })

@@ -23,6 +23,7 @@ import FavoriteOpportunity from './FavoriteOpportunity';
 import OpportunityDescriptionRich from './OpportunityDescriptionRich';
 import ProcessTimeline from '@/app/components/ProcessTimeline';
 import TrainingProgramDisplay from '@/app/components/TrainingProgramDisplay';
+import { hasVisibleTrainingProgram } from '@/app/lib/opportunityTrainingProgram';
 import OpportunityFaqDisplay from '@/app/components/OpportunityFaqDisplay';
 import OpportunityDocumentsList from '@/app/components/OpportunityDocumentsList';
 
@@ -315,15 +316,13 @@ export default function UnifiedSeekerOpportunityDetail({
               </section>
             )}
 
-            {opportunity.category === 'training' &&
-              opportunity.trainingProgram &&
-              opportunity.trainingProgram.length > 0 && (
+            {hasVisibleTrainingProgram(opportunity.trainingProgram) && (
                 <section className="bg-white rounded-2xl shadow-sm border border-olive-100 p-7 md:p-9">
                   <h2 className="text-xl font-semibold text-olive-900 mb-2">Training Program</h2>
                   <p className="text-sm text-olive-700 mb-7 leading-relaxed">
                     Day-by-day schedule of activities, duration, and delivery format.
                   </p>
-                  <TrainingProgramDisplay days={opportunity.trainingProgram} mode="display" />
+                  <TrainingProgramDisplay days={opportunity.trainingProgram!} mode="display" />
                 </section>
               )}
 

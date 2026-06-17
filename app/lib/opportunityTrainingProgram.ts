@@ -48,3 +48,18 @@ export function createEmptyTrainingDay(order: number): TrainingDay {
     activities: [createEmptyTrainingActivity(0)],
   };
 }
+
+/** Days that have at least one named activity — used for display and fetch normalization. */
+export function getVisibleTrainingDays(days: TrainingDay[]): TrainingDay[] {
+  return days
+    .map((day, index) => ({
+      ...day,
+      dayOrder: index,
+      activities: day.activities.filter((activity) => activity.name.trim()),
+    }))
+    .filter((day) => day.activities.length > 0);
+}
+
+export function hasVisibleTrainingProgram(days?: TrainingDay[] | null): boolean {
+  return getVisibleTrainingDays(days || []).length > 0;
+}

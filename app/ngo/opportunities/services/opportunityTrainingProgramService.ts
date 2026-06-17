@@ -112,6 +112,12 @@ export async function saveTrainingProgram(
 
   if (validDays.length === 0) return [];
 
+  await supabase
+    .from('opportunities')
+    .update({ opportunity_type: 'training', updated_at: new Date().toISOString() })
+    .eq('id', opportunityId)
+    .neq('opportunity_type', 'training');
+
   const insertedDays: TrainingDay[] = [];
 
   for (const day of validDays) {

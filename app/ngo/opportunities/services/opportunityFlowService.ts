@@ -25,18 +25,25 @@ function isMissingTableError(error: { code?: string; message?: string } | null) 
 }
 
 export async function getOpportunityFlowSteps(opportunityId: string): Promise<OpportunityFlowStep[]> {
-  let { data, error } = await supabase
+  let data: Record<string, unknown>[] | null = null;
+  let error: { code?: string; message?: string } | null = null;
+
+  const withIcon = await supabase
     .from('opportunity_flow_steps')
     .select(FLOW_STEP_COLUMNS)
     .eq('opportunity_id', opportunityId)
     .order('step_order', { ascending: true });
+  data = withIcon.data;
+  error = withIcon.error;
 
   if (error && isMissingIconColumnError(error)) {
-    ({ data, error } = await supabase
+    const fallback = await supabase
       .from('opportunity_flow_steps')
       .select('id, name, description, deadline, step_order')
       .eq('opportunity_id', opportunityId)
-      .order('step_order', { ascending: true }));
+      .order('step_order', { ascending: true });
+    data = fallback.data;
+    error = fallback.error;
   }
 
   if (error) {

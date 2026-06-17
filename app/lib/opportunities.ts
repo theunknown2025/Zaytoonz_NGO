@@ -2,6 +2,13 @@ import { supabase } from './supabase';
 import { parseOpportunityDocuments } from './opportunityDocuments';
 import { displayOpportunityCountry } from './locationNormalize';
 import { resolveOpportunityOrganization } from './organizationNormalize';
+import {
+  getVisibleTrainingDays,
+  type TrainingActivityFormat,
+  type TrainingDay,
+} from './opportunityTrainingProgram';
+import type { OpportunityFaqItem } from './opportunityFaq';
+import { isFlowStepIconKey } from './flowStepIcons';
 
 function resolveOpportunityLocation(raw: string | null | undefined): string | undefined {
   return displayOpportunityCountry(raw) ?? undefined;
@@ -84,26 +91,8 @@ export interface Opportunity {
     mimeType?: string;
     uploadedAt?: string;
   }>;
-  trainingProgram?: Array<{
-    id: string;
-    title: string;
-    dayOrder: number;
-    activities: Array<{
-      id: string;
-      name: string;
-      duration: string;
-      format: string;
-      icon?: string;
-      activityOrder: number;
-    }>;
-  }>;
-  faqItems?: Array<{
-    id: string;
-    question: string;
-    answer: string;
-    icon?: string;
-    faqOrder: number;
-  }>;
+  trainingProgram?: TrainingDay[];
+  faqItems?: OpportunityFaqItem[];
 }
 
 export interface RelatedOpportunitySummary {
@@ -1042,21 +1031,33 @@ export async function getOpportunityById(id: string): Promise<{ opportunity: Opp
           step_order
         `;
 
-      let flowResult = await supabase
+      let flowStepRows: Array<{
+        id: string;
+        name: string;
+        description?: string | null;
+        deadline?: string | null;
+        step_order: number;
+        icon?: string | null;
+      }> | null = null;
+
+      const flowResult = await supabase
         .from('opportunity_flow_steps')
         .select(flowSelectWithIcon)
         .eq('opportunity_id', id)
         .order('step_order', { ascending: true });
 
       if (flowResult.error && /column.*icon|icon.*column/i.test(flowResult.error.message || '')) {
-        flowResult = await supabase
+        const fallback = await supabase
           .from('opportunity_flow_steps')
           .select(flowSelectBase)
           .eq('opportunity_id', id)
           .order('step_order', { ascending: true });
+        flowStepRows = fallback.data;
+      } else {
+        flowStepRows = flowResult.data;
       }
 
-      const flowSteps = flowResult.data;
+      const flowSteps = flowStepRows;
 
       processSteps = (flowSteps || []).map((row: any) => ({
           id: row.id,
@@ -1080,36 +1081,83 @@ export async function getOpportunityById(id: string): Promise<{ opportunity: Opp
         .eq('opportunity_id', id)
         .order('day_order', { ascending: true });
 
-      if (!trainingDayError && trainingDayRows?.length) {
+      if (trainingDayError) {
+        const missingTable =
+          trainingDayError.code === '42P01' ||
+          /opportunity_training_days/i.test(trainingDayError.message || '');
+        if (!missingTable) {
+          console.error('Error fetching training program days:', trainingDayError);
+        }
+      } else if (trainingDayRows?.length) {
         const trainingDayIds = trainingDayRows.map((day) => day.id);
-        const { data: trainingActivityRows } = await supabase
+        const activitySelectWithIcon =
+          'id, training_day_id, activity_order, name, duration, format, icon';
+        const activitySelectBase =
+          'id, training_day_id, activity_order, name, duration, format';
+
+        let activityRows: Array<{
+          id: string;
+          training_day_id: string;
+          activity_order: number;
+          name: string;
+          duration?: string | null;
+          format?: string | null;
+          icon?: string | null;
+        }> | null = null;
+
+        const activityResult = await supabase
           .from('opportunity_training_activities')
-          .select('id, training_day_id, activity_order, name, duration, format, icon')
+          .select(activitySelectWithIcon)
           .in('training_day_id', trainingDayIds)
           .order('activity_order', { ascending: true });
 
-        const activitiesByDay = new Map<string, NonNullable<Opportunity['trainingProgram']>[number]['activities']>();
-        for (const row of trainingActivityRows || []) {
+        if (
+          activityResult.error &&
+          /column.*icon|icon.*column/i.test(activityResult.error.message || '')
+        ) {
+          const fallback = await supabase
+            .from('opportunity_training_activities')
+            .select(activitySelectBase)
+            .in('training_day_id', trainingDayIds)
+            .order('activity_order', { ascending: true });
+          activityRows = fallback.data;
+        } else {
+          activityRows = activityResult.data;
+        }
+
+        if (activityResult.error && !activityRows) {
+          console.error('Error fetching training program activities:', activityResult.error);
+        }
+
+        const activitiesByDay = new Map<string, TrainingDay['activities']>();
+        for (const row of activityRows || []) {
           const list = activitiesByDay.get(row.training_day_id) || [];
+          const format = row.format || '';
+          const icon = row.icon ?? undefined;
           list.push({
             id: row.id,
             name: row.name,
             duration: row.duration || '',
-            format: row.format || '',
-            icon: row.icon || undefined,
+            format: (format === 'in_person' || format === 'hybrid' || format === 'remote'
+              ? format
+              : '') as TrainingActivityFormat | '',
+            icon: isFlowStepIconKey(icon) ? icon : undefined,
             activityOrder: row.activity_order,
           });
           activitiesByDay.set(row.training_day_id, list);
         }
 
-        trainingProgram = trainingDayRows.map((day) => ({
-          id: day.id,
-          title: day.title,
-          dayOrder: day.day_order,
-          activities: activitiesByDay.get(day.id) || [],
-        }));
+        trainingProgram = getVisibleTrainingDays(
+          trainingDayRows.map((day) => ({
+            id: day.id,
+            title: day.title,
+            dayOrder: day.day_order,
+            activities: activitiesByDay.get(day.id) || [],
+          }))
+        );
       }
-    } catch {
+    } catch (error) {
+      console.error('Error loading training program:', error);
       trainingProgram = [];
     }
 
@@ -1122,13 +1170,16 @@ export async function getOpportunityById(id: string): Promise<{ opportunity: Opp
         .order('faq_order', { ascending: true });
 
       if (!faqError && faqRows?.length) {
-        faqItems = faqRows.map((row) => ({
-          id: row.id,
-          question: row.question,
-          answer: row.answer,
-          icon: row.icon || undefined,
-          faqOrder: row.faq_order,
-        }));
+        faqItems = faqRows.map((row) => {
+          const icon = row.icon ?? undefined;
+          return {
+            id: row.id,
+            question: row.question,
+            answer: row.answer,
+            icon: isFlowStepIconKey(icon) ? icon : undefined,
+            faqOrder: row.faq_order,
+          };
+        });
       }
     } catch {
       faqItems = [];
