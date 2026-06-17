@@ -47,6 +47,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    let hasProcess = false;
+    const { data: flowSteps, error: flowError } = await supabase
+      .from('opportunity_flow_steps')
+      .select('id')
+      .eq('opportunity_id', opportunityId);
+
+    if (!flowError) {
+      hasProcess = (flowSteps?.length || 0) > 0;
+    }
+
     // Insert new application
     const { data: application, error } = await supabase
       .from('opportunity_applications')
@@ -58,7 +68,9 @@ export async function POST(request: NextRequest) {
         selected_cv_id: selectedCVId,
         selected_cv_name: selectedCVName,
         notes,
-        status: 'submitted'
+        status: hasProcess ? 'in_progress' : 'submitted',
+        current_step_index: 0,
+        process_status: hasProcess ? 'in_progress' : 'completed',
       })
       .select()
       .single();
@@ -110,6 +122,8 @@ export async function GET(request: NextRequest) {
         notes,
         selected_cv_id,
         selected_cv_name,
+        current_step_index,
+        process_status,
         opportunities!inner(
           id,
           title,

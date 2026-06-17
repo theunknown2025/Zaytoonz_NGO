@@ -1,6 +1,7 @@
 import React from 'react';
 import {
   getOpportunityById,
+  getRelatedOpportunitiesForOpportunity,
   opportunityFromExtractedRecord,
   opportunityFromScrapedRecord
 } from '@/app/lib/opportunities';
@@ -57,6 +58,8 @@ export default async function OpportunityDetailPage({
           oppBase.description
       };
       const pageUrl = `${process.env.NEXT_PUBLIC_SITE_URL || ''}/seeker/opportunities/${extractedOpportunity.id}`;
+      const { opportunities: relatedOpportunities, ngoProfileId: relatedNgoProfileId } =
+        await getRelatedOpportunitiesForOpportunity(extractedOpportunity, 3);
 
       return (
         <UnifiedSeekerOpportunityDetail
@@ -65,6 +68,8 @@ export default async function OpportunityDetailPage({
           applyAuthRequired={false}
           listingKind="external_feed"
           richDescription={false}
+          relatedOpportunities={relatedOpportunities}
+          ngoPageId={relatedNgoProfileId ?? extractedOpportunity.organizationProfile?.id ?? extractedOpportunity.ngoProfileId ?? null}
         />
       );
     }
@@ -105,6 +110,8 @@ export default async function OpportunityDetailPage({
 
       const scrapedOpportunity = opportunityFromScrapedRecord(scrapedRow);
       const pageUrl = `${process.env.NEXT_PUBLIC_SITE_URL || ''}/seeker/opportunities/${scrapedOpportunity.id}`;
+      const { opportunities: relatedOpportunities, ngoProfileId: relatedNgoProfileId } =
+        await getRelatedOpportunitiesForOpportunity(scrapedOpportunity, 3);
 
       return (
         <UnifiedSeekerOpportunityDetail
@@ -113,6 +120,8 @@ export default async function OpportunityDetailPage({
           applyAuthRequired={false}
           listingKind="external_feed"
           richDescription
+          relatedOpportunities={relatedOpportunities}
+          ngoPageId={relatedNgoProfileId}
         />
       );
     }
@@ -138,14 +147,29 @@ export default async function OpportunityDetailPage({
     }
 
     const pageUrl = `${process.env.NEXT_PUBLIC_SITE_URL || ''}/seeker/opportunities/${opportunity.id}`;
+    const { opportunities: relatedOpportunities, ngoProfileId: relatedNgoProfileId } =
+      await getRelatedOpportunitiesForOpportunity(opportunity, 3);
+    const ngoPageId =
+      relatedNgoProfileId ?? opportunity.organizationProfile?.id ?? opportunity.ngoProfileId ?? null;
 
     if (opportunity.isAdminPosted) {
       return (
-        <LandingStyleOpportunityDetail opportunity={opportunity} pageUrl={pageUrl} />
+        <LandingStyleOpportunityDetail
+          opportunity={opportunity}
+          pageUrl={pageUrl}
+          relatedOpportunities={relatedOpportunities}
+          ngoPageId={ngoPageId}
+        />
       );
     }
 
-    return <OpportunityPageWrapper opportunity={opportunity} />;
+    return (
+      <OpportunityPageWrapper
+        opportunity={opportunity}
+        relatedOpportunities={relatedOpportunities}
+        ngoPageId={ngoPageId}
+      />
+    );
     
   } catch (error) {
     console.error('Error in OpportunityDetailPage:', error);

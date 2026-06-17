@@ -1,8 +1,21 @@
 'use client';
 
-export const dynamic = 'force-dynamic';
-export const revalidate = 0;
+import { useEffect } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 
-import ListOpportunities from './ListOpportunities';
+export default function ListeOpportunitiesRedirect() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
 
-export default ListOpportunities; 
+  useEffect(() => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set('tab', 'list');
+    router.replace(`/ngo/opportunities?${params.toString()}`);
+  }, [router, searchParams]);
+
+  return (
+    <div className="min-h-[40vh] flex items-center justify-center">
+      <p className="text-gray-500">Redirecting...</p>
+    </div>
+  );
+}

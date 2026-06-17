@@ -202,7 +202,7 @@ export default function OpportunityCard({ opportunity, onDelete }: OpportunityCa
             </button>
             
             <Link
-              href={`/ngo/opportunities/new?edit=${opportunity.id}`}
+              href={`/ngo/opportunities?edit=${opportunity.id}&tab=new`}
               className="inline-flex items-center px-3 py-1 border border-gray-300 shadow-sm text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50 transition-colors"
             >
               <PencilIcon className="h-3 w-3 mr-1" />

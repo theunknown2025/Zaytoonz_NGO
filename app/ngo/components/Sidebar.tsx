@@ -8,7 +8,6 @@ import { useAuth } from "@/app/lib/auth";
 import toast from "react-hot-toast";
 import { 
   HomeIcon, 
-  ClipboardDocumentListIcon,
   DocumentPlusIcon,
   UserCircleIcon,
   DocumentTextIcon,
@@ -160,19 +159,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ user }) => {
       requiresApproval: true
     },
     { 
-      name: "New Opportunity", 
-      href: "/ngo/opportunities/new", 
+      name: "Opportunities Management", 
+      href: "/ngo/opportunities", 
       icon: DocumentPlusIcon,
       requiresApproval: true
     },
     { 
-      name: "My Opportunities", 
-      href: "/ngo/opportunities", 
-      icon: ClipboardDocumentListIcon,
-      requiresApproval: true
-    },
-    { 
-      name: "Manage Applications", 
+      name: "Applications Management", 
       href: "/ngo/applications", 
       icon: ClipboardDocumentCheckIcon,
       requiresApproval: true

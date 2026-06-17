@@ -12,6 +12,10 @@ import {
   CurrencyDollarIcon,
   AcademicCapIcon
 } from '@heroicons/react/24/outline';
+import ProcessTimeline from '@/app/components/ProcessTimeline';
+import type { OpportunityFlowStep } from '@/app/lib/opportunityFlow';
+import type { OpportunityDocument } from '@/app/lib/opportunityDocuments';
+import OpportunityDocumentsList from '@/app/components/OpportunityDocumentsList';
 
 interface FormSection {
   id: string;
@@ -26,13 +30,6 @@ interface FormQuestion {
   placeholder?: string;
   required?: boolean;
   options?: string[];
-}
-
-interface ProcessStage {
-  id: string;
-  name: string;
-  description: string;
-  statusOptions: string[];
 }
 
 interface CriteriaSelection {
@@ -70,10 +67,9 @@ interface FullPreviewProps {
     referenceCodes?: string[];
   };
   processData: {
-    selectedProcess: string;
-    selectedProcessName?: string;
-    customStages: ProcessStage[];
+    flowSteps: OpportunityFlowStep[];
   };
+  documents?: OpportunityDocument[];
   evaluationData?: {
     selectedEvaluationId: string;
     selectedEvaluationName: string;
@@ -144,6 +140,7 @@ export default function FullPreview({
   descriptionData,
   formData,
   processData,
+  documents = [],
   evaluationData,
   opportunityType = '',
   criteria = {},
@@ -351,50 +348,27 @@ export default function FullPreview({
               </div>
             </section>
 
-            {/* Process Flow */}
+            {/* Important Dates & Process */}
             <section>
               <h3 className="text-lg font-semibold text-[#556B2F] mb-4 flex items-center">
                 <ArrowPathIcon className="h-5 w-5 mr-2" />
-                Process Flow
+                Important Dates & Process
               </h3>
-              <p className="text-gray-700">
-                {processData.selectedProcess === 'none'
-                  ? 'No Process Selected'
-                  : processData.selectedProcessName || 'Custom Process'}
-              </p>
-              {processData.customStages.length > 0 && (
-                <div className="mt-4 relative pl-8">
-                  <div className="absolute left-4 top-0 h-full w-0.5 bg-gradient-to-b from-[#556B2F]/70 to-[#6B8E23]/70 rounded-full" />
-                  {Array.from(
-                    new Map(processData.customStages.map((s) => [s.id, s])).values()
-                  ).map((stage, i) => (
-                    <div key={stage.id} className="mb-6 relative">
-                      <div className="absolute left-0 top-1 w-8 h-8 rounded-full flex items-center justify-center z-10 bg-gradient-to-br from-[#556B2F] to-[#6B8E23] text-white font-medium text-sm">
-                        {i + 1}
-                      </div>
-                      <div className="ml-10">
-                        <h5 className="font-medium text-gray-800">{stage.name}</h5>
-                        {stage.description && (
-                          <p className="text-sm text-gray-600 mt-1">{stage.description}</p>
-                        )}
-                        {stage.statusOptions?.length > 0 && (
-                          <div className="mt-2 flex flex-wrap gap-1">
-                            {stage.statusOptions.map((status, j) => (
-                              <span
-                                key={j}
-                                className="px-2 py-0.5 rounded-full text-xs bg-gray-100 text-gray-600"
-                              >
-                                {status}
-                              </span>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  ))}
+              {processData.flowSteps.length > 0 ? (
+                <div className="rounded-xl border border-[#556B2F]/15 bg-gradient-to-br from-[#556B2F]/5 via-white to-[#6B8E23]/5 p-4 overflow-x-auto">
+                  <ProcessTimeline steps={processData.flowSteps} mode="preview" />
                 </div>
+              ) : (
+                <p className="text-gray-500 italic">No important dates configured</p>
               )}
             </section>
+
+            {/* Files and Documents */}
+            {documents.length > 0 && (
+              <section>
+                <OpportunityDocumentsList documents={documents} />
+              </section>
+            )}
 
             {/* Evaluation */}
             <section>

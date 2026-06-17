@@ -1,6 +1,9 @@
 import React from 'react';
 import { PlusIcon, TrashIcon, LinkIcon } from '@heroicons/react/24/outline';
 import { ExternalLink } from '../types';
+import { PLATFORM_OPTIONS, getPlatformIcon, getPlatformLabel } from '../sectionConfig';
+
+const platformOptions = PLATFORM_OPTIONS;
 
 interface ExternalLinksSectionProps {
   externalLinks: ExternalLink[];
@@ -8,29 +11,6 @@ interface ExternalLinksSectionProps {
   onAddExternalLink: () => void;
   onRemoveExternalLink: (index: number) => void;
 }
-
-const platformOptions = [
-  { value: 'linkedin', label: 'LinkedIn', icon: '🔗' },
-  { value: 'github', label: 'GitHub', icon: '💻' },
-  { value: 'instagram', label: 'Instagram', icon: '📷' },
-  { value: 'facebook', label: 'Facebook', icon: '📘' },
-  { value: 'twitter', label: 'Twitter/X', icon: '🐦' },
-  { value: 'youtube', label: 'YouTube', icon: '📺' },
-  { value: 'portfolio', label: 'Portfolio', icon: '🎨' },
-  { value: 'blog', label: 'Blog', icon: '📝' },
-  { value: 'website', label: 'Website', icon: '🌐' },
-  { value: 'other', label: 'Other', icon: '🔗' }
-];
-
-const getPlatformIcon = (platform: string) => {
-  const platformOption = platformOptions.find(option => option.value === platform);
-  return platformOption?.icon || '🔗';
-};
-
-const getPlatformLabel = (platform: string) => {
-  const platformOption = platformOptions.find(option => option.value === platform);
-  return platformOption?.label || 'Other';
-};
 
 export default function ExternalLinksSection({
   externalLinks,

@@ -1,4 +1,11 @@
 import { supabase } from './supabase';
+import { parseOpportunityDocuments } from './opportunityDocuments';
+import { displayOpportunityCountry } from './locationNormalize';
+import { resolveOpportunityOrganization } from './organizationNormalize';
+
+function resolveOpportunityLocation(raw: string | null | undefined): string | undefined {
+  return displayOpportunityCountry(raw) ?? undefined;
+}
 
 export interface Opportunity {
   id: string;
@@ -58,6 +65,54 @@ export interface Opportunity {
   ngoProfileId?: string | null;
   /** True when the opportunity description owner is an Admin (manual / platform postings). */
   isAdminPosted?: boolean;
+  processSteps?: Array<{
+    id: string;
+    name: string;
+    description?: string;
+    deadline?: string;
+    formId?: string;
+    formTitle?: string;
+    stepOrder: number;
+    icon?: string;
+  }>;
+  documents?: Array<{
+    id: string;
+    name: string;
+    description: string;
+    fileUrl: string;
+    fileName: string;
+    mimeType?: string;
+    uploadedAt?: string;
+  }>;
+  trainingProgram?: Array<{
+    id: string;
+    title: string;
+    dayOrder: number;
+    activities: Array<{
+      id: string;
+      name: string;
+      duration: string;
+      format: string;
+      icon?: string;
+      activityOrder: number;
+    }>;
+  }>;
+  faqItems?: Array<{
+    id: string;
+    question: string;
+    answer: string;
+    icon?: string;
+    faqOrder: number;
+  }>;
+}
+
+export interface RelatedOpportunitySummary {
+  id: string;
+  title: string;
+  category: 'job' | 'funding' | 'training';
+  posted: string;
+  location?: string;
+  sortTimestamp?: number;
 }
 
 /** Public listing query shape: published NGO posts plus admin-only `completed` posts (see getOpportunities). */
@@ -137,16 +192,23 @@ function transformExtractedOpportunityRows(extractedData: any[] | null): Opportu
     const deadlineString = item.deadline ? new Date(item.deadline).toLocaleDateString() : undefined;
     const mainInformation = [item.location, item.salary_range, item.job_type].filter(Boolean).join(' • ');
     const linked = linkedNgoFromExtractedRow(item);
-    const orgName = linked?.name || item.company || 'External Organization';
+    const profile = linked
+      ? { id: linked.id, name: linked.name, email: linked.email, profileImage: linked.profileImage }
+      : { name: item.company || 'External Organization', email: item.contact_info || '', profileImage: undefined as string | undefined };
+    const orgName = resolveOpportunityOrganization(
+      item.company,
+      linked ? { id: linked.id, name: linked.name } : profile,
+      linked?.id ?? item.ngo_profile_id ?? null
+    );
 
     return {
       id: `extracted_${item.id}`,
       title: item.title,
       organization: orgName,
       organizationProfile: linked
-        ? { name: linked.name, email: linked.email, profileImage: linked.profileImage }
+        ? { id: linked.id, name: linked.name, email: linked.email, profileImage: linked.profileImage }
         : { name: orgName, email: item.contact_info || '', profileImage: undefined },
-      location: item.location || 'Not specified',
+      location: resolveOpportunityLocation(item.location) || undefined,
       compensation: item.salary_range || 'Competitive',
       type: item.job_type || getTypeLabel(item.opportunity_type),
       category: item.opportunity_type as 'job' | 'funding' | 'training',
@@ -160,7 +222,7 @@ function transformExtractedOpportunityRows(extractedData: any[] | null): Opportu
       metadata: item.structured_content || {},
       criteria: {
         contractType: item.job_type || undefined,
-        location: item.location || undefined,
+        location: resolveOpportunityLocation(item.location),
         deadline: deadlineString,
         customFilters: item.structured_content?.tags || [],
       },
@@ -182,16 +244,18 @@ export function opportunityFromScrapedRecord(item: any): Opportunity {
   const deadline = details?.deadline ? new Date(details.deadline).toLocaleDateString() : undefined;
   const specificUrl = details?.metadata?.link || item.source_url;
 
+  const company = details?.company || 'External Organization';
+
   return {
     id: `scraped_${item.id}`,
     title: item.title,
-    organization: details?.company || 'External Organization',
+    organization: resolveOpportunityOrganization(company, { name: company }),
     organizationProfile: {
-      name: details?.company || 'External Organization',
+      name: resolveOpportunityOrganization(company, { name: company }),
       email: details?.contact_info || '',
       profileImage: undefined
     },
-    location: details?.location || 'Not specified',
+    location: resolveOpportunityLocation(details?.location),
     compensation: details?.salary_range || 'Competitive',
     type: getTypeLabel(item.opportunity_type),
     category: item.opportunity_type as 'job' | 'funding' | 'training',
@@ -205,7 +269,7 @@ export function opportunityFromScrapedRecord(item: any): Opportunity {
     metadata: details?.metadata || {},
     criteria: {
       contractType: details?.requirements || undefined,
-      location: details?.location || undefined,
+      location: resolveOpportunityLocation(details?.location),
       deadline,
       customFilters: details?.tags || []
     },
@@ -343,7 +407,7 @@ export async function getOpportunities(): Promise<{ opportunities: Opportunity[]
         const formTemplates = formChoice?.forms_templates as any;
         const formData = Array.isArray(formTemplates) ? formTemplates[0] : formTemplates;
 
-        const location = description?.location || criteria?.location || null;
+        const location = resolveOpportunityLocation(description?.location || criteria?.location || null);
         const type =
           criteria?.contractType ||
           metadata?.employment_type ||
@@ -359,7 +423,11 @@ export async function getOpportunities(): Promise<{ opportunities: Opportunity[]
         return {
           id: item.id,
           title: description?.title || item.title,
-          organization: ngoProfile?.name || userRow?.full_name || 'Organization',
+          organization: resolveOpportunityOrganization(
+            ngoProfile?.name || userRow?.full_name,
+            ngoProfile ? { id: ngoProfile.id, name: ngoProfile.name } : undefined,
+            ngoProfile?.id
+          ),
           organizationProfile: ngoProfile
             ? {
                 id: ngoProfile.id,
@@ -530,13 +598,17 @@ export async function getOpportunitiesByCategory(category: 'job' | 'funding' | '
       return {
         id: item.id,
         title: description?.title || item.title,
-        organization: ngoProfile?.name || user?.full_name || 'Organization',
+        organization: resolveOpportunityOrganization(
+          ngoProfile?.name || user?.full_name,
+          ngoProfile ? { id: ngoProfile.id, name: ngoProfile.name } : undefined,
+          ngoProfile?.id
+        ),
         organizationProfile: ngoProfile ? {
           name: ngoProfile.name,
           email: ngoProfile.email,
           profileImage: ngoProfile.profile_image_url
         } : undefined,
-        location: description?.location || 'Location not specified',
+        location: resolveOpportunityLocation(description?.location),
         compensation: metadata?.compensation || metadata?.salary || metadata?.funding_amount || 'Not specified',
         type: metadata?.employment_type || metadata?.funding_type || getTypeLabel(item.opportunity_type),
         category: item.opportunity_type as 'job' | 'funding' | 'training',
@@ -733,13 +805,17 @@ export async function searchOpportunities(searchQuery: string, category?: 'job' 
       return {
         id: item.id,
         title: description?.title || item.title,
-        organization: ngoProfile?.name || user?.full_name || 'Organization',
+        organization: resolveOpportunityOrganization(
+          ngoProfile?.name || user?.full_name,
+          ngoProfile ? { id: ngoProfile.id, name: ngoProfile.name } : undefined,
+          ngoProfile?.id
+        ),
         organizationProfile: ngoProfile ? {
           name: ngoProfile.name,
           email: ngoProfile.email,
           profileImage: ngoProfile.profile_image_url
         } : undefined,
-        location: description?.location || 'Location not specified',
+        location: resolveOpportunityLocation(description?.location),
         compensation: metadata?.compensation || metadata?.salary || metadata?.funding_amount || 'Not specified',
         type: metadata?.employment_type || metadata?.funding_type || getTypeLabel(item.opportunity_type),
         category: item.opportunity_type as 'job' | 'funding' | 'training',
@@ -933,7 +1009,7 @@ export async function getOpportunityById(id: string): Promise<{ opportunity: Opp
       ? data.opportunity_form_email[0]
       : data.opportunity_form_email;
 
-    const location = description?.location || criteria?.location || 'Location not specified';
+    const location = resolveOpportunityLocation(description?.location || criteria?.location || null);
     const compensation =
       criteria?.amountRange ||
       metadata?.compensation ||
@@ -948,10 +1024,124 @@ export async function getOpportunityById(id: string): Promise<{ opportunity: Opp
     const deadline = criteria?.deadline || metadata?.deadline || metadata?.application_deadline;
     const hours = description?.hours || criteria?.duration || metadata?.duration;
 
+    let processSteps: Opportunity['processSteps'] = [];
+    try {
+      const flowSelectWithIcon = `
+          id,
+          name,
+          description,
+          deadline,
+          step_order,
+          icon
+        `;
+      const flowSelectBase = `
+          id,
+          name,
+          description,
+          deadline,
+          step_order
+        `;
+
+      let flowResult = await supabase
+        .from('opportunity_flow_steps')
+        .select(flowSelectWithIcon)
+        .eq('opportunity_id', id)
+        .order('step_order', { ascending: true });
+
+      if (flowResult.error && /column.*icon|icon.*column/i.test(flowResult.error.message || '')) {
+        flowResult = await supabase
+          .from('opportunity_flow_steps')
+          .select(flowSelectBase)
+          .eq('opportunity_id', id)
+          .order('step_order', { ascending: true });
+      }
+
+      const flowSteps = flowResult.data;
+
+      processSteps = (flowSteps || []).map((row: any) => ({
+          id: row.id,
+          name: row.name,
+          description: row.description || '',
+          deadline: row.deadline || '',
+          formId: '',
+          formTitle: '',
+          stepOrder: row.step_order,
+          icon: row.icon || undefined,
+        }));
+    } catch {
+      processSteps = [];
+    }
+
+    let trainingProgram: Opportunity['trainingProgram'] = [];
+    try {
+      const { data: trainingDayRows, error: trainingDayError } = await supabase
+        .from('opportunity_training_days')
+        .select('id, day_order, title')
+        .eq('opportunity_id', id)
+        .order('day_order', { ascending: true });
+
+      if (!trainingDayError && trainingDayRows?.length) {
+        const trainingDayIds = trainingDayRows.map((day) => day.id);
+        const { data: trainingActivityRows } = await supabase
+          .from('opportunity_training_activities')
+          .select('id, training_day_id, activity_order, name, duration, format, icon')
+          .in('training_day_id', trainingDayIds)
+          .order('activity_order', { ascending: true });
+
+        const activitiesByDay = new Map<string, NonNullable<Opportunity['trainingProgram']>[number]['activities']>();
+        for (const row of trainingActivityRows || []) {
+          const list = activitiesByDay.get(row.training_day_id) || [];
+          list.push({
+            id: row.id,
+            name: row.name,
+            duration: row.duration || '',
+            format: row.format || '',
+            icon: row.icon || undefined,
+            activityOrder: row.activity_order,
+          });
+          activitiesByDay.set(row.training_day_id, list);
+        }
+
+        trainingProgram = trainingDayRows.map((day) => ({
+          id: day.id,
+          title: day.title,
+          dayOrder: day.day_order,
+          activities: activitiesByDay.get(day.id) || [],
+        }));
+      }
+    } catch {
+      trainingProgram = [];
+    }
+
+    let faqItems: Opportunity['faqItems'] = [];
+    try {
+      const { data: faqRows, error: faqError } = await supabase
+        .from('opportunity_faq_items')
+        .select('id, faq_order, question, answer, icon')
+        .eq('opportunity_id', id)
+        .order('faq_order', { ascending: true });
+
+      if (!faqError && faqRows?.length) {
+        faqItems = faqRows.map((row) => ({
+          id: row.id,
+          question: row.question,
+          answer: row.answer,
+          icon: row.icon || undefined,
+          faqOrder: row.faq_order,
+        }));
+      }
+    } catch {
+      faqItems = [];
+    }
+
     const opportunity: Opportunity = {
       id: data.id,
       title: description?.title || data.title,
-      organization: ngoProfile?.name || user?.full_name || 'Organization',
+      organization: resolveOpportunityOrganization(
+        ngoProfile?.name || user?.full_name,
+        ngoProfile ? { id: ngoProfile.id, name: ngoProfile.name } : undefined,
+        ngoProfile?.id
+      ),
       organizationProfile: ngoProfile
         ? {
             id: ngoProfile.id,
@@ -980,7 +1170,11 @@ export async function getOpportunityById(id: string): Promise<{ opportunity: Opp
       } : undefined,
       metadata: metadata,
       criteria: criteria,
-      isAdminPosted: user?.user_type === 'Admin'
+      isAdminPosted: user?.user_type === 'Admin',
+      processSteps,
+      documents: parseOpportunityDocuments(metadata),
+      trainingProgram,
+      faqItems,
     };
 
     return { opportunity, error: null };
@@ -989,4 +1183,263 @@ export async function getOpportunityById(id: string): Promise<{ opportunity: Opp
     console.error('Error in getOpportunityById:', error);
     return { opportunity: null, error: error.message || 'An unexpected error occurred' };
   }
-} 
+}
+
+/** Latest public listings from the same NGO partner (internal + extracted), excluding the current opportunity. */
+export async function getRelatedOpportunitiesByNgoProfileId(
+  ngoProfileId: string,
+  excludeOpportunityId: string,
+  limit = 3
+): Promise<RelatedOpportunitySummary[]> {
+  try {
+    const { data: ngoProfile, error: ngoError } = await supabase
+      .from('ngo_profile')
+      .select('user_id')
+      .eq('id', ngoProfileId)
+      .maybeSingle();
+
+    if (ngoError || !ngoProfile?.user_id) {
+      return [];
+    }
+
+    const { data: descriptionRows, error: internalError } = await supabase
+      .from('opportunity_description')
+      .select(`
+        title,
+        location,
+        status,
+        created_at,
+        opportunities!inner (
+          id,
+          opportunity_type,
+          created_at
+        )
+      `)
+      .eq('user_id', ngoProfile.user_id)
+      .in('status', ['published', 'completed'])
+      .order('created_at', { ascending: false });
+
+    if (internalError) {
+      console.error('Error fetching related internal opportunities:', internalError);
+    }
+
+    const internalMap = new Map<string, {
+      id: string;
+      title: string;
+      category: 'job' | 'funding' | 'training';
+      posted: string;
+      location?: string;
+      sortTs: number;
+    }>();
+
+    for (const row of descriptionRows || []) {
+      const opp = Array.isArray(row.opportunities) ? row.opportunities[0] : row.opportunities;
+      if (!opp?.id || opp.id === excludeOpportunityId || internalMap.has(opp.id)) continue;
+      internalMap.set(opp.id, {
+        id: opp.id as string,
+        title: (row.title as string) || 'Untitled Opportunity',
+        category: opp.opportunity_type as 'job' | 'funding' | 'training',
+        posted: formatDate(opp.created_at || row.created_at),
+        location: resolveOpportunityLocation(row.location as string),
+        sortTs: opp.created_at ? new Date(opp.created_at).getTime() : 0,
+      });
+    }
+
+    const internal = Array.from(internalMap.values());
+
+    const { data: extractedRows, error: extractedError } = await supabase
+      .from('extracted_opportunity_content')
+      .select('id, title, opportunity_type, location, created_at, extracted_at')
+      .eq('ngo_profile_id', ngoProfileId)
+      .eq('extraction_status', 'completed')
+      .order('created_at', { ascending: false });
+
+    if (extractedError) {
+      console.error('Error fetching related extracted opportunities:', extractedError);
+    }
+
+    const extracted = (extractedRows || [])
+      .filter((row: any) => `extracted_${row.id}` !== excludeOpportunityId)
+      .map((row: any) => ({
+        id: `extracted_${row.id}` as string,
+        title: (row.title as string) || 'Untitled Opportunity',
+        category: row.opportunity_type as 'job' | 'funding' | 'training',
+        posted: formatDate(row.extracted_at || row.created_at),
+        location: resolveOpportunityLocation(row.location as string),
+        sortTs: row.extracted_at || row.created_at
+          ? new Date(row.extracted_at || row.created_at).getTime()
+          : 0,
+      }));
+
+    return [...internal, ...extracted]
+      .sort((a, b) => b.sortTs - a.sortTs)
+      .slice(0, limit)
+      .map(({ sortTs, ...rest }) => ({ ...rest, sortTimestamp: sortTs }));
+  } catch (error) {
+    console.error('Error in getRelatedOpportunitiesByNgoProfileId:', error);
+    return [];
+  }
+}
+
+function normalizeOrganizationName(name: string): string {
+  return name.trim().toLowerCase();
+}
+
+async function resolveNgoProfileIdByOrganizationName(
+  organizationName: string
+): Promise<string | null> {
+  const normalized = organizationName.trim();
+  if (!normalized || normalized.toLowerCase() === 'external organization') {
+    return null;
+  }
+
+  const { data: exactMatch } = await supabase
+    .from('ngo_profile')
+    .select('id')
+    .ilike('name', normalized)
+    .maybeSingle();
+
+  if (exactMatch?.id) {
+    return exactMatch.id;
+  }
+
+  const { data: fuzzyMatches } = await supabase
+    .from('ngo_profile')
+    .select('id, name')
+    .ilike('name', `%${normalized}%`)
+    .limit(1);
+
+  return fuzzyMatches?.[0]?.id ?? null;
+}
+
+async function getRelatedOpportunitiesByOrganizationName(
+  organizationName: string,
+  excludeOpportunityId: string,
+  limit = 3
+): Promise<RelatedOpportunitySummary[]> {
+  const normalized = organizationName.trim();
+  if (!normalized || normalized.toLowerCase() === 'external organization') {
+    return [];
+  }
+
+  const { data: extractedRows, error: extractedError } = await supabase
+    .from('extracted_opportunity_content')
+    .select('id, title, opportunity_type, location, company, created_at, extracted_at')
+    .eq('extraction_status', 'completed')
+    .ilike('company', normalized)
+    .order('created_at', { ascending: false })
+    .limit(limit + 5);
+
+  if (extractedError) {
+    console.error('Error fetching related extracted opportunities by company:', extractedError);
+  }
+
+  const extracted = (extractedRows || [])
+    .filter((row: any) => `extracted_${row.id}` !== excludeOpportunityId)
+    .map((row: any) => ({
+      id: `extracted_${row.id}` as string,
+      title: (row.title as string) || 'Untitled Opportunity',
+      category: row.opportunity_type as 'job' | 'funding' | 'training',
+      posted: formatDate(row.extracted_at || row.created_at),
+      location: resolveOpportunityLocation(row.location as string),
+      sortTs: row.extracted_at || row.created_at
+        ? new Date(row.extracted_at || row.created_at).getTime()
+        : 0,
+    }));
+
+  const { data: scrapedRows, error: scrapedError } = await supabase
+    .from('scraped_opportunities')
+    .select(`
+      id,
+      title,
+      opportunity_type,
+      created_at,
+      scraped_opportunity_details (
+        location,
+        company
+      )
+    `)
+    .eq('status', 'active')
+    .order('created_at', { ascending: false })
+    .limit(80);
+
+  if (scrapedError) {
+    console.error('Error fetching related scraped opportunities by company:', scrapedError);
+  }
+
+  const targetName = normalizeOrganizationName(normalized);
+  const scraped = (scrapedRows || [])
+    .filter((row: any) => `scraped_${row.id}` !== excludeOpportunityId)
+    .filter((row: any) => {
+      const details = Array.isArray(row.scraped_opportunity_details)
+        ? row.scraped_opportunity_details[0]
+        : row.scraped_opportunity_details;
+      const company = details?.company ? String(details.company) : '';
+      return normalizeOrganizationName(company) === targetName;
+    })
+    .map((row: any) => {
+      const details = Array.isArray(row.scraped_opportunity_details)
+        ? row.scraped_opportunity_details[0]
+        : row.scraped_opportunity_details;
+      return {
+        id: `scraped_${row.id}` as string,
+        title: (row.title as string) || 'Untitled Opportunity',
+        category: row.opportunity_type as 'job' | 'funding' | 'training',
+        posted: formatDate(row.created_at),
+        location: resolveOpportunityLocation(details?.location as string),
+        sortTs: row.created_at ? new Date(row.created_at).getTime() : 0,
+      };
+    });
+
+  return [...extracted, ...scraped]
+    .sort((a, b) => b.sortTs - a.sortTs)
+    .slice(0, limit)
+    .map(({ sortTs, ...rest }) => ({ ...rest, sortTimestamp: sortTs }));
+}
+
+export interface RelatedOpportunitiesResult {
+  opportunities: RelatedOpportunitySummary[];
+  ngoProfileId: string | null;
+}
+
+/** Resolve related listings for any opportunity type (NGO partner, extracted, scraped). */
+export async function getRelatedOpportunitiesForOpportunity(
+  opportunity: Opportunity,
+  limit = 3
+): Promise<RelatedOpportunitiesResult> {
+  const excludeId = opportunity.id;
+  const orgName = opportunity.organization?.trim() || opportunity.organizationProfile?.name?.trim() || '';
+
+  let ngoProfileId =
+    opportunity.organizationProfile?.id ?? opportunity.ngoProfileId ?? null;
+
+  if (!ngoProfileId && orgName) {
+    ngoProfileId = await resolveNgoProfileIdByOrganizationName(orgName);
+  }
+
+  const seen = new Set<string>([excludeId]);
+  const merged: RelatedOpportunitySummary[] = [];
+
+  const addItems = (items: RelatedOpportunitySummary[]) => {
+    for (const item of items) {
+      if (seen.has(item.id)) continue;
+      seen.add(item.id);
+      merged.push(item);
+    }
+  };
+
+  if (ngoProfileId) {
+    addItems(await getRelatedOpportunitiesByNgoProfileId(ngoProfileId, excludeId, limit + 5));
+  }
+
+  if (orgName) {
+    addItems(await getRelatedOpportunitiesByOrganizationName(orgName, excludeId, limit + 5));
+  }
+
+  const opportunities = merged
+    .sort((a, b) => (b.sortTimestamp ?? 0) - (a.sortTimestamp ?? 0))
+    .slice(0, limit)
+    .map(({ sortTimestamp: _sortTimestamp, ...rest }) => rest);
+
+  return { opportunities, ngoProfileId };
+}

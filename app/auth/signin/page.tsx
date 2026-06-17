@@ -97,7 +97,15 @@ export default function SignIn() {
           },
         }}
       />
-      <div className="w-full max-w-md px-8 py-10 mx-auto overflow-hidden bg-white rounded-2xl shadow-xl card">
+      <div className="relative w-full max-w-md px-8 py-10 mx-auto overflow-hidden bg-white rounded-2xl shadow-xl card">
+        <Link
+          href="/app"
+          className="absolute top-4 right-4 flex h-8 w-8 items-center justify-center rounded-full text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600"
+          aria-label="Return to landing page"
+        >
+          <span className="text-2xl leading-none">&times;</span>
+        </Link>
+
         <div className="mb-10 text-center">
           <Link href="/" className="inline-block mb-5">
             <img

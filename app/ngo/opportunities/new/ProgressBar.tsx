@@ -26,7 +26,7 @@ export default function ProgressBar({ currentStep, totalSteps, steps, onStepClic
         ></div>
       </div>
       
-      <div className="mt-4 grid grid-cols-7 gap-2">
+      <div className="mt-4 grid gap-2" style={{ gridTemplateColumns: `repeat(${steps.length}, minmax(0, 1fr))` }}>
         {steps.map((step, index) => (
           <div 
             key={index} 

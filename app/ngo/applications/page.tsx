@@ -26,6 +26,7 @@ import ApplicationEvaluation from './components/ApplicationEvaluation';
 import CVDisplay from './components/CVDisplay';
 import { useAuth } from '@/app/lib/auth';
 import { toast } from 'react-hot-toast';
+import ApplicationProcessPanel from '@/app/components/ApplicationProcessPanel';
 
 interface SeekerProfile {
   id: string;
@@ -47,6 +48,8 @@ interface Application {
   submitted_at: string;
   updated_at: string;
   notes?: string;
+  current_step_index?: number;
+  process_status?: string;
   forms_templates: {
     id: string;
     title: string;
@@ -562,7 +565,7 @@ export default function ApplicationsPage() {
               </div>
               <div className="mt-4">
                 <a 
-                  href="/ngo/opportunities" 
+                  href="/ngo/opportunities?tab=list" 
                   className="inline-flex items-center px-4 py-2 bg-[#556B2F] text-white text-sm rounded-lg hover:bg-[#4a5d2a] transition-colors"
                 >
                   <PlusIcon className="w-4 h-4 mr-2" />
@@ -854,6 +857,15 @@ export default function ApplicationsPage() {
                                 />
                               </div>
 
+                              {/* Process Section */}
+                              <div className="mt-6 pt-4 border-t border-gray-200">
+                                <ApplicationProcessPanel
+                                  applicationId={application.id}
+                                  mode="ngo"
+                                  onUpdated={fetchApplications}
+                                />
+                              </div>
+
                               {/* Evaluation Section - Full Width */}
                               <div className="mt-6 pt-4 border-t border-gray-200">
                                 <ApplicationEvaluation
@@ -887,7 +899,8 @@ export default function ApplicationsPage() {
                                     </Link>
                                   </div>
                                   <div className="flex space-x-2">
-                                    {application.status !== 'approved' && (
+                                    {application.status !== 'approved' &&
+                                      application.status !== 'in_progress' && (
                                       <button
                                         onClick={() => handleApprove(application.id)}
                                         className="inline-flex items-center px-3 py-2 bg-green-100 text-green-700 text-sm rounded-lg hover:bg-green-200 transition-colors"
@@ -896,7 +909,8 @@ export default function ApplicationsPage() {
                                         Approve
                                       </button>
                                     )}
-                                    {application.status !== 'rejected' && (
+                                    {application.status !== 'rejected' &&
+                                      application.status !== 'in_progress' && (
                                       <button
                                         onClick={() => handleReject(application.id)}
                                         className="inline-flex items-center px-3 py-2 bg-red-100 text-red-700 text-sm rounded-lg hover:bg-red-200 transition-colors"

@@ -335,9 +335,9 @@ export default function OpportunityForm({
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-xl font-semibold text-gray-900">Additional Details</h2>
+        <h2 className="text-xl font-semibold text-gray-900">Submission</h2>
         <p className="mt-1 text-sm text-gray-500">
-          Provide more specific information about the opportunity.
+          Choose how applicants will submit their applications.
         </p>
       </div>
       

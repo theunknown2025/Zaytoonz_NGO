@@ -32,6 +32,9 @@ const nextConfig = {
     config.externals = config.externals || [];
     if (!isServer) {
       config.externals.push('undici');
+    } else {
+      // pdf-parse/pdfjs-dist must run in native Node — webpack bundling breaks pdfjs ESM
+      config.externals.push('pdf-parse', 'pdfjs-dist', 'canvas');
     }
 
     // Exclude Python venv and other non-JS files from webpack processing
@@ -127,7 +130,7 @@ const nextConfig = {
   experimental: {
     // Enable SWC for better compatibility
     esmExternals: 'loose',
-    serverComponentsExternalPackages: [],
+    serverComponentsExternalPackages: ['pdf-parse', 'pdfjs-dist', 'mammoth', 'canvas'],
     // Exclude venv from output file tracing
     outputFileTracingExcludes: {
       '*': [

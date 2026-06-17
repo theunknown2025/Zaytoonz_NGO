@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { BellIcon, ClockIcon, CheckCircleIcon, XCircleIcon, BriefcaseIcon, BanknotesIcon, AcademicCapIcon, ExclamationTriangleIcon, ClipboardDocumentListIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import { AuthService } from '@/app/lib/auth';
 import { useRouter } from 'next/navigation';
+import ApplicationProcessPanel from '@/app/components/ApplicationProcessPanel';
 
 // Type definitions
 interface Application {
@@ -229,8 +230,10 @@ const ApplicationModal = ({
             </div>
           )}
 
+          <ApplicationProcessPanel applicationId={application.id} mode="seeker" />
+
           {/* Application Answers */}
-          <div>
+          <div className="mt-6">
             <h3 className="font-medium text-gray-800 mb-4">Your Answers</h3>
             {loading ? (
               <div className="flex items-center justify-center py-8">
@@ -340,9 +343,11 @@ export default function ApplicationsPage() {
 
   const getStatusColor = (status: string) => {
     switch (status.toLowerCase()) {
-      case 'accepted': return 'bg-green-100 text-green-800';
+      case 'accepted':
+      case 'approved': return 'bg-green-100 text-green-800';
       case 'rejected': return 'bg-red-100 text-red-800';
       case 'interview scheduled': return 'bg-blue-100 text-blue-800';
+      case 'in_progress': return 'bg-blue-100 text-blue-800';
       case 'submitted':
       case 'in review':
       case 'under review': return 'bg-yellow-100 text-yellow-800';

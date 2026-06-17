@@ -359,7 +359,7 @@ export default function NGODashboard() {
         </div>
         <div className="flex space-x-3">
           <Link 
-            href="/ngo/opportunities/new" 
+            href="/ngo/opportunities?tab=new" 
             className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center space-x-2"
           >
             <PlusCircleIcon className="w-5 h-5" />
@@ -515,7 +515,7 @@ export default function NGODashboard() {
           <h2 className="text-xl font-bold text-gray-900 mb-6">Quick Actions</h2>
           <div className="space-y-3">
             <Link
-              href="/ngo/opportunities/new"
+              href="/ngo/opportunities?tab=new"
               className="w-full flex items-center p-3 text-left bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors"
             >
               <PlusCircleIcon className="w-5 h-5 text-blue-600 mr-3" />
@@ -637,7 +637,7 @@ export default function NGODashboard() {
         <div className="bg-white rounded-lg shadow-lg p-6">
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-xl font-bold text-gray-900">Opportunities Overview</h2>
-            <Link href="/ngo/opportunities" className="text-blue-600 hover:text-blue-800 flex items-center">
+            <Link href="/ngo/opportunities?tab=list" className="text-blue-600 hover:text-blue-800 flex items-center">
               Manage <ArrowRightIcon className="w-4 h-4 ml-1" />
             </Link>
           </div>

@@ -379,7 +379,7 @@ export default function ListOpportunities() {
   };
 
   const navigateToEdit = (opportunityId: string, section: string) => {
-    router.push(`/ngo/opportunities/new?edit=${opportunityId}&step=${section}`);
+    router.push(`/ngo/opportunities?edit=${opportunityId}&step=${section}&tab=new`);
   };
 
   // Helper function to check if content contains HTML
@@ -988,7 +988,7 @@ export default function ListOpportunities() {
               className="text-blue-600 hover:text-blue-800 p-2 mr-1 relative group"
               onClick={(e) => {
                 e.stopPropagation();
-                router.push(`/ngo/opportunities/new?edit=${opportunity.id}`);
+                router.push(`/ngo/opportunities?edit=${opportunity.id}&tab=new`);
               }}
               title="Continue unfinished Opportunity"
             >
@@ -1004,7 +1004,7 @@ export default function ListOpportunities() {
             className="text-[#556B2F] hover:text-[#4A5F29] p-2"
             onClick={(e) => {
               e.stopPropagation();
-              router.push(`/ngo/opportunities/new?edit=${opportunity.id}`);
+              router.push(`/ngo/opportunities?edit=${opportunity.id}&tab=new`);
             }}
             title="Edit opportunity"
           >
@@ -1347,7 +1347,7 @@ export default function ListOpportunities() {
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-xl font-semibold text-gray-900">Your Opportunities</h2>
         <Link 
-          href="/ngo/opportunities/new" 
+          href="/ngo/opportunities?tab=new" 
           className="px-4 py-2 bg-gradient-to-r from-[#556B2F] to-[#6B8E23] text-white rounded-md shadow-sm hover:shadow-md transition-all duration-200"
         >
           Create New
@@ -1405,7 +1405,7 @@ export default function ListOpportunities() {
             <h3 className="text-lg font-medium text-gray-900 mb-2">You don't have any draft opportunities yet.</h3>
             <p className="text-gray-600 mb-6">Start creating your first opportunity to see it here.</p>
             <Link 
-              href="/ngo/opportunities/new" 
+              href="/ngo/opportunities?tab=new" 
               className="px-4 py-2 bg-gradient-to-r from-[#556B2F] to-[#6B8E23] text-white rounded-md shadow-sm hover:shadow-md transition-all duration-200"
             >
               Create Your First Opportunity

@@ -19,6 +19,9 @@ import {
 import { getFormById } from '../../resources/tools/FormMaker/services/formService';
 import FullPreview from './FullPreview';
 import { formatDescriptionForDisplay } from './formatDescription';
+import ProcessTimeline from '@/app/components/ProcessTimeline';
+import type { OpportunityFlowStep } from '@/app/lib/opportunityFlow';
+import type { OpportunityDocument } from '@/app/lib/opportunityDocuments';
 
 interface FormSection {
   id: string;
@@ -33,13 +36,6 @@ interface FormQuestion {
   placeholder?: string;
   required?: boolean;
   options?: string[];
-}
-
-interface ProcessStage {
-  id: string;
-  name: string;
-  description: string;
-  statusOptions: string[];
 }
 
 interface RecapProps {
@@ -57,10 +53,9 @@ interface RecapProps {
   referenceCodes?: string[];
   };
   processData: {
-    selectedProcess: string;
-    selectedProcessName?: string;
-    customStages: ProcessStage[];
+    flowSteps: OpportunityFlowStep[];
   };
+  documents?: OpportunityDocument[];
   evaluationData?: {
     selectedEvaluationId: string;
     selectedEvaluationName: string;
@@ -94,6 +89,7 @@ export default function Recap({
   descriptionData, 
   formData, 
   processData,
+  documents = [],
   evaluationData,
   opportunityType,
   opportunityId,
@@ -110,11 +106,13 @@ export default function Recap({
     description: boolean;
     form: boolean;
     process: boolean;
+    documents: boolean;
     evaluation: boolean;
   }>({
     description: true,
     form: false,
     process: false,
+    documents: false,
     evaluation: false
   });
 
@@ -177,7 +175,7 @@ export default function Recap({
   };
 
   // Toggle accordion section
-  const toggleSection = (section: 'description' | 'form' | 'process' | 'evaluation') => {
+  const toggleSection = (section: 'description' | 'form' | 'process' | 'documents' | 'evaluation') => {
     setOpenSections({
       ...openSections,
       [section]: !openSections[section]
@@ -316,9 +314,9 @@ export default function Recap({
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h2 className="text-xl font-semibold text-gray-900">Review & Submit</h2>
+          <h2 className="text-xl font-semibold text-gray-900">Review & Create</h2>
           <p className="mt-1 text-sm text-gray-500">
-            Review your opportunity details before submitting.
+            Review your opportunity details, then create it when you are ready.
           </p>
         </div>
         <button
@@ -337,6 +335,7 @@ export default function Recap({
         descriptionData={descriptionData}
         formData={formData}
         processData={processData}
+        documents={documents}
         evaluationData={evaluationData}
         opportunityType={opportunityType}
         criteria={criteria}
@@ -605,7 +604,7 @@ export default function Recap({
           >
             <div className="flex items-center">
               <ArrowPathIcon className="h-5 w-5 text-[#556B2F] mr-2" />
-              <h3 className="text-lg font-medium text-gray-900">Process Flow</h3>
+              <h3 className="text-lg font-medium text-gray-900">Important Dates & Process</h3>
             </div>
             <div className="flex items-center">
               {openSections.process ? (
@@ -619,80 +618,95 @@ export default function Recap({
           {/* Summary when closed */}
           {!openSections.process && (
             <div className="px-6 py-3 bg-gray-50 text-sm text-gray-600 border-t border-gray-200">
-                    <div className="flex items-center">
-                <span className="font-medium mr-2">Process:</span> 
+              <div className="flex items-center">
+                <span className="font-medium mr-2">Process:</span>
                 <span>
-                  {processData.selectedProcess === 'none' 
-                    ? 'No Process Selected' 
-                    : processData.selectedProcessName || 'Custom Process'}
-                      </span>
-                    </div>
+                  {processData.flowSteps.length > 0
+                    ? `${processData.flowSteps.length} step${processData.flowSteps.length > 1 ? 's' : ''} configured`
+                    : 'No process configured'}
+                </span>
+              </div>
             </div>
           )}
-          
-          {/* Full details when open */}
+
           {openSections.process && (
             <div className="px-6 py-4 bg-white border-t border-gray-200">
-              <div className="space-y-4">
-                <div>
-                  <h4 className="text-sm font-semibold text-gray-700 mb-2">Selected Process</h4>
-                  <div className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-[#556B2F]/10 text-[#556B2F]">
-                    {processData.selectedProcess === 'none' 
-                      ? 'No Process Selected' 
-                      : processData.selectedProcessName || 'Custom Process'}
-                  </div>
-                </div>
-                
-                {processData.selectedProcess !== 'none' && processData.customStages.length > 0 && (
-                  <div>
-                    <h4 className="text-sm font-semibold text-gray-700 mb-3">Process Stages</h4>
-                    <div className="relative pl-8 pt-2">
-                      {/* Vertical Timeline Line */}
-                      <div className="absolute left-4 top-0 h-full w-0.5 bg-gradient-to-b from-[#556B2F]/70 to-[#6B8E23]/70 rounded-full"></div>
-                      
-                      {/* Get unique stages by creating a Map with stage id as the key */}
-                      {Array.from(
-                        new Map(
-                          processData.customStages.map(stage => [stage.id, stage])
-                        ).values()
-                      ).map((stage, index) => (
-                        <div key={stage.id} className="mb-6 relative">
-                          {/* Timeline Node */}
-                          <div className="absolute left-0 top-1 w-8 h-8 rounded-full shadow-sm flex items-center justify-center z-10 bg-gradient-to-br from-[#556B2F] to-[#6B8E23] text-white font-medium">
-                            {index + 1}
-                          </div>
-                          
-                          {/* Stage Content */}
-                          <div className="ml-10">
-                            <h5 className="font-medium text-gray-800">{stage.name}</h5>
-                            {stage.description && (
-                              <p className="text-sm text-gray-600 mt-1">{stage.description}</p>
-                            )}
-                            
-                            {stage.statusOptions && stage.statusOptions.length > 0 && (
-                              <div className="mt-2 flex flex-wrap gap-1">
-                                {stage.statusOptions.map((status, i) => (
-                                  <span key={i} className="inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-gray-100 text-gray-600">
-                                    {status}
-                                  </span>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                
-                {processData.selectedProcess === 'none' && (
-                  <p className="text-gray-500 italic">
-                    No process flow has been configured for this opportunity.
-                  </p>
-                )}
-          </div>
+              {processData.flowSteps.length > 0 ? (
+                <ProcessTimeline steps={processData.flowSteps} mode="preview" />
+              ) : (
+                <p className="text-gray-500 italic">
+                  No process flow has been configured for this opportunity.
+                </p>
+              )}
+            </div>
+          )}
         </div>
-      )}
+
+        {/* Documents Accordion */}
+        <div className={`border rounded-lg overflow-hidden transition-all duration-200 ${
+          openSections.documents ? 'shadow-md' : 'shadow-sm'
+        }`}>
+          <div
+            className={`px-6 py-4 cursor-pointer flex justify-between items-center ${
+              openSections.documents ? 'bg-[#556B2F]/10' : 'bg-white hover:bg-gray-50'
+            }`}
+            onClick={() => toggleSection('documents')}
+          >
+            <div className="flex items-center">
+              <DocumentTextIcon className="h-5 w-5 text-[#556B2F] mr-2" />
+              <h3 className="text-lg font-medium text-gray-900">Files and Documents</h3>
+            </div>
+            <div className="flex items-center">
+              {openSections.documents ? (
+                <ChevronUpIcon className="h-5 w-5 text-gray-500" />
+              ) : (
+                <ChevronDownIcon className="h-5 w-5 text-gray-500" />
+              )}
+            </div>
+          </div>
+
+          {!openSections.documents && (
+            <div className="px-6 py-3 bg-gray-50 text-sm text-gray-600 border-t border-gray-200">
+              <span className="font-medium mr-2">Documents:</span>
+              <span>
+                {documents.length > 0
+                  ? `${documents.length} file${documents.length > 1 ? 's' : ''} attached`
+                  : 'No documents attached'}
+              </span>
+            </div>
+          )}
+
+          {openSections.documents && (
+            <div className="px-6 py-4 bg-white border-t border-gray-200">
+              {documents.length > 0 ? (
+                <ul className="space-y-2">
+                  {documents.map((doc) => (
+                    <li
+                      key={doc.id}
+                      className="flex items-start justify-between gap-3 p-3 border border-gray-200 rounded-lg"
+                    >
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-gray-900">{doc.name}</p>
+                        {doc.description && (
+                          <p className="text-xs text-gray-600 mt-0.5">{doc.description}</p>
+                        )}
+                        <a
+                          href={doc.fileUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-xs text-[#556B2F] hover:underline mt-1 inline-block truncate max-w-full"
+                        >
+                          {doc.fileName}
+                        </a>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-gray-500 italic">No documents have been attached to this opportunity.</p>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Evaluation Accordion */}
@@ -797,7 +811,7 @@ export default function Recap({
               className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-gradient-to-r from-[#556B2F] to-[#6B8E23] hover:shadow-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#556B2F] disabled:opacity-50"
           >
               <CheckCircleIcon className="w-4 h-4 mr-2" />
-              {isSubmitting ? 'Submitting...' : 'Submit Opportunity'}
+              {isSubmitting ? 'Creating...' : 'Create Opportunity'}
           </button>
           </div>
         </div>

@@ -21,6 +21,7 @@ import {
   FolderIcon,
   CheckIcon,
   ListBulletIcon,
+  EyeIcon,
 } from '@heroicons/react/24/outline';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
@@ -37,6 +38,9 @@ import ProjectsSection from './components/ProjectsSection';
 import AdditionalSection from './components/AdditionalSection';
 import PlaceholderSection from './components/PlaceholderSection';
 import ExternalLinksSection from './components/ExternalLinksSection';
+import CVPreview from './components/CVPreview';
+import { getSectionTitle, getSectionIcon } from './sectionConfig';
+import CvSettingsMenu from './components/CvSettingsMenu';
 
 // Import types
 import { CVData, ExternalLink } from './types';
@@ -333,25 +337,6 @@ export default function CVMaker() {
     addSection(section);
   };
 
-  const getSectionTitle = (section: string) => {
-    const titles: {[key: string]: string} = {
-      general: 'Personal Information',
-      work: 'Work Experience',
-      education: 'Education and Training',
-      skills: 'Skills',
-      languages: 'Language Skills',
-      summary: 'Profile Summary',
-      certificates: 'Certificates & Courses',
-      projects: 'Projects',
-      volunteering: 'Volunteering Experience',
-      publications: 'Publications',
-      references: 'References',
-      additional: 'Additional Information',
-      externalLinks: 'External Profiles'
-    };
-    return titles[section] || section;
-  };
-
   const handleSkillChange = (index: number, field: string, value: string) => {
     const updatedSkills = [...cvData.skills];
     updatedSkills[index] = {
@@ -592,6 +577,22 @@ export default function CVMaker() {
     // Update state with new order
     setAddedSections(newOrder);
     setIsCVModified(true);
+  };
+
+  const handleCvExtracted = (payload: {
+    cvData: CVData;
+    addedSections: string[];
+    availableSections: string[];
+  }) => {
+    setCvData(payload.cvData);
+    setAddedSections(payload.addedSections);
+    setAvailableSections(payload.availableSections);
+    setExpandedSections(payload.addedSections);
+    setCurrentCVId(null);
+    setCvName('');
+    setIsCVModified(true);
+    setActiveTab('create');
+    toast.success('CV imported successfully! Review and edit the sections below.');
   };
 
   const removeSection = (sectionToRemove: string) => {
@@ -1337,133 +1338,134 @@ export default function CVMaker() {
   // Function to render the Create CV tab
   const renderCreateTab = () => {
     return (
-      <>
-        <div className="bg-white rounded-xl shadow-sm p-6 mb-8">
-          <h2 className="text-2xl font-semibold text-gray-800 mb-2">Build Your Professional CV</h2>
-          <p className="text-gray-600">
-            Create a standout CV that highlights your skills, experience, and qualifications.
-            Fill in each section below to build your professional CV. Sections with * contain required fields.
-          </p>
-          {isCVModified && currentCVId && (
-            <div className="mt-4 p-2 bg-amber-50 border border-amber-200 rounded-md flex items-center text-amber-700">
-              <PencilIcon className="w-5 h-5 mr-2" />
-              <span>You have unsaved changes. Don't forget to save your CV!</span>
-            </div>
-          )}
-        </div>
-        
-        {/* CV Builder */}
-        <div className="bg-white rounded-xl shadow-sm overflow-hidden mb-8" ref={cvRef}>
-          <div className="flex flex-col">
-            {/* Mapping through added sections */}
-            {addedSections.map((section, index) => (
-              <div 
-                key={section} 
-                className={`border-b border-gray-200 ${activeSection === section ? 'bg-gray-50' : ''}`}
-              >
-                <div 
-                  className="flex justify-between items-center p-4 cursor-pointer hover:bg-gray-50 transition-colors"
-                  onClick={() => toggleSection(section)}
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 items-start">
+        {/* CV Maker */}
+        <div className="min-w-0 space-y-6">
+          <div className="bg-white rounded-xl shadow-sm p-6">
+            <h2 className="text-2xl font-semibold text-gray-800 mb-2">Build Your Professional CV</h2>
+            <p className="text-gray-600">
+              Create a standout CV that highlights your skills, experience, and qualifications.
+              Fill in each section below to build your professional CV. Sections with * contain required fields.
+            </p>
+            {isCVModified && currentCVId && (
+              <div className="mt-4 p-2 bg-amber-50 border border-amber-200 rounded-md flex items-center text-amber-700">
+                <PencilIcon className="w-5 h-5 mr-2" />
+                <span>You have unsaved changes. Don&apos;t forget to save your CV!</span>
+              </div>
+            )}
+          </div>
+
+          <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+            <div className="flex flex-col">
+              {addedSections.map((section, index) => (
+                <div
+                  key={section}
+                  className={`border-b border-gray-200 ${activeSection === section ? 'bg-gray-50' : ''}`}
                 >
-                  <div className="flex items-center flex-1">
-                    <h3 className="font-medium text-gray-800 mr-2">{getSectionTitle(section)}</h3>
-                    {expandedSections.includes(section) ? 
-                      <ChevronUpIcon className="w-5 h-5 text-gray-500" /> : 
-                      <ChevronDownIcon className="w-5 h-5 text-gray-500" />
-                    }
+                  <div
+                    className="flex justify-between items-center p-4 cursor-pointer hover:bg-gray-50 transition-colors"
+                    onClick={() => toggleSection(section)}
+                  >
+                    <div className="flex items-center flex-1 gap-2.5">
+                      <span className="flex items-center justify-center w-8 h-8 rounded-lg bg-olive-100 text-olive-medium flex-shrink-0">
+                        {getSectionIcon(section, 'w-[18px] h-[18px]')}
+                      </span>
+                      <h3 className="font-medium text-gray-800 mr-2">{getSectionTitle(section)}</h3>
+                      {expandedSections.includes(section) ?
+                        <ChevronUpIcon className="w-5 h-5 text-gray-500" /> :
+                        <ChevronDownIcon className="w-5 h-5 text-gray-500" />
+                      }
+                    </div>
+                    <div className="flex gap-1">
+                      {index > 0 && (
+                        <button
+                          className="p-1.5 bg-green-100 text-green-800 rounded"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            moveSection(index, -1);
+                          }}
+                          title="Move section up"
+                        >
+                          <ArrowUpIcon className="w-4 h-4" />
+                        </button>
+                      )}
+                      {index < addedSections.length - 1 && (
+                        <button
+                          className="p-1.5 bg-green-100 text-green-800 rounded"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            moveSection(index, 1);
+                          }}
+                          title="Move section down"
+                        >
+                          <ArrowDownIcon className="w-4 h-4" />
+                        </button>
+                      )}
+                      {!['general', 'work', 'education'].includes(section) && (
+                        <button
+                          className="p-1.5 text-gray-500 hover:text-red-500 hover:bg-red-50 rounded"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            removeSection(section);
+                          }}
+                          title="Remove section"
+                        >
+                          <XMarkIcon className="w-4 h-4" />
+                        </button>
+                      )}
+                    </div>
                   </div>
-                  <div className="flex gap-1">
-                    {index > 0 && (
-                      <button 
-                        className="p-1.5 bg-green-100 text-green-800 rounded"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          moveSection(index, -1);
-                        }}
-                        title="Move section up"
-                      >
-                        <ArrowUpIcon className="w-4 h-4" />
-                      </button>
-                    )}
-                    {index < addedSections.length - 1 && (
-                      <button 
-                        className="p-1.5 bg-green-100 text-green-800 rounded"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          moveSection(index, 1);
-                        }}
-                        title="Move section down"
-                      >
-                        <ArrowDownIcon className="w-4 h-4" />
-                      </button>
-                    )}
-                    {!['general', 'work', 'education'].includes(section) && (
-                      <button 
-                        className="p-1.5 text-gray-500 hover:text-red-500 hover:bg-red-50 rounded"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          removeSection(section);
-                        }}
-                        title="Remove section"
-                      >
-                        <XMarkIcon className="w-4 h-4" />
-                      </button>
-                    )}
-                  </div>
+
+                  {expandedSections.includes(section) && (
+                    <div className="p-4 border-t border-gray-200 bg-white">
+                      {renderSectionContent(section)}
+                    </div>
+                  )}
                 </div>
-                
-                {/* Section content */}
-                {expandedSections.includes(section) && (
-                  <div className="p-4 border-t border-gray-200 bg-white">
-                    {renderSectionContent(section)}
+              ))}
+            </div>
+
+            {availableSections.length > 0 && (
+              <div className="p-5 flex justify-center">
+                <button
+                  className="px-5 py-3 bg-olive-medium text-Green rounded-md flex items-center gap-2 hover:bg-olive-dark transition-colors shadow-sm"
+                  onClick={() => setIsSectionModalOpen(true)}
+                >
+                  <PlusIcon className="w-5 h-5" />
+                  Add Section to Your CV
+                </button>
+              </div>
+            )}
+          </div>
+
+          <div className="flex flex-wrap justify-center gap-4">
+            {availableSections.length > 0 && (
+              <div ref={dropdownRef} className="relative">
+                <button
+                  className="px-4 py-2 bg-olive-medium text-white rounded-md flex items-center gap-2 hover:bg-olive-dark transition-colors"
+                  onClick={toggleDropdown}
+                >
+                  <PlusIcon className="w-5 h-5" />
+                  Add Section
+                </button>
+
+                {isDropdownOpen && (
+                  <div className="absolute top-full left-0 mt-2 w-56 bg-white rounded-md shadow-lg z-10">
+                    {availableSections.map(section => (
+                      <button
+                        key={section}
+                        className="w-full text-left px-4 py-2 hover:bg-gray-100 text-gray-800"
+                        onClick={() => handleSectionSelect(section)}
+                      >
+                        {getSectionTitle(section)}
+                      </button>
+                    ))}
                   </div>
                 )}
               </div>
-            ))}
-          </div>
-          
-          {/* Bottom Add Section Button */}
-          {availableSections.length > 0 && (
-            <div className="p-5 flex justify-center">
-              <button 
-                className="px-5 py-3 bg-olive-medium text-Green rounded-md flex items-center gap-2 hover:bg-olive-dark  transition-colors shadow-sm"
-                onClick={() => setIsSectionModalOpen(true)}
-              >
-                <PlusIcon className="w-5 h-5" />
-                Add Section to Your CV
-              </button>
-            </div>
-          )}
-        </div>
-        
-        {/* Add section button */}
-        {availableSections.length > 0 && (
-          <div className="flex justify-center gap-4 mb-8">
-            <div ref={dropdownRef} className="relative">
-              <button 
-                className="px-4 py-2 bg-olive-medium text-white rounded-md flex items-center gap-2 hover:bg-olive-dark transition-colors"
-                onClick={toggleDropdown}
-              >
-                <PlusIcon className="w-5 h-5" />
-                Add Section
-              </button>
-              
-              {isDropdownOpen && (
-                <div className="absolute top-full left-0 mt-2 w-56 bg-white rounded-md shadow-lg z-10">
-                  {availableSections.map(section => (
-                    <button 
-                      key={section}
-                      className="w-full text-left px-4 py-2 hover:bg-gray-100 text-gray-800"
-                      onClick={() => handleSectionSelect(section)}
-                    >
-                      {getSectionTitle(section)}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-            
-            <button 
+            )}
+
+            <button
               className="px-4 py-2 bg-gray-200 text-gray-800 rounded-md flex items-center gap-2 hover:bg-gray-300 transition-colors"
               onClick={handleExportCV}
               disabled={exportLoading}
@@ -1471,8 +1473,8 @@ export default function CVMaker() {
               <DocumentArrowDownIcon className="w-5 h-5" />
               {exportLoading ? 'Generating...' : 'Export CV'}
             </button>
-            
-            <button 
+
+            <button
               className="px-4 py-2 bg-olive-dark text-white rounded-md flex items-center gap-2 hover:bg-olive-medium transition-colors"
               onClick={handleSaveCV}
             >
@@ -1480,8 +1482,24 @@ export default function CVMaker() {
               {currentCVId ? 'Update CV' : 'Save CV'}
             </button>
           </div>
-        )}
-      </>
+        </div>
+
+        {/* CV Preview */}
+        <div className="min-w-0 xl:sticky xl:top-4">
+          <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+            <div className="p-4 border-b border-gray-200 bg-gray-50 flex items-center gap-2">
+              <EyeIcon className="w-5 h-5 text-olive-dark" />
+              <h3 className="font-semibold text-gray-800">Live Preview</h3>
+              <span className="text-xs text-gray-500 ml-auto">Updates as you type</span>
+            </div>
+            <div className="overflow-auto max-h-[calc(100vh-10rem)] bg-olive-50 p-4">
+              <div className="mx-auto shadow-lg rounded-sm overflow-hidden" style={{ width: 'fit-content', maxWidth: '100%' }}>
+                <CVPreview ref={cvRef} cvData={cvData} addedSections={addedSections} />
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
     );
   };
 
@@ -1673,7 +1691,8 @@ export default function CVMaker() {
       <Toaster position="top-right" />
       <header className="flex items-center p-4 bg-white shadow-sm">
         <h1 className="text-xl font-semibold text-gray-800">CV Maker {cvName && activeTab === 'create' ? ` - ${cvName}` : ''}</h1>
-        <div className="ml-auto flex gap-3">
+        <div className="ml-auto flex gap-3 items-center">
+          <CvSettingsMenu onExtracted={handleCvExtracted} disabled={exportLoading} />
           <button 
             className="px-4 py-2 bg-olive-dark text-white rounded flex items-center gap-2 hover:bg-olive-medium transition-colors"
             onClick={handleExportCV}
@@ -1837,51 +1856,19 @@ export default function CVMaker() {
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {availableSections.map(section => {
-                    const sectionInfo = {
-                      'skills': {
-                        icon: <CheckIcon className="w-8 h-8 text-olive-medium" />,
-                        description: 'List your technical and soft skills with proficiency levels.'
-                      },
-                      'languages': {
-                        icon: <DocumentTextIcon className="w-8 h-8 text-olive-medium" />,
-                        description: 'Showcase your language abilities and proficiency levels.'
-                      },
-                      'summary': {
-                        icon: <DocumentTextIcon className="w-8 h-8 text-olive-medium" />,
-                        description: 'Add a brief professional summary highlighting your expertise.'
-                      },
-                      'certificates': {
-                        icon: <DocumentTextIcon className="w-8 h-8 text-olive-medium" />,
-                        description: 'List relevant certifications and professional courses.'
-                      },
-                      'projects': {
-                        icon: <DocumentTextIcon className="w-8 h-8 text-olive-medium" />,
-                        description: 'Highlight key projects that demonstrate your abilities.'
-                      },
-                      'volunteering': {
-                        icon: <DocumentTextIcon className="w-8 h-8 text-olive-medium" />,
-                        description: 'Share your volunteering experiences and community work.'
-                      },
-                      'publications': {
-                        icon: <DocumentTextIcon className="w-8 h-8 text-olive-medium" />,
-                        description: 'Add your published works, articles, or research papers.'
-                      },
-                      'references': {
-                        icon: <DocumentTextIcon className="w-8 h-8 text-olive-medium" />,
-                        description: 'Include professional references or recommendation statements.'
-                      },
-                      'additional': {
-                        icon: <DocumentTextIcon className="w-8 h-8 text-olive-medium" />,
-                        description: 'Add any other information relevant to your professional profile.'
-                      },
-                      'externalLinks': {
-                        icon: <DocumentTextIcon className="w-8 h-8 text-olive-medium" />,
-                        description: 'Add links to your professional profiles on external platforms.'
-                      }
+                    const sectionDescriptions: Record<string, string> = {
+                      skills: 'List your technical and soft skills with proficiency levels.',
+                      languages: 'Showcase your language abilities and proficiency levels.',
+                      summary: 'Add a brief professional summary highlighting your expertise.',
+                      certificates: 'List relevant certifications and professional courses.',
+                      projects: 'Highlight key projects that demonstrate your abilities.',
+                      volunteering: 'Share your volunteering experiences and community work.',
+                      publications: 'Add your published works, articles, or research papers.',
+                      references: 'Include professional references or recommendation statements.',
+                      additional: 'Add any other information relevant to your professional profile.',
+                      externalLinks: 'Add links to your professional profiles on external platforms.',
                     };
-                    
-                    const info = sectionInfo[section as keyof typeof sectionInfo];
-                    
+
                     return (
                       <div 
                         key={section}
@@ -1892,12 +1879,12 @@ export default function CVMaker() {
                         }}
                       >
                         <div className="flex items-start gap-3">
-                          <div className="flex-shrink-0">
-                            {info?.icon}
+                          <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-olive-100 text-olive-medium flex items-center justify-center">
+                            {getSectionIcon(section, 'w-6 h-6')}
                           </div>
                           <div>
                             <h4 className="font-medium text-gray-800 mb-1">{getSectionTitle(section)}</h4>
-                            <p className="text-sm text-gray-600">{info?.description}</p>
+                            <p className="text-sm text-gray-600">{sectionDescriptions[section]}</p>
                           </div>
                         </div>
                       </div>

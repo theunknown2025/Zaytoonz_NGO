@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { DocumentTextIcon, PencilSquareIcon, CloudArrowUpIcon } from '@heroicons/react/24/outline';
+import { DocumentTextIcon, PencilSquareIcon, CloudArrowUpIcon, CalendarIcon, AcademicCapIcon, QuestionMarkCircleIcon } from '@heroicons/react/24/outline';
 import { getTemplates } from '../../resources/tools/OffreMaker/supabaseService';
 import { Template as OffreTemplate, TemplateField } from '../../resources/tools/OffreMaker/NewTemplate';
 import dynamic from 'next/dynamic';
@@ -9,6 +9,20 @@ import { saveOpportunityProgress, getLatestOpportunityProgress } from '../servic
 import { formatDescriptionForDisplay } from './formatDescription';
 import { toast } from 'react-hot-toast';
 import { supabase } from '@/app/lib/supabase';
+import OpportunityProcess, { type OpportunityProcessHandle } from './OpportunityProcess';
+import OpportunityTrainingProgramSection, {
+  type OpportunityTrainingProgramHandle,
+} from './OpportunityTrainingProgramSection';
+import OpportunityFaqSection, { type OpportunityFaqHandle } from './OpportunityFaqSection';
+import OpportunityDocumentsSection from './OpportunityDocumentsSection';
+import type { OpportunityFlowStep } from '@/app/lib/opportunityFlow';
+import type { OpportunityDocument } from '@/app/lib/opportunityDocuments';
+import { parseOpportunityDocuments } from '@/app/lib/opportunityDocuments';
+import type { TrainingDay } from '@/app/lib/opportunityTrainingProgram';
+import type { OpportunityFaqItem } from '@/app/lib/opportunityFaq';
+import { saveOpportunityFlowSteps } from '../services/opportunityFlowService';
+import { saveTrainingProgram } from '../services/opportunityTrainingProgramService';
+import { saveOpportunityFaqItems } from '../services/opportunityFaqService';
 
 const COUNTRIES = [
   'Afghanistan', 'Albania', 'Algeria', 'Andorra', 'Angola', 'Antigua and Barbuda', 'Argentina', 'Armenia',
@@ -54,8 +68,8 @@ interface ExtendedTemplate {
   fields: ExtendedField[];
 }
 
-// Dynamically import the RichTextEditor component
-const RichTextEditor = dynamic(() => import('./RichTextEditor'), { 
+// Dynamically import the description editor with AI enhancement
+const DescriptionEditorWithAI = dynamic(() => import('./components/DescriptionEditorWithAI'), { 
   ssr: false,
   loading: () => (
     <div className="border border-gray-300 rounded-md p-6 bg-gray-50 animate-pulse flex flex-col justify-center items-center h-64">
@@ -84,6 +98,25 @@ interface OpportunityDescriptionProps {
   onNext: () => void;
   opportunityId: string;
   onCriteriaChange?: (criteria: CriteriaSelection) => void;
+  includeProcessFlow?: boolean;
+  onIncludeProcessFlowChange?: (enabled: boolean) => void;
+  flowSteps?: OpportunityFlowStep[];
+  onStepAdd?: (step: OpportunityFlowStep) => void;
+  onStepRemove?: (id: string) => void;
+  onStepChange?: (id: string, field: string, value: string) => void;
+  onStepsReplace?: (steps: OpportunityFlowStep[]) => void;
+  documents?: OpportunityDocument[];
+  onDocumentsChange?: (documents: OpportunityDocument[]) => void;
+  includeDocuments?: boolean;
+  onIncludeDocumentsChange?: (enabled: boolean) => void;
+  includeTrainingProgram?: boolean;
+  onIncludeTrainingProgramChange?: (enabled: boolean) => void;
+  trainingDays?: TrainingDay[];
+  onTrainingDaysReplace?: (days: TrainingDay[]) => void;
+  includeFaq?: boolean;
+  onIncludeFaqChange?: (enabled: boolean) => void;
+  faqItems?: OpportunityFaqItem[];
+  onFaqItemsReplace?: (items: OpportunityFaqItem[]) => void;
 }
 
 interface TemplateFields {
@@ -114,7 +147,35 @@ interface CriteriaSelection {
   customFilters?: { [key: string]: string };
 }
 
-export default function OpportunityDescription({ formData, onChange, onNext, opportunityId, onCriteriaChange }: OpportunityDescriptionProps) {
+export default function OpportunityDescription({
+  formData,
+  onChange,
+  onNext,
+  opportunityId,
+  onCriteriaChange,
+  includeProcessFlow = false,
+  onIncludeProcessFlowChange,
+  flowSteps = [],
+  onStepAdd,
+  onStepRemove,
+  onStepChange,
+  onStepsReplace,
+  documents = [],
+  onDocumentsChange,
+  includeDocuments = false,
+  onIncludeDocumentsChange,
+  includeTrainingProgram = false,
+  onIncludeTrainingProgramChange,
+  trainingDays = [],
+  onTrainingDaysReplace,
+  includeFaq = false,
+  onIncludeFaqChange,
+  faqItems = [],
+  onFaqItemsReplace,
+}: OpportunityDescriptionProps) {
+  const processRef = useRef<OpportunityProcessHandle>(null);
+  const trainingProgramRef = useRef<OpportunityTrainingProgramHandle>(null);
+  const faqRef = useRef<OpportunityFaqHandle>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [descriptionMode, setDescriptionMode] = useState<'template' | 'editor'>('editor');
   const [templates, setTemplates] = useState<ExtendedTemplate[]>([]);
@@ -255,6 +316,14 @@ export default function OpportunityDescription({ formData, onChange, onNext, opp
             
             if (data.metadata.templateFields && typeof data.metadata.templateFields === 'object') {
               setTemplateFields(data.metadata.templateFields);
+            }
+
+            if (onDocumentsChange) {
+              const loadedDocs = parseOpportunityDocuments(data.metadata);
+              onDocumentsChange(loadedDocs);
+              if (onIncludeDocumentsChange && loadedDocs.length > 0) {
+                onIncludeDocumentsChange(true);
+              }
             }
             
             // Load criteria from dedicated column if available
@@ -578,10 +647,48 @@ export default function OpportunityDescription({ formData, onChange, onNext, opp
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleNext = () => {
-    if (validateForm()) {
-      onNext();
+  const handleNext = async () => {
+    if (!validateForm()) return;
+
+    if (includeProcessFlow && processRef.current) {
+      const saved = await processRef.current.validateAndSave();
+      if (!saved) return;
+    } else if (!includeProcessFlow && opportunityId && onStepsReplace) {
+      try {
+        await saveOpportunityFlowSteps(opportunityId, []);
+        onStepsReplace([]);
+      } catch (error) {
+        console.error('Error clearing process steps:', error);
+      }
     }
+
+    if (formData.opportunityType === 'training') {
+      if (includeTrainingProgram && trainingProgramRef.current) {
+        const saved = await trainingProgramRef.current.validateAndSave();
+        if (!saved) return;
+      } else if (!includeTrainingProgram && opportunityId && onTrainingDaysReplace) {
+        try {
+          await saveTrainingProgram(opportunityId, []);
+          onTrainingDaysReplace([]);
+        } catch (error) {
+          console.error('Error clearing training program:', error);
+        }
+      }
+    }
+
+    if (includeFaq && faqRef.current) {
+      const saved = await faqRef.current.validateAndSave();
+      if (!saved) return;
+    } else if (!includeFaq && opportunityId && onFaqItemsReplace) {
+      try {
+        await saveOpportunityFaqItems(opportunityId, []);
+        onFaqItemsReplace([]);
+      } catch (error) {
+        console.error('Error clearing FAQ:', error);
+      }
+    }
+
+    onNext();
   };
 
   // Handle saving progress to the database
@@ -643,8 +750,9 @@ export default function OpportunityDescription({ formData, onChange, onNext, opp
         descriptionMode,
         selectedTemplate,
         templateFields: updatedTemplateFields,
-        fileUrls, // Include the file URLs in metadata
-        criteria // Include criteria selection
+        fileUrls,
+        criteria,
+        documents: includeDocuments ? documents : [],
       };
       
       // Prepare data for saving
@@ -1516,9 +1624,11 @@ export default function OpportunityDescription({ formData, onChange, onNext, opp
                 Description *
               </label>
               
-              <RichTextEditor 
+              <DescriptionEditorWithAI
                 value={formData.description}
                 onChange={handleEditorChange}
+                title={formData.title}
+                opportunityType={formData.opportunityType}
               />
               
               {errors.description && (
@@ -1530,7 +1640,7 @@ export default function OpportunityDescription({ formData, onChange, onNext, opp
                 </p>
               )}
               <p className="mt-1 text-xs text-gray-500">
-                Use the rich text editor to format your description. Include responsibilities, requirements, impact, and any other relevant details.
+                Use the rich text editor to format your description. Hover the editor and click the sparkle icon to enhance with AI.
               </p>
             </div>
           )}
@@ -1543,6 +1653,157 @@ export default function OpportunityDescription({ formData, onChange, onNext, opp
           </p>
         </div>
         
+        {/* Optional Process / Important Dates */}
+        {onIncludeProcessFlowChange && onStepAdd && onStepRemove && onStepChange && onStepsReplace && (
+          <div className="bg-gradient-to-r from-[#556B2F]/5 to-[#6B8E23]/5 rounded-xl p-6 border border-[#556B2F]/10 shadow-sm">
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex items-start gap-3">
+                <div className="flex items-center justify-center h-8 w-8 rounded-full bg-[#556B2F] text-white shrink-0">
+                  <CalendarIcon className="h-4 w-4" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-medium text-[#556B2F]">Important Dates & Process</h3>
+                  <p className="text-sm text-gray-600 mt-1">
+                    Optionally include key dates and steps so applicants know what to expect.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={includeProcessFlow}
+                onClick={() => onIncludeProcessFlowChange(!includeProcessFlow)}
+                className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-[#556B2F] focus:ring-offset-2 ${
+                  includeProcessFlow ? 'bg-[#556B2F]' : 'bg-gray-200'
+                }`}
+              >
+                <span
+                  className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                    includeProcessFlow ? 'translate-x-5' : 'translate-x-0'
+                  }`}
+                />
+              </button>
+            </div>
+
+            {includeProcessFlow && (
+              <div className="mt-6 pt-6 border-t border-[#556B2F]/20">
+                <OpportunityProcess
+                  ref={processRef}
+                  embedded
+                  flowSteps={flowSteps}
+                  opportunityId={opportunityId}
+                  onStepAdd={onStepAdd}
+                  onStepRemove={onStepRemove}
+                  onStepChange={onStepChange}
+                  onStepsReplace={onStepsReplace}
+                />
+              </div>
+            )}
+          </div>
+        )}
+
+        {formData.opportunityType === 'training' &&
+          onIncludeTrainingProgramChange &&
+          onTrainingDaysReplace && (
+            <div className="bg-gradient-to-r from-[#556B2F]/5 to-[#6B8E23]/5 rounded-xl p-6 border border-[#556B2F]/10 shadow-sm">
+              <div className="flex items-center justify-between gap-4">
+                <div className="flex items-start gap-3">
+                  <div className="flex items-center justify-center h-8 w-8 rounded-full bg-[#556B2F] text-white shrink-0">
+                    <AcademicCapIcon className="h-4 w-4" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-medium text-[#556B2F]">Training Program</h3>
+                    <p className="text-sm text-gray-600 mt-1">
+                      Plan your training schedule by day with activities, duration, and format.
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={includeTrainingProgram}
+                  onClick={() => onIncludeTrainingProgramChange(!includeTrainingProgram)}
+                  className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-[#556B2F] focus:ring-offset-2 ${
+                    includeTrainingProgram ? 'bg-[#556B2F]' : 'bg-gray-200'
+                  }`}
+                >
+                  <span
+                    className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                      includeTrainingProgram ? 'translate-x-5' : 'translate-x-0'
+                    }`}
+                  />
+                </button>
+              </div>
+
+              {includeTrainingProgram && (
+                <div className="mt-6 pt-6 border-t border-[#556B2F]/20">
+                  <OpportunityTrainingProgramSection
+                    ref={trainingProgramRef}
+                    embedded
+                    trainingDays={trainingDays}
+                    opportunityId={opportunityId}
+                    onDaysReplace={onTrainingDaysReplace}
+                  />
+                </div>
+              )}
+            </div>
+          )}
+
+        {onIncludeFaqChange && onFaqItemsReplace && (
+          <div className="bg-gradient-to-r from-[#556B2F]/5 to-[#6B8E23]/5 rounded-xl p-6 border border-[#556B2F]/10 shadow-sm">
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex items-start gap-3">
+                <div className="flex items-center justify-center h-8 w-8 rounded-full bg-[#556B2F] text-white shrink-0">
+                  <QuestionMarkCircleIcon className="h-4 w-4" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-medium text-[#556B2F]">FAQ</h3>
+                  <p className="text-sm text-gray-600 mt-1">
+                    Add frequently asked questions with icons and answers for applicants.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={includeFaq}
+                onClick={() => onIncludeFaqChange(!includeFaq)}
+                className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-[#556B2F] focus:ring-offset-2 ${
+                  includeFaq ? 'bg-[#556B2F]' : 'bg-gray-200'
+                }`}
+              >
+                <span
+                  className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                    includeFaq ? 'translate-x-5' : 'translate-x-0'
+                  }`}
+                />
+              </button>
+            </div>
+
+            {includeFaq && (
+              <div className="mt-6 pt-6 border-t border-[#556B2F]/20">
+                <OpportunityFaqSection
+                  ref={faqRef}
+                  embedded
+                  faqItems={faqItems}
+                  opportunityId={opportunityId}
+                  onFaqItemsReplace={onFaqItemsReplace}
+                />
+              </div>
+            )}
+          </div>
+        )}
+
+        {onDocumentsChange && (
+          <OpportunityDocumentsSection
+            documents={documents}
+            onDocumentsChange={onDocumentsChange}
+            opportunityId={opportunityId}
+            includeDocuments={includeDocuments}
+            onIncludeDocumentsChange={onIncludeDocumentsChange}
+          />
+        )}
+
         <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
            
            

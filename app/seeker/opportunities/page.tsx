@@ -37,41 +37,170 @@ import {
 import { HeartIcon as HeartSolidIcon } from '@heroicons/react/24/solid';
 import { getOpportunities, searchOpportunities, type Opportunity } from '@/app/lib/opportunities';
 import { useAuth } from '@/app/lib/auth';
+import {
+  uniqueCountriesFromLocations,
+  displayOpportunityCountry,
+} from '@/app/lib/locationNormalize';
+import {
+  buildOrganizationCanonicalMap,
+  canonicalOrganizationName,
+  organizationMatchesFilter,
+  uniqueOrganizationsFromOpportunities,
+} from '@/app/lib/organizationNormalize';
+import MultiSelectFilter, { type MultiSelectOption } from './MultiSelectFilter';
+import PostedDateRangeFilter, {
+  initialPostedDateRange,
+  opportunityMatchesPostedRange,
+  type PostedDateRange,
+} from './PostedDateRangeFilter';
 
-// Filter types
+type MultiSelectFilterKey = Exclude<keyof Filters, 'postedRange'>;
+
+// Filter types — each field holds zero or more selected values (empty = no filter)
 interface Filters {
-  // Standard filters
-  category: string;
-  location: string;
-  postedDate: string;
-  // Advanced filters
-  contractType: string;
-  level: string;
-  sector: string;
-  fundingType: string;
-  eligibility: string;
-  amountRange: string;
-  duration: string;
-  format: string;
-  deadlineStatus: string;
-  source: string;
+  category: string[];
+  location: string[];
+  organization: string[];
+  postedRange: PostedDateRange;
+  contractType: string[];
+  level: string[];
+  sector: string[];
+  fundingType: string[];
+  eligibility: string[];
+  amountRange: string[];
+  duration: string[];
+  format: string[];
+  deadlineStatus: string[];
+  source: string[];
 }
 
 const initialFilters: Filters = {
-  category: 'all',
-  location: 'all',
-  postedDate: 'all',
-  contractType: 'all',
-  level: 'all',
-  sector: 'all',
-  fundingType: 'all',
-  eligibility: 'all',
-  amountRange: 'all',
-  duration: 'all',
-  format: 'all',
-  deadlineStatus: 'all',
-  source: 'all',
+  category: [],
+  location: [],
+  organization: [],
+  postedRange: initialPostedDateRange,
+  contractType: [],
+  level: [],
+  sector: [],
+  fundingType: [],
+  eligibility: [],
+  amountRange: [],
+  duration: [],
+  format: [],
+  deadlineStatus: [],
+  source: [],
 };
+
+const CATEGORY_OPTIONS: MultiSelectOption[] = [
+  { value: 'job', label: 'Jobs' },
+  { value: 'funding', label: 'Funding' },
+  { value: 'training', label: 'Training' },
+];
+
+const SOURCE_OPTIONS: MultiSelectOption[] = [
+  { value: 'internal', label: 'Zaytoonz Partners' },
+  { value: 'external', label: 'External Sources' },
+];
+
+const DEADLINE_STATUS_OPTIONS: MultiSelectOption[] = [
+  { value: 'urgent', label: 'Urgent (≤ 3 days)' },
+  { value: 'soon', label: 'Closing Soon (4-7 days)' },
+  { value: 'open', label: 'Open (7+ days)' },
+  { value: 'no_deadline', label: 'No Deadline' },
+  { value: 'expired', label: 'Expired' },
+];
+
+const DEFAULT_CONTRACT_TYPES: MultiSelectOption[] = [
+  { value: 'Full-time', label: 'Full-time' },
+  { value: 'Part-time', label: 'Part-time' },
+  { value: 'Contract', label: 'Contract' },
+  { value: 'Freelance', label: 'Freelance' },
+  { value: 'Internship', label: 'Internship' },
+];
+
+const DEFAULT_LEVELS: MultiSelectOption[] = [
+  { value: 'Entry', label: 'Entry Level' },
+  { value: 'Mid', label: 'Mid Level' },
+  { value: 'Senior', label: 'Senior Level' },
+  { value: 'Lead', label: 'Lead / Manager' },
+  { value: 'Executive', label: 'Executive' },
+];
+
+const DEFAULT_SECTORS: MultiSelectOption[] = [
+  { value: 'Technology', label: 'Technology' },
+  { value: 'Healthcare', label: 'Healthcare' },
+  { value: 'Education', label: 'Education' },
+  { value: 'Finance', label: 'Finance' },
+  { value: 'Non-profit', label: 'Non-profit' },
+  { value: 'Government', label: 'Government' },
+];
+
+const DEFAULT_FUNDING_TYPES: MultiSelectOption[] = [
+  { value: 'Grant', label: 'Grant' },
+  { value: 'Loan', label: 'Loan' },
+  { value: 'Investment', label: 'Investment' },
+  { value: 'Scholarship', label: 'Scholarship' },
+  { value: 'Prize', label: 'Prize / Award' },
+];
+
+const DEFAULT_ELIGIBILITIES: MultiSelectOption[] = [
+  { value: 'Individuals', label: 'Individuals' },
+  { value: 'Startups', label: 'Startups' },
+  { value: 'SMEs', label: 'SMEs' },
+  { value: 'NGOs', label: 'NGOs' },
+  { value: 'Researchers', label: 'Researchers' },
+];
+
+const DEFAULT_AMOUNT_RANGES: MultiSelectOption[] = [
+  { value: '< $1,000', label: 'Under $1,000' },
+  { value: '$1,000 - $10,000', label: '$1,000 - $10,000' },
+  { value: '$10,000 - $50,000', label: '$10,000 - $50,000' },
+  { value: '$50,000 - $100,000', label: '$50,000 - $100,000' },
+  { value: '> $100,000', label: 'Over $100,000' },
+];
+
+const DEFAULT_DURATIONS: MultiSelectOption[] = [
+  { value: '< 1 week', label: 'Less than 1 week' },
+  { value: '1-4 weeks', label: '1-4 weeks' },
+  { value: '1-3 months', label: '1-3 months' },
+  { value: '3-6 months', label: '3-6 months' },
+  { value: '> 6 months', label: 'More than 6 months' },
+];
+
+const DEFAULT_FORMATS: MultiSelectOption[] = [
+  { value: 'Online', label: 'Online' },
+  { value: 'In-person', label: 'In-person' },
+  { value: 'Hybrid', label: 'Hybrid' },
+  { value: 'Self-paced', label: 'Self-paced' },
+];
+
+function optionsFromValues(values: string[], fallbacks: MultiSelectOption[]): MultiSelectOption[] {
+  if (values.length > 0) {
+    return values.map((value) => ({ value, label: value }));
+  }
+  return fallbacks;
+}
+
+function matchesDeadlineStatus(opp: Opportunity, status: string): boolean {
+  if (!opp.deadline) return status === 'no_deadline';
+  const deadline = new Date(opp.deadline);
+  if (Number.isNaN(deadline.getTime())) return status === 'no_deadline';
+  const diffDays = Math.ceil((deadline.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+  switch (status) {
+    case 'urgent':
+      return diffDays <= 3 && diffDays >= 0;
+    case 'soon':
+      return diffDays > 3 && diffDays <= 7;
+    case 'open':
+      return diffDays > 7;
+    case 'expired':
+      return diffDays < 0;
+    case 'no_deadline':
+      return false;
+    default:
+      return false;
+  }
+}
 
 function categoryFromSearchParam(value: string | null): string {
   if (value === 'job' || value === 'training' || value === 'funding') return value;
@@ -93,8 +222,28 @@ function OpportunitiesPageContent() {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
-  // For backwards compatibility
-  const selectedCategory = filters.category;
+  const locationOptions = useMemo<MultiSelectOption[]>(
+    () =>
+      uniqueCountriesFromLocations(opportunities.map((opp) => opp.location)).map((country) => ({
+        value: country,
+        label: country,
+      })),
+    [opportunities]
+  );
+
+  const organizationCanonicalMap = useMemo(
+    () => buildOrganizationCanonicalMap(opportunities),
+    [opportunities]
+  );
+
+  const organizationOptions = useMemo<MultiSelectOption[]>(
+    () =>
+      uniqueOrganizationsFromOpportunities(opportunities).map((name) => ({
+        value: name,
+        label: name,
+      })),
+    [opportunities]
+  );
 
   // Helper function to strip HTML tags and get plain text for preview
   const stripHtmlTags = (html: string) => {
@@ -116,7 +265,6 @@ function OpportunitiesPageContent() {
 
   // Extract unique filter values from opportunities
   const filterOptions = useMemo(() => {
-    const locations = new Set<string>();
     const contractTypes = new Set<string>();
     const levels = new Set<string>();
     const sectors = new Set<string>();
@@ -127,7 +275,6 @@ function OpportunitiesPageContent() {
     const formats = new Set<string>();
 
     opportunities.forEach(opp => {
-      if (opp.location) locations.add(opp.location);
       if (opp.criteria?.contractType) contractTypes.add(opp.criteria.contractType);
       if (opp.criteria?.level) levels.add(opp.criteria.level);
       if (opp.criteria?.sector) sectors.add(opp.criteria.sector);
@@ -139,7 +286,6 @@ function OpportunitiesPageContent() {
     });
 
     return {
-      locations: Array.from(locations).sort(),
       contractTypes: Array.from(contractTypes).sort(),
       levels: Array.from(levels).sort(),
       sectors: Array.from(sectors).sort(),
@@ -151,11 +297,13 @@ function OpportunitiesPageContent() {
     };
   }, [opportunities]);
 
-  // Count active filters
+  // Count active filter groups
   const activeFilterCount = useMemo(() => {
     let count = 0;
-    Object.entries(filters).forEach(([key, value]) => {
-      if (value !== 'all' && key !== 'category') count++;
+    (Object.keys(filters) as Array<keyof Filters>).forEach((key) => {
+      if (key === 'postedRange') {
+        if (filters.postedRange.from) count++;
+      } else if (filters[key].length > 0) count++;
     });
     if (searchQuery.trim()) count++;
     return count;
@@ -164,8 +312,11 @@ function OpportunitiesPageContent() {
   const urlCategory = categoryFromSearchParam(searchParams.get('category'));
 
   useLayoutEffect(() => {
+    if (urlCategory === 'all') return;
     setFilters((prev) =>
-      prev.category === urlCategory ? prev : { ...prev, category: urlCategory }
+      prev.category.length === 1 && prev.category[0] === urlCategory
+        ? prev
+        : { ...prev, category: [urlCategory] }
     );
   }, [urlCategory]);
 
@@ -203,105 +354,92 @@ function OpportunitiesPageContent() {
   const filterOpportunities = () => {
     let filtered = [...opportunities];
 
-    // Category filter
-    if (filters.category !== 'all') {
-      filtered = filtered.filter(opp => opp.category === filters.category);
+    if (filters.category.length > 0) {
+      filtered = filtered.filter((opp) => filters.category.includes(opp.category));
     }
 
-    // Location filter
-    if (filters.location !== 'all') {
-      filtered = filtered.filter(opp => opp.location === filters.location);
-    }
-
-    // Posted date filter
-    if (filters.postedDate !== 'all') {
-      const now = new Date();
-      filtered = filtered.filter(opp => {
-        const posted = parsePostedDate(opp.posted);
-        if (!posted) return true;
-        
-        const diffDays = Math.ceil((now.getTime() - posted.getTime()) / (1000 * 60 * 60 * 24));
-        
-        switch (filters.postedDate) {
-          case 'today': return diffDays <= 1;
-          case 'week': return diffDays <= 7;
-          case 'month': return diffDays <= 30;
-          case 'quarter': return diffDays <= 90;
-          default: return true;
-        }
+    if (filters.location.length > 0) {
+      filtered = filtered.filter((opp) => {
+        const country = displayOpportunityCountry(opp.location);
+        return country ? filters.location.includes(country) : false;
       });
     }
 
-    // Contract type filter
-    if (filters.contractType !== 'all') {
-      filtered = filtered.filter(opp => opp.criteria?.contractType === filters.contractType);
+    if (filters.organization.length > 0) {
+      filtered = filtered.filter((opp) =>
+        organizationMatchesFilter(opp, filters.organization, organizationCanonicalMap)
+      );
     }
 
-    // Level filter
-    if (filters.level !== 'all') {
-      filtered = filtered.filter(opp => opp.criteria?.level === filters.level);
+    if (filters.postedRange.from) {
+      filtered = filtered.filter((opp) =>
+        opportunityMatchesPostedRange(opp, filters.postedRange, parsePostedDate)
+      );
     }
 
-    // Sector filter
-    if (filters.sector !== 'all') {
-      filtered = filtered.filter(opp => opp.criteria?.sector === filters.sector);
+    if (filters.contractType.length > 0) {
+      filtered = filtered.filter(
+        (opp) => opp.criteria?.contractType && filters.contractType.includes(opp.criteria.contractType)
+      );
     }
 
-    // Funding type filter
-    if (filters.fundingType !== 'all') {
-      filtered = filtered.filter(opp => opp.criteria?.fundingType === filters.fundingType);
+    if (filters.level.length > 0) {
+      filtered = filtered.filter(
+        (opp) => opp.criteria?.level && filters.level.includes(opp.criteria.level)
+      );
     }
 
-    // Eligibility filter
-    if (filters.eligibility !== 'all') {
-      filtered = filtered.filter(opp => opp.criteria?.eligibility === filters.eligibility);
+    if (filters.sector.length > 0) {
+      filtered = filtered.filter(
+        (opp) => opp.criteria?.sector && filters.sector.includes(opp.criteria.sector)
+      );
     }
 
-    // Amount range filter
-    if (filters.amountRange !== 'all') {
-      filtered = filtered.filter(opp => opp.criteria?.amountRange === filters.amountRange);
+    if (filters.fundingType.length > 0) {
+      filtered = filtered.filter(
+        (opp) => opp.criteria?.fundingType && filters.fundingType.includes(opp.criteria.fundingType)
+      );
     }
 
-    // Duration filter
-    if (filters.duration !== 'all') {
-      filtered = filtered.filter(opp => opp.criteria?.duration === filters.duration);
+    if (filters.eligibility.length > 0) {
+      filtered = filtered.filter(
+        (opp) => opp.criteria?.eligibility && filters.eligibility.includes(opp.criteria.eligibility)
+      );
     }
 
-    // Format filter (for training)
-    if (filters.format !== 'all') {
-      filtered = filtered.filter(opp => opp.criteria?.format === filters.format);
+    if (filters.amountRange.length > 0) {
+      filtered = filtered.filter(
+        (opp) => opp.criteria?.amountRange && filters.amountRange.includes(opp.criteria.amountRange)
+      );
     }
 
-    // Deadline status filter
-    if (filters.deadlineStatus !== 'all') {
-      const now = new Date();
-      filtered = filtered.filter(opp => {
-        if (!opp.deadline) return filters.deadlineStatus === 'no_deadline';
-        
-        const deadline = new Date(opp.deadline);
-        const diffDays = Math.ceil((deadline.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-        
-        switch (filters.deadlineStatus) {
-          case 'expired': return diffDays < 0;
-          case 'urgent': return diffDays >= 0 && diffDays <= 3;
-          case 'soon': return diffDays > 3 && diffDays <= 7;
-          case 'open': return diffDays > 7;
-          case 'no_deadline': return false;
-          default: return true;
-        }
-      });
+    if (filters.duration.length > 0) {
+      filtered = filtered.filter(
+        (opp) => opp.criteria?.duration && filters.duration.includes(opp.criteria.duration)
+      );
     }
 
-    // Source filter (internal vs external: scraped + AI-extracted)
-    if (filters.source !== 'all') {
-      filtered = filtered.filter(opp => {
+    if (filters.format.length > 0) {
+      filtered = filtered.filter(
+        (opp) => opp.criteria?.format && filters.format.includes(opp.criteria.format)
+      );
+    }
+
+    if (filters.deadlineStatus.length > 0) {
+      filtered = filtered.filter((opp) =>
+        filters.deadlineStatus.some((status) => matchesDeadlineStatus(opp, status))
+      );
+    }
+
+    if (filters.source.length === 1) {
+      filtered = filtered.filter((opp) => {
         const isExternal =
           opp.isScraped ||
           opp.isExtracted ||
           opp.isAdminPosted ||
           opp.id.startsWith('scraped_') ||
           opp.id.startsWith('extracted_');
-        return filters.source === 'external' ? isExternal : !isExternal;
+        return filters.source[0] === 'external' ? isExternal : !isExternal;
       });
     }
 
@@ -310,9 +448,11 @@ function OpportunitiesPageContent() {
       const query = searchQuery.toLowerCase();
       filtered = filtered.filter(opp => 
         opp.title?.toLowerCase().includes(query) ||
+        canonicalOrganizationName(opp, organizationCanonicalMap)?.toLowerCase().includes(query) ||
         opp.organization?.toLowerCase().includes(query) ||
         opp.description?.toLowerCase().includes(query) ||
-        opp.location?.toLowerCase().includes(query)
+        opp.location?.toLowerCase().includes(query) ||
+        displayOpportunityCountry(opp.location)?.toLowerCase().includes(query)
       );
     }
 
@@ -351,9 +491,23 @@ function OpportunitiesPageContent() {
     setShowAdvancedFilters(false);
   };
 
-  // Update a single filter
-  const updateFilter = (key: keyof Filters, value: string) => {
-    setFilters(prev => ({ ...prev, [key]: value }));
+  const updateFilter = (key: MultiSelectFilterKey, values: string[]) => {
+    setFilters((prev) => ({ ...prev, [key]: values }));
+  };
+
+  const updatePostedRange = (range: PostedDateRange) => {
+    setFilters((prev) => ({ ...prev, postedRange: range }));
+  };
+
+  const removeFilterValue = (key: MultiSelectFilterKey, value: string) => {
+    setFilters((prev) => ({
+      ...prev,
+      [key]: prev[key].filter((item) => item !== value),
+    }));
+  };
+
+  const clearPostedRange = () => {
+    setFilters((prev) => ({ ...prev, postedRange: initialPostedDateRange }));
   };
 
   const handleSearch = async (e: React.FormEvent) => {
@@ -397,62 +551,12 @@ function OpportunitiesPageContent() {
     }
   };
 
-  const getCriteriaLabel = (field: string) => {
-    switch (field) {
-      case 'contractType': return 'Contract';
-      case 'level': return 'Level';
-      case 'sector': return 'Sector';
-      case 'location': return 'Location';
-      case 'fundingType': return 'Type';
-      case 'eligibility': return 'Eligibility';
-      case 'amountRange': return 'Amount';
-      case 'purpose': return 'Purpose';
-      case 'format': return 'Format';
-      case 'duration': return 'Duration';
-      case 'certification': return 'Certification';
-      case 'cost': return 'Cost';
-      case 'deadline': return 'Deadline';
-      default: return field;
-    }
-  };
-
-  const getCriteriaEntries = (opportunity: Opportunity) => {
-    const entries: { key: string; label: string; value: string }[] = [];
-    const seen = new Set<string>();
-
-    const addEntry = (label: string, value: any) => {
-      if (!value && value !== 0) return;
-      const stringValue = typeof value === 'string' ? value : JSON.stringify(value);
-      const key = `${label}:${stringValue}`.toLowerCase();
-      if (seen.has(key)) return;
-      seen.add(key);
-      entries.push({ key, label, value: stringValue });
-    };
-
-    if (opportunity.criteria) {
-      Object.entries(opportunity.criteria).forEach(([field, value]) => {
-        if (!value || field === 'customFilters') return;
-        addEntry(getCriteriaLabel(field), value);
-      });
-
-      if (opportunity.criteria.customFilters && typeof opportunity.criteria.customFilters === 'object') {
-        Object.entries(opportunity.criteria.customFilters).forEach(([name, val]) => addEntry(name, val));
-      }
-    }
-
-    // Ensure deadline is present once
-    if (opportunity.deadline) {
-      addEntry('Deadline', opportunity.deadline);
-    }
-
-    return entries;
-  };
-
   const OpportunityCard = ({ opportunity }: { opportunity: Opportunity }) => {
     const isSaved = savedOpportunities.has(opportunity.id);
     const categoryIcon = getCategoryIcon(opportunity.category);
     const categoryColor = getCategoryColor(opportunity.category);
-    const criteriaEntries = getCriteriaEntries(opportunity);
+    const country = displayOpportunityCountry(opportunity.location);
+    const organization = canonicalOrganizationName(opportunity, organizationCanonicalMap);
 
     return (
       <div 
@@ -466,7 +570,7 @@ function OpportunitiesPageContent() {
             {opportunity.organizationProfile?.profileImage ? (
               <img 
                 src={opportunity.organizationProfile.profileImage} 
-                alt={opportunity.organization}
+                alt={organization ?? opportunity.organization}
                 className="w-12 h-12 rounded-full object-cover border-2 border-olive-200"
               />
             ) : (
@@ -479,7 +583,7 @@ function OpportunitiesPageContent() {
               <h3 className="text-lg font-semibold text-olive-800 mb-1 line-clamp-2">
                 {opportunity.title}
               </h3>
-              <p className="text-sm text-olive-600">{opportunity.organization}</p>
+              <p className="text-sm text-olive-600">{organization ?? opportunity.organization}</p>
             </div>
           </div>
           
@@ -509,10 +613,10 @@ function OpportunitiesPageContent() {
 
         {/* Details */}
         <div className="space-y-2 mb-4">
-          {opportunity.location && (
+          {country && (
             <div className="flex items-center gap-2 text-sm text-olive-600">
               <MapPinIcon className="w-4 h-4" />
-              <span>{opportunity.location}</span>
+              <span>{country}</span>
             </div>
           )}
           
@@ -523,34 +627,20 @@ function OpportunitiesPageContent() {
             </div>
           )}
 
-          {opportunity.mainInformation && (
-            <div className="flex items-center gap-2 text-sm text-olive-600">
-              <DocumentTextIcon className="w-4 h-4" />
-              <span className="line-clamp-1">{opportunity.mainInformation}</span>
-            </div>
-          )}
-
           {opportunity.type && opportunity.type !== 'Job Opportunity' && opportunity.type !== 'Funding Opportunity' && opportunity.type !== 'Training Program' && (
             <div className="flex items-center gap-2 text-sm text-olive-600">
               <ClockIcon className="w-4 h-4" />
               <span>{opportunity.type}</span>
             </div>
           )}
-        </div>
 
-        {/* Criteria Display */}
-        {criteriaEntries.length > 0 && (
-          <div className="mb-4">
-            <div className="flex flex-wrap gap-1.5">
-              {criteriaEntries.map((item) => (
-                <span key={item.key} className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-olive-50 text-olive-700 border border-olive-200">
-                  <span className="mr-1">{item.label}:</span>
-                  <span>{item.value}</span>
-                </span>
-              ))}
+          {opportunity.deadline && (
+            <div className="flex items-center gap-2 text-sm text-olive-600">
+              <CalendarDaysIcon className="w-4 h-4" />
+              <span>{opportunity.deadline}</span>
             </div>
-          </div>
-        )}
+          )}
+        </div>
 
         {/* Description */}
         <p className="text-olive-700 text-sm line-clamp-3 mb-4">
@@ -586,7 +676,8 @@ function OpportunitiesPageContent() {
     const isSaved = savedOpportunities.has(opportunity.id);
     const categoryIcon = getCategoryIcon(opportunity.category);
     const categoryColor = getCategoryColor(opportunity.category);
-    const criteriaEntries = getCriteriaEntries(opportunity);
+    const country = displayOpportunityCountry(opportunity.location);
+    const organization = canonicalOrganizationName(opportunity, organizationCanonicalMap);
 
     return (
       <div 
@@ -601,7 +692,7 @@ function OpportunitiesPageContent() {
               {opportunity.organizationProfile?.profileImage ? (
                 <img 
                   src={opportunity.organizationProfile.profileImage} 
-                  alt={opportunity.organization}
+                  alt={organization ?? opportunity.organization}
                   className="w-12 h-12 rounded-full object-cover border-2 border-olive-200"
                 />
               ) : (
@@ -628,13 +719,13 @@ function OpportunitiesPageContent() {
               <div className="flex items-center gap-4 text-sm text-olive-600 mb-2">
                 <div className="flex items-center gap-1">
                   <BuildingOfficeIcon className="w-4 h-4" />
-                  <span className="truncate">{opportunity.organization}</span>
+                  <span className="truncate">{organization ?? opportunity.organization}</span>
                 </div>
                 
-                {opportunity.location && (
+                {country && (
                   <div className="flex items-center gap-1">
                     <MapPinIcon className="w-4 h-4" />
-                    <span className="truncate">{opportunity.location}</span>
+                    <span className="truncate">{country}</span>
                   </div>
                 )}
 
@@ -645,17 +736,17 @@ function OpportunitiesPageContent() {
                   </div>
                 )}
 
-                {opportunity.mainInformation && (
-                  <div className="flex items-center gap-1">
-                    <DocumentTextIcon className="w-4 h-4" />
-                    <span className="truncate">{opportunity.mainInformation}</span>
-                  </div>
-                )}
-
                 {opportunity.type && opportunity.type !== 'Job Opportunity' && opportunity.type !== 'Funding Opportunity' && opportunity.type !== 'Training Program' && (
                   <div className="flex items-center gap-1">
                     <ClockIcon className="w-4 h-4" />
                     <span className="truncate">{opportunity.type}</span>
+                  </div>
+                )}
+
+                {opportunity.deadline && (
+                  <div className="flex items-center gap-1">
+                    <CalendarDaysIcon className="w-4 h-4" />
+                    <span className="truncate">{opportunity.deadline}</span>
                   </div>
                 )}
               </div>
@@ -663,26 +754,6 @@ function OpportunitiesPageContent() {
               <p className="text-olive-700 text-sm line-clamp-2">
                 {truncateText(opportunity.description || '')}
               </p>
-
-              {/* Criteria Display */}
-               {criteriaEntries.length > 0 && (
-                <div className="mt-2">
-                  <div className="flex flex-wrap gap-1">
-                     {criteriaEntries.slice(0, 3).map((item) => (
-                       <span key={item.key} className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-olive-50 text-olive-700 border border-olive-200">
-                         <span className="mr-1">{item.label}:</span>
-                         <span>{item.value}</span>
-                       </span>
-                     ))}
-
-                     {criteriaEntries.length > 3 && (
-                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-olive-50 text-olive-600 border border-olive-200">
-                         +{criteriaEntries.length - 3} more
-                      </span>
-                    )}
-                  </div>
-                </div>
-              )}
             </div>
           </div>
 
@@ -947,82 +1018,49 @@ function OpportunitiesPageContent() {
                 )}
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                {/* Category Filter */}
-                <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-olive-600 uppercase tracking-wide">Category</label>
-                  <div className="relative">
-                    <BriefcaseIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-olive-400" />
-                    <select
-                      value={filters.category}
-                      onChange={(e) => updateFilter('category', e.target.value)}
-                      className="w-full pl-9 pr-8 py-2.5 border border-olive-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-olive-500 appearance-none bg-white text-olive-700 text-sm"
-                    >
-                      <option value="all">All Categories</option>
-                      <option value="job">Jobs</option>
-                      <option value="funding">Funding</option>
-                      <option value="training">Training</option>
-                    </select>
-                    <ChevronDownIcon className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-olive-400 pointer-events-none" />
-                  </div>
-                </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
+                <MultiSelectFilter
+                  label="Category"
+                  icon={BriefcaseIcon}
+                  placeholder="All Categories"
+                  options={CATEGORY_OPTIONS}
+                  selected={filters.category}
+                  onChange={(values) => updateFilter('category', values)}
+                />
 
-                {/* Location Filter */}
-                <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-olive-600 uppercase tracking-wide">Location</label>
-                  <div className="relative">
-                    <MapPinIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-olive-400" />
-                    <select
-                      value={filters.location}
-                      onChange={(e) => updateFilter('location', e.target.value)}
-                      className="w-full pl-9 pr-8 py-2.5 border border-olive-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-olive-500 appearance-none bg-white text-olive-700 text-sm"
-                    >
-                      <option value="all">All Locations</option>
-                      {filterOptions.locations.map(loc => (
-                        <option key={loc} value={loc}>{loc}</option>
-                      ))}
-                    </select>
-                    <ChevronDownIcon className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-olive-400 pointer-events-none" />
-                  </div>
-                </div>
+                <MultiSelectFilter
+                  label="Location"
+                  icon={MapPinIcon}
+                  placeholder="All Locations"
+                  options={locationOptions}
+                  selected={filters.location}
+                  onChange={(values) => updateFilter('location', values)}
+                />
 
-                {/* Posted Date Filter */}
-                <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-olive-600 uppercase tracking-wide">Posted</label>
-                  <div className="relative">
-                    <CalendarDaysIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-olive-400" />
-                    <select
-                      value={filters.postedDate}
-                      onChange={(e) => updateFilter('postedDate', e.target.value)}
-                      className="w-full pl-9 pr-8 py-2.5 border border-olive-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-olive-500 appearance-none bg-white text-olive-700 text-sm"
-                    >
-                      <option value="all">Any Time</option>
-                      <option value="today">Last 24 Hours</option>
-                      <option value="week">Last Week</option>
-                      <option value="month">Last Month</option>
-                      <option value="quarter">Last 3 Months</option>
-                    </select>
-                    <ChevronDownIcon className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-olive-400 pointer-events-none" />
-                  </div>
-                </div>
+                <MultiSelectFilter
+                  label="Organization"
+                  icon={BuildingOfficeIcon}
+                  placeholder="All Organizations"
+                  options={organizationOptions}
+                  selected={filters.organization}
+                  onChange={(values) => updateFilter('organization', values)}
+                  searchable
+                  searchPlaceholder="Search organizations..."
+                />
 
-                {/* Source Filter */}
-                <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-olive-600 uppercase tracking-wide">Source</label>
-                  <div className="relative">
-                    <GlobeAltIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-olive-400" />
-                    <select
-                      value={filters.source}
-                      onChange={(e) => updateFilter('source', e.target.value)}
-                      className="w-full pl-9 pr-8 py-2.5 border border-olive-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-olive-500 appearance-none bg-white text-olive-700 text-sm"
-                    >
-                      <option value="all">All Sources</option>
-                      <option value="internal">Zaytoonz Partners</option>
-                      <option value="external">External Sources</option>
-                    </select>
-                    <ChevronDownIcon className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-olive-400 pointer-events-none" />
-                  </div>
-                </div>
+                <PostedDateRangeFilter
+                  value={filters.postedRange}
+                  onChange={updatePostedRange}
+                />
+
+                <MultiSelectFilter
+                  label="Source"
+                  icon={GlobeAltIcon}
+                  placeholder="All Sources"
+                  options={SOURCE_OPTIONS}
+                  selected={filters.source}
+                  onChange={(values) => updateFilter('source', values)}
+                />
               </div>
             </div>
 
@@ -1056,222 +1094,77 @@ function OpportunitiesPageContent() {
                   </div>
                   
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                    {/* Contract Type Filter */}
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-medium text-olive-600 uppercase tracking-wide">Contract Type</label>
-                      <select
-                        value={filters.contractType}
-                        onChange={(e) => updateFilter('contractType', e.target.value)}
-                        className="w-full px-3 py-2.5 border border-olive-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-olive-500 appearance-none bg-white text-olive-700 text-sm"
-                      >
-                        <option value="all">All Types</option>
-                        {filterOptions.contractTypes.length > 0 ? (
-                          filterOptions.contractTypes.map(type => (
-                            <option key={type} value={type}>{type}</option>
-                          ))
-                        ) : (
-                          <>
-                            <option value="Full-time">Full-time</option>
-                            <option value="Part-time">Part-time</option>
-                            <option value="Contract">Contract</option>
-                            <option value="Freelance">Freelance</option>
-                            <option value="Internship">Internship</option>
-                          </>
-                        )}
-                      </select>
-                    </div>
+                    <MultiSelectFilter
+                      label="Contract Type"
+                      placeholder="All Types"
+                      options={optionsFromValues(filterOptions.contractTypes, DEFAULT_CONTRACT_TYPES)}
+                      selected={filters.contractType}
+                      onChange={(values) => updateFilter('contractType', values)}
+                    />
 
-                    {/* Experience Level Filter */}
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-medium text-olive-600 uppercase tracking-wide">Experience Level</label>
-                      <select
-                        value={filters.level}
-                        onChange={(e) => updateFilter('level', e.target.value)}
-                        className="w-full px-3 py-2.5 border border-olive-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-olive-500 appearance-none bg-white text-olive-700 text-sm"
-                      >
-                        <option value="all">All Levels</option>
-                        {filterOptions.levels.length > 0 ? (
-                          filterOptions.levels.map(level => (
-                            <option key={level} value={level}>{level}</option>
-                          ))
-                        ) : (
-                          <>
-                            <option value="Entry">Entry Level</option>
-                            <option value="Mid">Mid Level</option>
-                            <option value="Senior">Senior Level</option>
-                            <option value="Lead">Lead / Manager</option>
-                            <option value="Executive">Executive</option>
-                          </>
-                        )}
-                      </select>
-                    </div>
+                    <MultiSelectFilter
+                      label="Experience Level"
+                      placeholder="All Levels"
+                      options={optionsFromValues(filterOptions.levels, DEFAULT_LEVELS)}
+                      selected={filters.level}
+                      onChange={(values) => updateFilter('level', values)}
+                    />
 
-                    {/* Sector Filter */}
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-medium text-olive-600 uppercase tracking-wide">Sector</label>
-                      <select
-                        value={filters.sector}
-                        onChange={(e) => updateFilter('sector', e.target.value)}
-                        className="w-full px-3 py-2.5 border border-olive-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-olive-500 appearance-none bg-white text-olive-700 text-sm"
-                      >
-                        <option value="all">All Sectors</option>
-                        {filterOptions.sectors.length > 0 ? (
-                          filterOptions.sectors.map(sector => (
-                            <option key={sector} value={sector}>{sector}</option>
-                          ))
-                        ) : (
-                          <>
-                            <option value="Technology">Technology</option>
-                            <option value="Healthcare">Healthcare</option>
-                            <option value="Education">Education</option>
-                            <option value="Finance">Finance</option>
-                            <option value="Non-profit">Non-profit</option>
-                            <option value="Government">Government</option>
-                          </>
-                        )}
-                      </select>
-                    </div>
+                    <MultiSelectFilter
+                      label="Sector"
+                      placeholder="All Sectors"
+                      options={optionsFromValues(filterOptions.sectors, DEFAULT_SECTORS)}
+                      selected={filters.sector}
+                      onChange={(values) => updateFilter('sector', values)}
+                    />
 
-                    {/* Funding Type Filter (for funding category) */}
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-medium text-olive-600 uppercase tracking-wide">Funding Type</label>
-                      <select
-                        value={filters.fundingType}
-                        onChange={(e) => updateFilter('fundingType', e.target.value)}
-                        className="w-full px-3 py-2.5 border border-olive-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-olive-500 appearance-none bg-white text-olive-700 text-sm"
-                      >
-                        <option value="all">All Types</option>
-                        {filterOptions.fundingTypes.length > 0 ? (
-                          filterOptions.fundingTypes.map(type => (
-                            <option key={type} value={type}>{type}</option>
-                          ))
-                        ) : (
-                          <>
-                            <option value="Grant">Grant</option>
-                            <option value="Loan">Loan</option>
-                            <option value="Investment">Investment</option>
-                            <option value="Scholarship">Scholarship</option>
-                            <option value="Prize">Prize / Award</option>
-                          </>
-                        )}
-                      </select>
-                    </div>
+                    <MultiSelectFilter
+                      label="Funding Type"
+                      placeholder="All Types"
+                      options={optionsFromValues(filterOptions.fundingTypes, DEFAULT_FUNDING_TYPES)}
+                      selected={filters.fundingType}
+                      onChange={(values) => updateFilter('fundingType', values)}
+                    />
 
-                    {/* Eligibility Filter */}
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-medium text-olive-600 uppercase tracking-wide">Eligibility</label>
-                      <select
-                        value={filters.eligibility}
-                        onChange={(e) => updateFilter('eligibility', e.target.value)}
-                        className="w-full px-3 py-2.5 border border-olive-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-olive-500 appearance-none bg-white text-olive-700 text-sm"
-                      >
-                        <option value="all">All Eligibilities</option>
-                        {filterOptions.eligibilities.length > 0 ? (
-                          filterOptions.eligibilities.map(elig => (
-                            <option key={elig} value={elig}>{elig}</option>
-                          ))
-                        ) : (
-                          <>
-                            <option value="Individuals">Individuals</option>
-                            <option value="Startups">Startups</option>
-                            <option value="SMEs">SMEs</option>
-                            <option value="NGOs">NGOs</option>
-                            <option value="Researchers">Researchers</option>
-                          </>
-                        )}
-                      </select>
-                    </div>
+                    <MultiSelectFilter
+                      label="Eligibility"
+                      placeholder="All Eligibilities"
+                      options={optionsFromValues(filterOptions.eligibilities, DEFAULT_ELIGIBILITIES)}
+                      selected={filters.eligibility}
+                      onChange={(values) => updateFilter('eligibility', values)}
+                    />
 
-                    {/* Amount Range Filter */}
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-medium text-olive-600 uppercase tracking-wide">Amount Range</label>
-                      <select
-                        value={filters.amountRange}
-                        onChange={(e) => updateFilter('amountRange', e.target.value)}
-                        className="w-full px-3 py-2.5 border border-olive-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-olive-500 appearance-none bg-white text-olive-700 text-sm"
-                      >
-                        <option value="all">Any Amount</option>
-                        {filterOptions.amountRanges.length > 0 ? (
-                          filterOptions.amountRanges.map(range => (
-                            <option key={range} value={range}>{range}</option>
-                          ))
-                        ) : (
-                          <>
-                            <option value="< $1,000">Under $1,000</option>
-                            <option value="$1,000 - $10,000">$1,000 - $10,000</option>
-                            <option value="$10,000 - $50,000">$10,000 - $50,000</option>
-                            <option value="$50,000 - $100,000">$50,000 - $100,000</option>
-                            <option value="> $100,000">Over $100,000</option>
-                          </>
-                        )}
-                      </select>
-                    </div>
+                    <MultiSelectFilter
+                      label="Amount Range"
+                      placeholder="Any Amount"
+                      options={optionsFromValues(filterOptions.amountRanges, DEFAULT_AMOUNT_RANGES)}
+                      selected={filters.amountRange}
+                      onChange={(values) => updateFilter('amountRange', values)}
+                    />
 
-                    {/* Duration Filter */}
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-medium text-olive-600 uppercase tracking-wide">Duration</label>
-                      <select
-                        value={filters.duration}
-                        onChange={(e) => updateFilter('duration', e.target.value)}
-                        className="w-full px-3 py-2.5 border border-olive-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-olive-500 appearance-none bg-white text-olive-700 text-sm"
-                      >
-                        <option value="all">Any Duration</option>
-                        {filterOptions.durations.length > 0 ? (
-                          filterOptions.durations.map(dur => (
-                            <option key={dur} value={dur}>{dur}</option>
-                          ))
-                        ) : (
-                          <>
-                            <option value="< 1 week">Less than 1 week</option>
-                            <option value="1-4 weeks">1-4 weeks</option>
-                            <option value="1-3 months">1-3 months</option>
-                            <option value="3-6 months">3-6 months</option>
-                            <option value="> 6 months">More than 6 months</option>
-                          </>
-                        )}
-                      </select>
-                    </div>
+                    <MultiSelectFilter
+                      label="Duration"
+                      placeholder="Any Duration"
+                      options={optionsFromValues(filterOptions.durations, DEFAULT_DURATIONS)}
+                      selected={filters.duration}
+                      onChange={(values) => updateFilter('duration', values)}
+                    />
 
-                    {/* Format Filter (for training) */}
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-medium text-olive-600 uppercase tracking-wide">Format</label>
-                      <select
-                        value={filters.format}
-                        onChange={(e) => updateFilter('format', e.target.value)}
-                        className="w-full px-3 py-2.5 border border-olive-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-olive-500 appearance-none bg-white text-olive-700 text-sm"
-                      >
-                        <option value="all">All Formats</option>
-                        {filterOptions.formats.length > 0 ? (
-                          filterOptions.formats.map(fmt => (
-                            <option key={fmt} value={fmt}>{fmt}</option>
-                          ))
-                        ) : (
-                          <>
-                            <option value="Online">Online</option>
-                            <option value="In-person">In-person</option>
-                            <option value="Hybrid">Hybrid</option>
-                            <option value="Self-paced">Self-paced</option>
-                          </>
-                        )}
-                      </select>
-                    </div>
+                    <MultiSelectFilter
+                      label="Format"
+                      placeholder="All Formats"
+                      options={optionsFromValues(filterOptions.formats, DEFAULT_FORMATS)}
+                      selected={filters.format}
+                      onChange={(values) => updateFilter('format', values)}
+                    />
 
-                    {/* Deadline Status Filter */}
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-medium text-olive-600 uppercase tracking-wide">Deadline Status</label>
-                      <select
-                        value={filters.deadlineStatus}
-                        onChange={(e) => updateFilter('deadlineStatus', e.target.value)}
-                        className="w-full px-3 py-2.5 border border-olive-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-olive-500 appearance-none bg-white text-olive-700 text-sm"
-                      >
-                        <option value="all">Any Deadline</option>
-                        <option value="urgent">Urgent (≤ 3 days)</option>
-                        <option value="soon">Closing Soon (4-7 days)</option>
-                        <option value="open">Open (7+ days)</option>
-                        <option value="no_deadline">No Deadline</option>
-                        <option value="expired">Expired</option>
-                      </select>
-                    </div>
+                    <MultiSelectFilter
+                      label="Deadline Status"
+                      placeholder="Any Deadline"
+                      options={DEADLINE_STATUS_OPTIONS}
+                      selected={filters.deadlineStatus}
+                      onChange={(values) => updateFilter('deadlineStatus', values)}
+                    />
                   </div>
 
                   {/* Quick Reset for Advanced */}
@@ -1279,17 +1172,17 @@ function OpportunitiesPageContent() {
                     <button
                       type="button"
                       onClick={() => {
-                        setFilters(prev => ({
+                        setFilters((prev) => ({
                           ...prev,
-                          contractType: 'all',
-                          level: 'all',
-                          sector: 'all',
-                          fundingType: 'all',
-                          eligibility: 'all',
-                          amountRange: 'all',
-                          duration: 'all',
-                          format: 'all',
-                          deadlineStatus: 'all',
+                          contractType: [],
+                          level: [],
+                          sector: [],
+                          fundingType: [],
+                          eligibility: [],
+                          amountRange: [],
+                          duration: [],
+                          format: [],
+                          deadlineStatus: [],
                         }));
                       }}
                       className="text-sm text-olive-600 hover:text-olive-800 font-medium"
@@ -1311,39 +1204,65 @@ function OpportunitiesPageContent() {
             </h3>
             <div className="flex flex-wrap items-center gap-2 mt-2">
               <p className="text-olive-600">
-                {filters.category === 'all' ? 'All categories' : `${filters.category.charAt(0).toUpperCase() + filters.category.slice(1)}s`}
+                {filters.category.length === 0
+                  ? 'All categories'
+                  : filters.category.map((c) => `${c.charAt(0).toUpperCase()}${c.slice(1)}s`).join(', ')}
               </p>
-              
-              {/* Active Filter Tags */}
-              {filters.location !== 'all' && (
-                <span className="inline-flex items-center gap-1 px-2 py-1 bg-olive-100 text-olive-700 text-xs rounded-full">
-                  <MapPinIcon className="w-3 h-3" />
-                  {filters.location}
-                  <button onClick={() => updateFilter('location', 'all')} className="ml-1 hover:text-olive-900">
+
+              {filters.category.map((value) => (
+                <span key={`category-${value}`} className="inline-flex items-center gap-1 px-2 py-1 bg-olive-100 text-olive-700 text-xs rounded-full">
+                  <BriefcaseIcon className="w-3 h-3" />
+                  {CATEGORY_OPTIONS.find((o) => o.value === value)?.label ?? value}
+                  <button type="button" onClick={() => removeFilterValue('category', value)} className="ml-1 hover:text-olive-900">
                     <XMarkIcon className="w-3 h-3" />
                   </button>
                 </span>
-              )}
-              {filters.postedDate !== 'all' && (
+              ))}
+
+              {filters.location.map((value) => (
+                <span key={`location-${value}`} className="inline-flex items-center gap-1 px-2 py-1 bg-olive-100 text-olive-700 text-xs rounded-full">
+                  <MapPinIcon className="w-3 h-3" />
+                  {value}
+                  <button type="button" onClick={() => removeFilterValue('location', value)} className="ml-1 hover:text-olive-900">
+                    <XMarkIcon className="w-3 h-3" />
+                  </button>
+                </span>
+              ))}
+
+              {filters.organization.map((value) => (
+                <span key={`organization-${value}`} className="inline-flex items-center gap-1 px-2 py-1 bg-olive-100 text-olive-700 text-xs rounded-full">
+                  <BuildingOfficeIcon className="w-3 h-3" />
+                  {value}
+                  <button type="button" onClick={() => removeFilterValue('organization', value)} className="ml-1 hover:text-olive-900">
+                    <XMarkIcon className="w-3 h-3" />
+                  </button>
+                </span>
+              ))}
+
+              {filters.postedRange.from && (
                 <span className="inline-flex items-center gap-1 px-2 py-1 bg-olive-100 text-olive-700 text-xs rounded-full">
                   <CalendarDaysIcon className="w-3 h-3" />
-                  {filters.postedDate === 'today' ? 'Last 24h' : 
-                   filters.postedDate === 'week' ? 'Last week' : 
-                   filters.postedDate === 'month' ? 'Last month' : 'Last 3 months'}
-                  <button onClick={() => updateFilter('postedDate', 'all')} className="ml-1 hover:text-olive-900">
+                  {filters.postedRange.tillToday
+                    ? `Since ${new Date(`${filters.postedRange.from}T00:00:00`).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })} – Today`
+                    : filters.postedRange.to
+                      ? `${new Date(`${filters.postedRange.from}T00:00:00`).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })} – ${new Date(`${filters.postedRange.to}T00:00:00`).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}`
+                      : `Since ${new Date(`${filters.postedRange.from}T00:00:00`).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}`}
+                  <button type="button" onClick={clearPostedRange} className="ml-1 hover:text-olive-900">
                     <XMarkIcon className="w-3 h-3" />
                   </button>
                 </span>
               )}
-              {filters.source !== 'all' && (
-                <span className="inline-flex items-center gap-1 px-2 py-1 bg-olive-100 text-olive-700 text-xs rounded-full">
+
+              {filters.source.map((value) => (
+                <span key={`source-${value}`} className="inline-flex items-center gap-1 px-2 py-1 bg-olive-100 text-olive-700 text-xs rounded-full">
                   <GlobeAltIcon className="w-3 h-3" />
-                  {filters.source === 'internal' ? 'Zaytoonz Partners' : 'External'}
-                  <button onClick={() => updateFilter('source', 'all')} className="ml-1 hover:text-olive-900">
+                  {SOURCE_OPTIONS.find((o) => o.value === value)?.label ?? value}
+                  <button type="button" onClick={() => removeFilterValue('source', value)} className="ml-1 hover:text-olive-900">
                     <XMarkIcon className="w-3 h-3" />
                   </button>
                 </span>
-              )}
+              ))}
+
               {searchQuery && (
                 <span className="inline-flex items-center gap-1 px-2 py-1 bg-olive-100 text-olive-700 text-xs rounded-full">
                   <MagnifyingGlassIcon className="w-3 h-3" />
@@ -1427,9 +1346,9 @@ function OpportunitiesPageContent() {
             <p className="text-lg text-olive-600 mb-6 max-w-md mx-auto">
               {activeFilterCount > 0
                 ? 'No opportunities match your current filters. Try adjusting your search criteria.'
-                : filters.category === 'all' 
+                : filters.category.length === 0
                   ? 'No opportunities are currently available'
-                  : `No ${filters.category} opportunities are currently available`
+                  : `No ${filters.category.join(', ')} opportunities are currently available`
               }
             </p>
             {activeFilterCount > 0 && (

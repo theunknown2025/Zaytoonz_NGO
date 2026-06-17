@@ -137,6 +137,8 @@ export async function GET(request: NextRequest) {
         submitted_at,
         updated_at,
         notes,
+        current_step_index,
+        process_status,
         forms_templates(
           id,
           title,
