@@ -1,5 +1,5 @@
-import type { FlowStepIconKey } from '@/app/lib/flowStepIcons';
-import { DEFAULT_FLOW_STEP_ICON } from '@/app/lib/flowStepIcons';
+import type { FlowStepIconKey } from '@/app/lib/flowStepIconKeys';
+import { DEFAULT_FLOW_STEP_ICON } from '@/app/lib/flowStepIconKeys';
 
 export interface OpportunityFaqItem {
   id: string;

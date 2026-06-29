@@ -15,14 +15,17 @@ import OpportunityTrainingProgramSection, {
 } from './OpportunityTrainingProgramSection';
 import OpportunityFaqSection, { type OpportunityFaqHandle } from './OpportunityFaqSection';
 import OpportunityDocumentsSection from './OpportunityDocumentsSection';
+import OpportunityActionButtonsSection from './OpportunityActionButtonsSection';
 import type { OpportunityFlowStep } from '@/app/lib/opportunityFlow';
 import type { OpportunityDocument } from '@/app/lib/opportunityDocuments';
 import { parseOpportunityDocuments } from '@/app/lib/opportunityDocuments';
 import type { TrainingDay } from '@/app/lib/opportunityTrainingProgram';
 import type { OpportunityFaqItem } from '@/app/lib/opportunityFaq';
+import type { OpportunityActionButton } from '@/app/lib/opportunityActionButtons';
 import { saveOpportunityFlowSteps } from '../services/opportunityFlowService';
 import { saveTrainingProgram } from '../services/opportunityTrainingProgramService';
 import { saveOpportunityFaqItems } from '../services/opportunityFaqService';
+import { saveOpportunityActionButtons } from '../services/opportunityActionButtonsService';
 
 const COUNTRIES = [
   'Afghanistan', 'Albania', 'Algeria', 'Andorra', 'Angola', 'Antigua and Barbuda', 'Argentina', 'Armenia',
@@ -117,6 +120,10 @@ interface OpportunityDescriptionProps {
   onIncludeFaqChange?: (enabled: boolean) => void;
   faqItems?: OpportunityFaqItem[];
   onFaqItemsReplace?: (items: OpportunityFaqItem[]) => void;
+  actionButtons?: OpportunityActionButton[];
+  onActionButtonsChange?: (buttons: OpportunityActionButton[]) => void;
+  includeActionButtons?: boolean;
+  onIncludeActionButtonsChange?: (enabled: boolean) => void;
 }
 
 interface TemplateFields {
@@ -172,6 +179,10 @@ export default function OpportunityDescription({
   onIncludeFaqChange,
   faqItems = [],
   onFaqItemsReplace,
+  actionButtons = [],
+  onActionButtonsChange,
+  includeActionButtons = false,
+  onIncludeActionButtonsChange,
 }: OpportunityDescriptionProps) {
   const processRef = useRef<OpportunityProcessHandle>(null);
   const trainingProgramRef = useRef<OpportunityTrainingProgramHandle>(null);
@@ -688,6 +699,20 @@ export default function OpportunityDescription({
       }
     }
 
+    if (opportunityId && onActionButtonsChange) {
+      try {
+        const savedButtons = await saveOpportunityActionButtons(
+          opportunityId,
+          includeActionButtons ? actionButtons : []
+        );
+        onActionButtonsChange(savedButtons);
+      } catch (error) {
+        console.error('Error saving action buttons:', error);
+        toast.error('Failed to save action buttons');
+        return;
+      }
+    }
+
     onNext();
   };
 
@@ -770,6 +795,20 @@ export default function OpportunityDescription({
       };
 
       console.log("Saving data:", progressData);
+
+      if (opportunityId && onActionButtonsChange) {
+        try {
+          const savedButtons = await saveOpportunityActionButtons(
+            opportunityId,
+            includeActionButtons ? actionButtons : []
+          );
+          onActionButtonsChange(savedButtons);
+        } catch (error) {
+          console.error('Error saving action buttons:', error);
+          toast.error('Failed to save action buttons');
+          return;
+        }
+      }
 
       // Save to database
       const result = await saveOpportunityProgress(progressData);
@@ -1802,6 +1841,16 @@ export default function OpportunityDescription({
             opportunityId={opportunityId}
             includeDocuments={includeDocuments}
             onIncludeDocumentsChange={onIncludeDocumentsChange}
+          />
+        )}
+
+        {onActionButtonsChange && (
+          <OpportunityActionButtonsSection
+            actionButtons={actionButtons}
+            onActionButtonsChange={onActionButtonsChange}
+            opportunityId={opportunityId}
+            includeActionButtons={includeActionButtons}
+            onIncludeActionButtonsChange={onIncludeActionButtonsChange}
           />
         )}
 

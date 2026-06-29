@@ -26,6 +26,8 @@ import type { TrainingDay } from '@/app/lib/opportunityTrainingProgram';
 import { getTrainingProgram } from './services/opportunityTrainingProgramService';
 import type { OpportunityFaqItem } from '@/app/lib/opportunityFaq';
 import { getOpportunityFaqItems } from './services/opportunityFaqService';
+import type { OpportunityActionButton } from '@/app/lib/opportunityActionButtons';
+import { getOpportunityActionButtons } from './services/opportunityActionButtonsService';
 
 interface OpportunityFormData {
   title: string;
@@ -116,6 +118,8 @@ export default function OpportunitiesManagementPage() {
   const [includeTrainingProgram, setIncludeTrainingProgram] = useState(false);
   const [faqItems, setFaqItems] = useState<OpportunityFaqItem[]>([]);
   const [includeFaq, setIncludeFaq] = useState(false);
+  const [actionButtons, setActionButtons] = useState<OpportunityActionButton[]>([]);
+  const [includeActionButtons, setIncludeActionButtons] = useState(false);
 
   useEffect(() => {
     const tab = searchParams.get('tab');
@@ -275,6 +279,16 @@ export default function OpportunitiesManagementPage() {
         console.error('Error loading FAQ:', error);
       }
 
+      try {
+        const buttons = await getOpportunityActionButtons(opportunityId);
+        if (buttons.length > 0) {
+          setActionButtons(buttons);
+          setIncludeActionButtons(true);
+        }
+      } catch (error) {
+        console.error('Error loading action buttons:', error);
+      }
+
       // Load evaluation choice from localStorage
       try {
         const storageKey = `opportunity_evaluation_${opportunityId}`;
@@ -405,6 +419,13 @@ export default function OpportunitiesManagementPage() {
     setIncludeDocuments(enabled);
     if (!enabled) {
       setDocuments([]);
+    }
+  };
+
+  const handleIncludeActionButtonsChange = (enabled: boolean) => {
+    setIncludeActionButtons(enabled);
+    if (!enabled) {
+      setActionButtons([]);
     }
   };
 
@@ -834,6 +855,10 @@ export default function OpportunitiesManagementPage() {
             onIncludeFaqChange={setIncludeFaq}
             faqItems={faqItems}
             onFaqItemsReplace={setFaqItems}
+            actionButtons={actionButtons}
+            onActionButtonsChange={setActionButtons}
+            includeActionButtons={includeActionButtons}
+            onIncludeActionButtonsChange={handleIncludeActionButtonsChange}
           />
         );
       case 3:
@@ -936,6 +961,8 @@ export default function OpportunitiesManagementPage() {
     setIncludeTrainingProgram(false);
     setFaqItems([]);
     setIncludeFaq(false);
+    setActionButtons([]);
+    setIncludeActionButtons(false);
     setOpportunitySaved(false);
     setLoading(false);
     setSavingOpportunity(false);

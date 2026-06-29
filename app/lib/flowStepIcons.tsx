@@ -16,23 +16,19 @@ import {
   AcademicCapIcon,
 } from '@heroicons/react/24/outline';
 import type { ComponentType, SVGProps } from 'react';
+import {
+  DEFAULT_FLOW_STEP_ICON,
+  resolveFlowStepIcon,
+  type FlowStepIconKey,
+} from '@/app/lib/flowStepIconKeys';
 
-export type FlowStepIconKey =
-  | 'flag'
-  | 'calendar'
-  | 'document'
-  | 'clipboard'
-  | 'envelope'
-  | 'users'
-  | 'clock'
-  | 'star'
-  | 'chat'
-  | 'pencil'
-  | 'building'
-  | 'badge'
-  | 'academic';
-
-export const DEFAULT_FLOW_STEP_ICON: FlowStepIconKey = 'flag';
+export type { FlowStepIconKey } from '@/app/lib/flowStepIconKeys';
+export {
+  DEFAULT_FLOW_STEP_ICON,
+  FLOW_STEP_ICON_KEYS,
+  isFlowStepIconKey,
+  resolveFlowStepIcon,
+} from '@/app/lib/flowStepIconKeys';
 
 type IconComponent = ComponentType<SVGProps<SVGSVGElement>>;
 
@@ -59,14 +55,6 @@ export const FLOW_STEP_ICON_OPTIONS: {
 const ICON_MAP = Object.fromEntries(
   FLOW_STEP_ICON_OPTIONS.map(({ key, Icon }) => [key, Icon])
 ) as Record<FlowStepIconKey, IconComponent>;
-
-export function isFlowStepIconKey(value: string | undefined): value is FlowStepIconKey {
-  return Boolean(value && value in ICON_MAP);
-}
-
-export function resolveFlowStepIcon(icon?: string): FlowStepIconKey {
-  return isFlowStepIconKey(icon) ? icon : DEFAULT_FLOW_STEP_ICON;
-}
 
 export function FlowStepIcon({
   icon,

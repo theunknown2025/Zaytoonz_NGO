@@ -26,6 +26,7 @@ import TrainingProgramDisplay from '@/app/components/TrainingProgramDisplay';
 import { hasVisibleTrainingProgram } from '@/app/lib/opportunityTrainingProgram';
 import OpportunityFaqDisplay from '@/app/components/OpportunityFaqDisplay';
 import OpportunityDocumentsList from '@/app/components/OpportunityDocumentsList';
+import OpportunityActionButtonsDisplay from '@/app/components/OpportunityActionButtonsDisplay';
 
 export type SeekerListingKind = 'ngo_partner' | 'platform_curated' | 'external_feed';
 
@@ -333,6 +334,16 @@ export default function UnifiedSeekerOpportunityDetail({
                   Common questions and answers about this opportunity.
                 </p>
                 <OpportunityFaqDisplay items={opportunity.faqItems} mode="display" />
+              </section>
+            )}
+
+            {opportunity.actionButtons && opportunity.actionButtons.length > 0 && (
+              <section className="bg-white rounded-2xl shadow-sm border border-olive-100 p-7 md:p-9">
+                <h2 className="text-xl font-semibold text-olive-900 mb-2">Quick Actions</h2>
+                <p className="text-sm text-olive-700 mb-7 leading-relaxed">
+                  Helpful links and actions related to this opportunity.
+                </p>
+                <OpportunityActionButtonsDisplay buttons={opportunity.actionButtons} embedded />
               </section>
             )}
 

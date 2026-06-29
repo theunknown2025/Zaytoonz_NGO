@@ -1,5 +1,6 @@
 import { supabase } from './supabase';
 import { parseOpportunityDocuments } from './opportunityDocuments';
+import type { OpportunityActionButton } from './opportunityActionButtons';
 import { displayOpportunityCountry } from './locationNormalize';
 import { resolveOpportunityOrganization } from './organizationNormalize';
 import {
@@ -8,7 +9,7 @@ import {
   type TrainingDay,
 } from './opportunityTrainingProgram';
 import type { OpportunityFaqItem } from './opportunityFaq';
-import { isFlowStepIconKey } from './flowStepIcons';
+import { isFlowStepIconKey } from './flowStepIconKeys';
 
 function resolveOpportunityLocation(raw: string | null | undefined): string | undefined {
   return displayOpportunityCountry(raw) ?? undefined;
@@ -93,6 +94,7 @@ export interface Opportunity {
   }>;
   trainingProgram?: TrainingDay[];
   faqItems?: OpportunityFaqItem[];
+  actionButtons?: OpportunityActionButton[];
 }
 
 export interface RelatedOpportunitySummary {
@@ -1185,6 +1187,34 @@ export async function getOpportunityById(id: string): Promise<{ opportunity: Opp
       faqItems = [];
     }
 
+    let actionButtons: Opportunity['actionButtons'] = [];
+    try {
+      const { data: actionButtonRows, error: actionButtonError } = await supabase
+        .from('opportunity_action_buttons')
+        .select('id, button_order, title, icon, icon_url, link_url')
+        .eq('opportunity_id', id)
+        .order('button_order', { ascending: true });
+
+      if (actionButtonError) {
+        console.error('Error fetching action buttons:', actionButtonError);
+      } else if (actionButtonRows?.length) {
+        actionButtons = actionButtonRows.map((row) => {
+          const icon = row.icon ?? undefined;
+          return {
+            id: row.id,
+            title: row.title,
+            linkUrl: row.link_url,
+            icon: isFlowStepIconKey(icon) ? icon : undefined,
+            iconUrl: row.icon_url || undefined,
+            buttonOrder: row.button_order,
+          };
+        });
+      }
+    } catch (actionButtonsError) {
+      console.error('Error loading action buttons:', actionButtonsError);
+      actionButtons = [];
+    }
+
     const opportunity: Opportunity = {
       id: data.id,
       title: description?.title || data.title,
@@ -1226,6 +1256,7 @@ export async function getOpportunityById(id: string): Promise<{ opportunity: Opp
       documents: parseOpportunityDocuments(metadata),
       trainingProgram,
       faqItems,
+      actionButtons,
     };
 
     return { opportunity, error: null };
