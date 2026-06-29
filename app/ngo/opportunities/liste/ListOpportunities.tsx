@@ -77,6 +77,14 @@ interface OpportunityDetail {
   process?: any;
 }
 
+function isPublishedStatus(status?: string) {
+  return status === 'published' || status === 'completed';
+}
+
+function statusLabel(status?: string) {
+  return isPublishedStatus(status) ? 'Published' : 'Draft';
+}
+
 export default function ListOpportunities() {
   const router = useRouter();
   const { user } = useAuth();
@@ -92,9 +100,8 @@ export default function ListOpportunities() {
   const [publishedOpportunities, setPublishedOpportunities] = useState<Record<string, boolean>>({});
   
   // New state for separating opportunities by status
-  const [activeTab, setActiveTab] = useState<'draft' | 'completed'>('draft');
+  const [activeTab, setActiveTab] = useState<'draft' | 'published'>('draft');
   const [draftOpportunities, setDraftOpportunities] = useState<Opportunity[]>([]);
-  const [completedOpportunities, setCompletedOpportunities] = useState<Opportunity[]>([]);
   const [publishedOpportunityList, setPublishedOpportunityList] = useState<Opportunity[]>([]);
 
   useEffect(() => {
@@ -213,12 +220,10 @@ export default function ListOpportunities() {
       setOpportunities(transformedOpportunities);
       
       // Separate opportunities by status
-      const draft = transformedOpportunities.filter(opp => opp.status === 'draft');
-      const completed = transformedOpportunities.filter(opp => opp.status === 'completed');
-      const published = transformedOpportunities.filter(opp => opp.status === 'published');
-      
+      const draft = transformedOpportunities.filter((opp) => opp.status === 'draft');
+      const published = transformedOpportunities.filter((opp) => isPublishedStatus(opp.status));
+
       setDraftOpportunities(draft);
-      setCompletedOpportunities(completed);
       setPublishedOpportunityList(published);
       
     } catch (error) {
@@ -930,13 +935,11 @@ export default function ListOpportunities() {
             <h3 className="text-lg font-medium text-gray-900 mr-3">{opportunity.title}</h3>
             {/* Status Badge */}
             <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-              opportunity.status === 'published'
+              isPublishedStatus(opportunity.status)
                 ? 'bg-blue-100 text-blue-800'
-                : opportunity.status === 'completed' 
-                ? 'bg-green-100 text-green-800' 
                 : 'bg-yellow-100 text-yellow-800'
             }`}>
-              {opportunity.status === 'published' ? 'Published' : opportunity.status === 'completed' ? 'Completed' : 'Draft'}
+              {statusLabel(opportunity.status)}
             </span>
           </div>
           <div className="flex items-center text-sm text-gray-500 mt-1">
@@ -946,7 +949,7 @@ export default function ListOpportunities() {
             <span>Updated: {formatDate(opportunity.updated_at)}</span>
             
             {/* Show published status if published */}
-            {opportunity.status === 'published' && (
+            {isPublishedStatus(opportunity.status) && opportunity.status === 'published' && (
               <>
                 <span className="mx-2">â€¢</span>
                 <span className="text-green-600 font-medium flex items-center">
@@ -958,7 +961,7 @@ export default function ListOpportunities() {
           </div>
         </div>
         <div className="flex items-center">
-          {/* Publish button - show only for completed opportunities that are not published */}
+          {/* Legacy publish action for older completed opportunities */}
           {opportunity.status === 'completed' && (
             <button 
               className={`text-blue-600 hover:text-blue-800 p-2 mr-1 ${publishing[opportunity.id] ? 'opacity-50 cursor-not-allowed' : ''}`}
@@ -1145,11 +1148,9 @@ export default function ListOpportunities() {
                         <div className="flex justify-between">
                           <span className="text-gray-600">Status</span>
                           <span className={`font-medium ${
-                            opportunity.status === 'published' ? 'text-blue-600' :
-                            opportunity.status === 'completed' ? 'text-green-600' : 'text-yellow-600'
+                            isPublishedStatus(opportunity.status) ? 'text-blue-600' : 'text-yellow-600'
                           }`}>
-                            {opportunity.status === 'published' ? 'Published' : 
-                             opportunity.status === 'completed' ? 'Completed' : 'Draft'}
+                            {statusLabel(opportunity.status)}
                           </span>
                         </div>
                         <div className="flex justify-between">
@@ -1374,20 +1375,18 @@ export default function ListOpportunities() {
             </span>
           </button>
           <button
-            onClick={() => setActiveTab('completed')}
+            onClick={() => setActiveTab('published')}
             className={`${
-              activeTab === 'completed'
+              activeTab === 'published'
                 ? 'border-[#6B8E23] text-[#556B2F] font-medium'
                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
             } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center`}
           >
             <span className="flex items-center">
-              <svg className="h-5 w-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              Completed Opportunities
-              <span className="ml-2 bg-green-100 text-green-800 text-xs font-medium px-2.5 py-0.5 rounded-full">
-                {completedOpportunities.length + publishedOpportunityList.length}
+              <GlobeAltIcon className="h-5 w-5 mr-2" />
+              Published Opportunities
+              <span className="ml-2 bg-blue-100 text-blue-800 text-xs font-medium px-2.5 py-0.5 rounded-full">
+                {publishedOpportunityList.length}
               </span>
             </span>
           </button>
@@ -1416,60 +1415,20 @@ export default function ListOpportunities() {
             {draftOpportunities.map(renderOpportunityCard)}
           </div>
         )
-      ) : (
-        // Completed Tab Content with separate sections
-        completedOpportunities.length === 0 && publishedOpportunityList.length === 0 ? (
+      ) : publishedOpportunityList.length === 0 ? (
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8 text-center">
             <div className="mx-auto w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
-              <svg className="h-8 w-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
+              <GlobeAltIcon className="h-8 w-8 text-gray-400" />
             </div>
-            <h3 className="text-lg font-medium text-gray-900 mb-2">You don't have any completed opportunities yet.</h3>
-            <p className="text-gray-600 mb-6">Complete and submit your draft opportunities to see them here.</p>
+            <h3 className="text-lg font-medium text-gray-900 mb-2">You don&apos;t have any published opportunities yet.</h3>
+            <p className="text-gray-600 mb-6">Publish a draft opportunity to make it visible to applicants.</p>
           </div>
         ) : (
-          <div className="space-y-8">
-            {/* Completed Opportunities Section */}
-            {completedOpportunities.length > 0 && (
-              <div>
-                <div className="flex items-center mb-4">
-                  <div className="flex items-center bg-green-50 px-3 py-2 rounded-lg">
-                    <svg className="h-5 w-5 text-green-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                    <h3 className="text-lg font-semibold text-green-800">Completed & Ready to Publish</h3>
-                    <span className="ml-3 bg-green-200 text-green-800 text-xs font-medium px-2.5 py-0.5 rounded-full">
-                      {completedOpportunities.length}
-                    </span>
-                  </div>
-                </div>
-                <div className="space-y-4">
-                  {completedOpportunities.map(renderOpportunityCard)}
-                </div>
-              </div>
-            )}
-            
-            {/* Published Opportunities Section */}
-            {publishedOpportunityList.length > 0 && (
-              <div>
-                <div className="flex items-center mb-4">
-                  <div className="flex items-center bg-blue-50 px-3 py-2 rounded-lg">
-                    <GlobeAltIcon className="h-5 w-5 text-blue-600 mr-2" />
-                    <h3 className="text-lg font-semibold text-blue-800">Published & Live</h3>
-                    <span className="ml-3 bg-blue-200 text-blue-800 text-xs font-medium px-2.5 py-0.5 rounded-full">
-                      {publishedOpportunityList.length}
-                    </span>
-                  </div>
-                </div>
-                <div className="space-y-4">
-                  {publishedOpportunityList.map(renderOpportunityCard)}
-                </div>
-              </div>
-            )}
+          <div className="space-y-4">
+            {publishedOpportunityList.map(renderOpportunityCard)}
           </div>
         )
-      )}
+      }
     </div>
   );
-} 
+}

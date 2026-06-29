@@ -73,6 +73,7 @@ export default function OpportunitiesManagementPage() {
   });
   const [currentStep, setCurrentStep] = useState<number>(1);
   const [loading, setLoading] = useState(false);
+  const [savingDraft, setSavingDraft] = useState(false);
   const [savingOpportunity, setSavingOpportunity] = useState(false);
   const [opportunityId, setOpportunityId] = useState<string>(
     typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function' 
@@ -596,49 +597,70 @@ export default function OpportunitiesManagementPage() {
     window.scrollTo(0, 0);
   };
 
-  const handleSubmit = async () => {
-    setLoading(true);
-    
+  const buildRecapSavePayload = (status: 'draft' | 'published') => ({
+    title: formData.title,
+    description: formData.description,
+    location: formData.location,
+    hours: formData.hours,
+    status,
+    step: status === 'published' ? 'submission' : 'recap',
+    criteria: formData.criteria || {},
+    metadata: {
+      opportunityType: opportunityType,
+      ...(status === 'published' ? { submittedAt: new Date().toISOString() } : {}),
+      documents: includeDocuments ? documents : [],
+    },
+    opportunity_id: opportunityId,
+  });
+
+  const handleSaveDraft = async () => {
+    setSavingDraft(true);
+
     try {
-      // Prepare data for final submission with completed status
-      const completedData = {
-        title: formData.title,
-        description: formData.description,
-        location: formData.location,
-        hours: formData.hours,
-        status: 'completed', // Set status to completed when submitting
-        step: 'submission',
-        criteria: formData.criteria || {}, // Include criteria data
-        metadata: {
-          opportunityType: opportunityType,
-          submittedAt: new Date().toISOString(),
-          documents: includeDocuments ? documents : [],
-        },
-        opportunity_id: opportunityId
-      };
+      const result = await saveOpportunityProgress(buildRecapSavePayload('draft'));
 
-      console.log('Submitting opportunity with completed status:', completedData);
-
-      // Save the final opportunity with completed status
-      const result = await saveOpportunityProgress(completedData);
-      
       if (result.error) {
-        console.error("Submission error:", result.error);
-        toast.error('Failed to create opportunity: ' + result.error.message);
+        console.error('Draft save error:', result.error);
+        toast.error('Failed to save draft: ' + result.error.message);
         return;
       }
-      
-      // Show success message
-      toast.success('Opportunity created successfully!');
-      
+
+      toast.success('Opportunity saved as draft!');
+
       setTimeout(() => {
         setActiveTab('list');
         router.push('/ngo/opportunities?tab=list');
       }, 1500);
-      
     } catch (error) {
-      console.error('Error creating opportunity:', error);
-      toast.error('An error occurred while creating the opportunity');
+      console.error('Error saving draft:', error);
+      toast.error('An error occurred while saving the draft');
+    } finally {
+      setSavingDraft(false);
+    }
+  };
+
+  const handleSubmit = async () => {
+    setLoading(true);
+
+    try {
+      const publishedData = buildRecapSavePayload('published');
+      const result = await saveOpportunityProgress(publishedData);
+
+      if (result.error) {
+        console.error('Publish error:', result.error);
+        toast.error('Failed to publish opportunity: ' + result.error.message);
+        return;
+      }
+
+      toast.success('Opportunity published successfully!');
+
+      setTimeout(() => {
+        setActiveTab('list');
+        router.push('/ngo/opportunities?tab=list');
+      }, 1500);
+    } catch (error) {
+      console.error('Error publishing opportunity:', error);
+      toast.error('An error occurred while publishing the opportunity');
     } finally {
       setLoading(false);
     }
@@ -917,7 +939,9 @@ export default function OpportunitiesManagementPage() {
             opportunityId={opportunityId}
             criteria={formData.criteria}
             onPrevious={handlePrevious}
+            onSaveDraft={handleSaveDraft}
             onSubmit={handleSubmit}
+            isSaving={savingDraft}
             isSubmitting={loading}
           />
         );
@@ -965,6 +989,7 @@ export default function OpportunitiesManagementPage() {
     setIncludeActionButtons(false);
     setOpportunitySaved(false);
     setLoading(false);
+    setSavingDraft(false);
     setSavingOpportunity(false);
     setLoadingExistingData(false);
     

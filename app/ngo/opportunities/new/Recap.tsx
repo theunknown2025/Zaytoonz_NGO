@@ -80,6 +80,7 @@ interface RecapProps {
     customFilters?: { [key: string]: string };
   };
   onPrevious: () => void;
+  onSaveDraft: () => void;
   onSubmit: () => void;
   isSaving?: boolean;
   isSubmitting?: boolean;
@@ -95,6 +96,7 @@ export default function Recap({
   opportunityId,
   criteria = {},
   onPrevious,
+  onSaveDraft,
   onSubmit,
   isSaving = false,
   isSubmitting = false
@@ -796,22 +798,22 @@ export default function Recap({
           <div className="flex space-x-3">
             <button
               type="button"
-              disabled={isSaving}
-              onClick={onPrevious} // This would typically be a save function, but using onPrevious for now
+              disabled={isSaving || isSubmitting}
+              onClick={onSaveDraft}
               className="inline-flex items-center px-4 py-2 border border-[#556B2F] shadow-sm text-sm font-medium rounded-md text-[#556B2F] bg-white hover:bg-[#556B2F]/10 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#556B2F] disabled:opacity-50"
             >
               <CloudArrowUpIcon className="w-4 h-4 mr-2" />
-              {isSaving ? 'Saving...' : 'Save Progress'}
+              {isSaving ? 'Saving...' : 'Save as Draft'}
             </button>
           
           <button
             type="button"
-              disabled={isSubmitting}
+              disabled={isSubmitting || isSaving}
               onClick={onSubmit}
               className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-gradient-to-r from-[#556B2F] to-[#6B8E23] hover:shadow-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#556B2F] disabled:opacity-50"
           >
               <CheckCircleIcon className="w-4 h-4 mr-2" />
-              {isSubmitting ? 'Creating...' : 'Create Opportunity'}
+              {isSubmitting ? 'Publishing...' : 'Publish Opportunity'}
           </button>
           </div>
         </div>
