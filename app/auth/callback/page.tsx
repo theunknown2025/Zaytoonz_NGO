@@ -38,9 +38,9 @@ export default function AuthCallback() {
           // Redirect based on user type
           setTimeout(() => {
             if (user.userType === 'NGO' || user.userType === 'admin_ngo' || user.userType === 'assistant_ngo') {
-              router.push('/ngo/dashboard');
+              router.push('/app');
             } else if (user.userType === 'Personne') {
-              router.push('/seeker');
+              router.push('/app');
             } else if (user.userType === 'Admin') {
               router.push('/admin');
             } else {

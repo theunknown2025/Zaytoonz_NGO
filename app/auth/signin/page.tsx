@@ -41,14 +41,12 @@ export default function SignIn() {
       setTimeout(() => {
         if (user) {
           if (user.userType === 'NGO' || user.userType === 'admin_ngo' || user.userType === 'assistant_ngo') {
-            router.push('/ngo/dashboard');
+            router.push('/app');
           } else if (user.userType === 'Personne') {
-            // Redirect to seeker dashboard for users with "Personne" role
-            router.push('/seeker');
+            router.push('/app');
           } else if (user.userType === 'Admin') {
             router.push('/admin');
           } else {
-            // Default redirect for other user types
             router.push('/dashboard');
           }
         } else {
