@@ -194,12 +194,13 @@ export default function OpportunityCard({ opportunity, onDelete }: OpportunityCa
       <div className="p-4 bg-gray-50 rounded-b-lg border-t border-gray-100">
         <div className="flex items-center justify-between">
           <div className="flex space-x-2">
-            <button
+            <Link
+              href={`/ngo/opportunities/${opportunity.id}`}
               className="inline-flex items-center px-3 py-1 border border-gray-300 shadow-sm text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50 transition-colors"
             >
               <EyeIcon className="h-3 w-3 mr-1" />
               View
-            </button>
+            </Link>
             
             <Link
               href={`/ngo/opportunities?edit=${opportunity.id}&tab=new`}

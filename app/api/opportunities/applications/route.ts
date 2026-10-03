@@ -22,28 +22,13 @@ export async function POST(request: NextRequest) {
   try {
     const supabase = getSupabaseClient();
     const body = await request.json();
-    const { opportunityId, seekerUserId, formId, applicationData, selectedCVId, selectedCVName, notes } = body;
+    const { opportunityId, seekerUserId, formId, applicationData, selectedCVId, selectedCVName, notes, status } = body;
+    const saveAsDraft = status === 'draft';
 
-    if (!opportunityId || !seekerUserId || !formId || !applicationData) {
+    if (!opportunityId || !seekerUserId || !formId) {
       return NextResponse.json(
         { error: 'Missing required fields' },
         { status: 400 }
-      );
-    }
-
-    // Check if application already exists for this user and opportunity
-    const { data: existingApplication } = await supabase
-      .from('opportunity_applications')
-      .select('id')
-      .eq('opportunity_id', opportunityId)
-      .eq('seeker_user_id', seekerUserId)
-      .eq('form_id', formId)
-      .single();
-
-    if (existingApplication) {
-      return NextResponse.json(
-        { error: 'Application already submitted for this opportunity' },
-        { status: 409 }
       );
     }
 
@@ -57,23 +42,56 @@ export async function POST(request: NextRequest) {
       hasProcess = (flowSteps?.length || 0) > 0;
     }
 
-    // Insert new application
-    const { data: application, error } = await supabase
+    const now = new Date().toISOString();
+    const record = {
+      form_id: formId,
+      application_data: applicationData || {},
+      selected_cv_id: selectedCVId || null,
+      selected_cv_name: selectedCVName || null,
+      notes: notes || null,
+      updated_at: now,
+      ...(saveAsDraft
+        ? { status: 'draft', process_status: 'draft', current_step_index: 0 }
+        : {
+            status: hasProcess ? 'in_progress' : 'submitted',
+            process_status: hasProcess ? 'in_progress' : 'completed',
+            current_step_index: 0,
+            submitted_at: now,
+          }),
+    };
+
+    const { data: existingApplication } = await supabase
       .from('opportunity_applications')
-      .insert({
-        opportunity_id: opportunityId,
-        seeker_user_id: seekerUserId,
-        form_id: formId,
-        application_data: applicationData,
-        selected_cv_id: selectedCVId,
-        selected_cv_name: selectedCVName,
-        notes,
-        status: hasProcess ? 'in_progress' : 'submitted',
-        current_step_index: 0,
-        process_status: hasProcess ? 'in_progress' : 'completed',
-      })
-      .select()
-      .single();
+      .select('id, status')
+      .eq('opportunity_id', opportunityId)
+      .eq('seeker_user_id', seekerUserId)
+      .maybeSingle();
+
+    if (existingApplication && existingApplication.status !== 'draft') {
+      return NextResponse.json(
+        { error: 'Application already submitted for this opportunity' },
+        { status: 409 }
+      );
+    }
+
+    const write = existingApplication
+      ? supabase
+          .from('opportunity_applications')
+          .update(record)
+          .eq('id', existingApplication.id)
+          .select()
+          .single()
+      : supabase
+          .from('opportunity_applications')
+          .insert({
+            opportunity_id: opportunityId,
+            seeker_user_id: seekerUserId,
+            ...record,
+          })
+          .select()
+          .single();
+
+    const { data: application, error } = await write;
 
     if (error) {
       console.error('Database error:', error);
@@ -135,7 +153,7 @@ export async function GET(request: NextRequest) {
         )
       `)
       .eq('seeker_user_id', seekerUserId)
-      .order('submitted_at', { ascending: false });
+      .order('updated_at', { ascending: false });
 
     if (error) {
       console.error('Database error:', error);

@@ -34,7 +34,7 @@ export async function PUT(
     }
 
     const body = await request.json();
-    const { applicationData, notes } = body;
+    const { applicationData, notes, selectedCVId, selectedCVName, status } = body;
 
     if (!applicationData) {
       return NextResponse.json(
@@ -43,13 +43,53 @@ export async function PUT(
       );
     }
 
-    // Update the application
+    const { data: current, error: currentError } = await supabase
+      .from('opportunity_applications')
+      .select('id, status, opportunity_id')
+      .eq('id', applicationId)
+      .maybeSingle();
+
+    if (currentError || !current) {
+      return NextResponse.json(
+        { error: 'Application not found' },
+        { status: 404 }
+      );
+    }
+
+    if (current.status !== 'draft') {
+      return NextResponse.json(
+        { error: 'This application has already been submitted and can no longer be edited' },
+        { status: 409 }
+      );
+    }
+
+    const saveAsDraft = status !== 'submitted';
+    const now = new Date().toISOString();
+    let hasProcess = false;
+    if (!saveAsDraft) {
+      const { data: flowSteps, error: flowError } = await supabase
+        .from('opportunity_flow_steps')
+        .select('id')
+        .eq('opportunity_id', current.opportunity_id);
+      if (!flowError) hasProcess = (flowSteps?.length || 0) > 0;
+    }
+
     const { data: application, error } = await supabase
       .from('opportunity_applications')
       .update({
         application_data: applicationData,
         notes,
-        updated_at: new Date().toISOString()
+        selected_cv_id: selectedCVId || null,
+        selected_cv_name: selectedCVName || null,
+        updated_at: now,
+        ...(saveAsDraft
+          ? { status: 'draft', process_status: 'draft' }
+          : {
+              status: hasProcess ? 'in_progress' : 'submitted',
+              process_status: hasProcess ? 'in_progress' : 'completed',
+              current_step_index: 0,
+              submitted_at: now,
+            }),
       })
       .eq('id', applicationId)
       .select()

@@ -23,7 +23,7 @@ import {
 } from '@heroicons/react/24/outline';
 import DataExtractor from './components/DataExtractor';
 import ApplicationEvaluation from './components/ApplicationEvaluation';
-import CVDisplay from './components/CVDisplay';
+import CvPreviewModal from './components/CvPreviewModal';
 import { useAuth } from '@/app/lib/auth';
 import { toast } from 'react-hot-toast';
 import ApplicationProcessPanel from '@/app/components/ApplicationProcessPanel';
@@ -86,6 +86,7 @@ export default function ApplicationsPage() {
   const [extractorOpen, setExtractorOpen] = useState(false);
   const [selectedOpportunityForExtract, setSelectedOpportunityForExtract] = useState<OpportunityWithApplications | null>(null);
   const [publishingOpportunities, setPublishingOpportunities] = useState<Set<string>>(new Set());
+  const [cvPreview, setCvPreview] = useState<{ id: string; name: string | null } | null>(null);
   
   const { user: authUser } = useAuth();
 
@@ -787,10 +788,17 @@ export default function ApplicationsPage() {
                                     {application.status === 'submitted' ? 'Pending' : application.status.charAt(0).toUpperCase() + application.status.slice(1)}
                                   </span>
                                   {application.selected_cv_id && (
-                                    <span className="px-2 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-800 flex items-center">
+                                    <button
+                                      type="button"
+                                      onClick={() => setCvPreview({
+                                        id: application.selected_cv_id as string,
+                                        name: application.selected_cv_name || null,
+                                      })}
+                                      className="px-2 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-800 flex items-center hover:bg-blue-200"
+                                    >
                                       <DocumentTextIcon className="w-3 h-3 mr-1" />
-                                      CV
-                                    </span>
+                                      View CV
+                                    </button>
                                   )}
                                 </div>
                                 <button
@@ -850,11 +858,20 @@ export default function ApplicationsPage() {
                                   <DocumentTextIcon className="w-5 h-5 mr-2" />
                                   Curriculum Vitae (CV)
                                 </h5>
-                                <CVDisplay 
-                                  applicationId={application.id}
-                                  cvId={application.selected_cv_id || null}
-                                  cvName={application.selected_cv_name || null}
-                                />
+                                {application.selected_cv_id ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => setCvPreview({
+                                      id: application.selected_cv_id as string,
+                                      name: application.selected_cv_name || null,
+                                    })}
+                                    className="inline-flex items-center rounded-lg bg-[#556B2F] px-4 py-2 text-sm font-semibold text-white hover:bg-[#465924]"
+                                  >
+                                    View CV{application.selected_cv_name ? `: ${application.selected_cv_name}` : ''}
+                                  </button>
+                                ) : (
+                                  <p className="text-sm text-gray-500">No CV was included with this application.</p>
+                                )}
                               </div>
 
                               {/* Process Section */}
@@ -941,6 +958,13 @@ export default function ApplicationsPage() {
           isOpen={extractorOpen}
           onClose={handleExtractorClose}
           opportunity={selectedOpportunityForExtract}
+        />
+      )}
+      {cvPreview && (
+        <CvPreviewModal
+          cvId={cvPreview.id}
+          cvName={cvPreview.name}
+          onClose={() => setCvPreview(null)}
         />
       )}
     </div>

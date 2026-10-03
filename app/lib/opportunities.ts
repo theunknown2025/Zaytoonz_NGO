@@ -73,6 +73,8 @@ export interface Opportunity {
   ngoProfileId?: string | null;
   /** True when the opportunity description owner is an Admin (manual / platform postings). */
   isAdminPosted?: boolean;
+  /** Owning NGO/admin user id (opportunities.user_id or opportunity_description.user_id). */
+  ownerUserId?: string | null;
   processSteps?: Array<{
     id: string;
     name: string;
@@ -113,6 +115,16 @@ const OPPORTUNITY_PUBLIC_LIST_SELECT = `
         opportunity_type,
         created_at,
         updated_at,
+        user_id,
+        users!opportunities_user_id_fkey (
+          id,
+          ngo_profile!ngo_profile_user_id_fkey (
+            id,
+            name,
+            email,
+            profile_image_url
+          )
+        ),
         opportunity_description (
           id,
           title,
@@ -154,6 +166,31 @@ const OPPORTUNITY_PUBLIC_LIST_SELECT = `
           )
         )
       `;
+
+function unwrapRelation<T>(value: T | T[] | null | undefined): T | null {
+  if (!value) return null;
+  return Array.isArray(value) ? value[0] ?? null : value;
+}
+
+/** Prefer NGO profile over personal account name for organization display. */
+function resolveLinkedNgoProfile(
+  item: any,
+  description?: any
+): { id: string; name: string; email?: string; profile_image_url?: string } | null {
+  const descUser = unwrapRelation(description?.users ?? description?.user);
+  const fromDescription = unwrapRelation(descUser?.ngo_profile);
+  if (fromDescription?.id && fromDescription?.name) {
+    return fromDescription;
+  }
+
+  const ownerUser = unwrapRelation(item?.users);
+  const fromOwner = unwrapRelation(ownerUser?.ngo_profile);
+  if (fromOwner?.id && fromOwner?.name) {
+    return fromOwner;
+  }
+
+  return null;
+}
 
 function pickOpportunityDescriptionRow(item: any): any | null {
   const raw = item.opportunity_description;
@@ -390,8 +427,7 @@ export async function getOpportunities(): Promise<{ opportunities: Opportunity[]
 
         const user = description?.users;
         const userRow = Array.isArray(user) ? user[0] : user;
-        const ngoRaw = userRow?.ngo_profile;
-        const ngoProfile = Array.isArray(ngoRaw) ? ngoRaw[0] : ngoRaw;
+        const ngoProfile = resolveLinkedNgoProfile(item, description);
 
         const emailData = item.opportunity_form_email?.[0];
         const formChoice = item.opportunity_form_choice?.[0];
@@ -415,7 +451,7 @@ export async function getOpportunities(): Promise<{ opportunities: Opportunity[]
           id: item.id,
           title: description?.title || item.title,
           organization: resolveOpportunityOrganization(
-            ngoProfile?.name || userRow?.full_name,
+            ngoProfile?.name,
             ngoProfile ? { id: ngoProfile.id, name: ngoProfile.name } : undefined,
             ngoProfile?.id
           ),
@@ -486,6 +522,16 @@ export async function getOpportunitiesByCategory(category: 'job' | 'funding' | '
         opportunity_type,
         created_at,
         updated_at,
+        user_id,
+        users!opportunities_user_id_fkey (
+          id,
+          ngo_profile!ngo_profile_user_id_fkey (
+            id,
+            name,
+            email,
+            profile_image_url
+          )
+        ),
         opportunity_description!inner (
           id,
           title,
@@ -580,7 +626,7 @@ export async function getOpportunitiesByCategory(category: 'job' | 'funding' | '
       const description = item.opportunity_description[0];
       const metadata = description?.metadata || {};
       const user = description?.users?.[0];
-      const ngoProfile = user?.ngo_profile?.[0];
+      const ngoProfile = resolveLinkedNgoProfile(item, description);
       const emailData = item.opportunity_form_email?.[0];
       const formChoice = item.opportunity_form_choice?.[0];
       const formTemplates = formChoice?.forms_templates as any;
@@ -590,11 +636,12 @@ export async function getOpportunitiesByCategory(category: 'job' | 'funding' | '
         id: item.id,
         title: description?.title || item.title,
         organization: resolveOpportunityOrganization(
-          ngoProfile?.name || user?.full_name,
+          ngoProfile?.name,
           ngoProfile ? { id: ngoProfile.id, name: ngoProfile.name } : undefined,
           ngoProfile?.id
         ),
         organizationProfile: ngoProfile ? {
+          id: ngoProfile.id,
           name: ngoProfile.name,
           email: ngoProfile.email,
           profileImage: ngoProfile.profile_image_url
@@ -654,6 +701,16 @@ export async function searchOpportunities(searchQuery: string, category?: 'job' 
         opportunity_type,
         created_at,
         updated_at,
+        user_id,
+        users!opportunities_user_id_fkey (
+          id,
+          ngo_profile!ngo_profile_user_id_fkey (
+            id,
+            name,
+            email,
+            profile_image_url
+          )
+        ),
         opportunity_description!inner (
           id,
           title,
@@ -787,7 +844,7 @@ export async function searchOpportunities(searchQuery: string, category?: 'job' 
       const description = item.opportunity_description[0];
       const metadata = description?.metadata || {};
       const user = description?.users?.[0];
-      const ngoProfile = user?.ngo_profile?.[0];
+      const ngoProfile = resolveLinkedNgoProfile(item, description);
       const emailData = item.opportunity_form_email?.[0];
       const formChoice = item.opportunity_form_choice?.[0];
       const formTemplates = formChoice?.forms_templates as any;
@@ -797,11 +854,12 @@ export async function searchOpportunities(searchQuery: string, category?: 'job' 
         id: item.id,
         title: description?.title || item.title,
         organization: resolveOpportunityOrganization(
-          ngoProfile?.name || user?.full_name,
+          ngoProfile?.name,
           ngoProfile ? { id: ngoProfile.id, name: ngoProfile.name } : undefined,
           ngoProfile?.id
         ),
         organizationProfile: ngoProfile ? {
+          id: ngoProfile.id,
           name: ngoProfile.name,
           email: ngoProfile.email,
           profileImage: ngoProfile.profile_image_url
@@ -895,6 +953,7 @@ export async function getOpportunityById(id: string): Promise<{ opportunity: Opp
         opportunity_type,
         created_at,
         updated_at,
+        user_id,
         opportunity_description (
           id,
           title,
@@ -995,7 +1054,23 @@ export async function getOpportunityById(id: string): Promise<{ opportunity: Opp
       ? description?.users[0]
       : description?.users;
     const ngoRaw = user?.ngo_profile;
-    const ngoProfile = Array.isArray(ngoRaw) ? ngoRaw[0] : ngoRaw;
+    let ngoProfile = Array.isArray(ngoRaw) ? ngoRaw[0] : ngoRaw;
+
+    // Description.user_id can be a personal account without an NGO profile.
+    // Prefer the opportunity owner (opportunities.user_id) for organization display.
+    const ownerUserId = (data as any).user_id || description?.user_id || user?.id || null;
+    if (!ngoProfile?.name && ownerUserId) {
+      const { data: ownerNgoProfile } = await supabase
+        .from('ngo_profile')
+        .select('id, name, email, profile_image_url')
+        .eq('user_id', ownerUserId)
+        .maybeSingle();
+      if (ownerNgoProfile) {
+        ngoProfile = ownerNgoProfile;
+      }
+    }
+
+    // Last resort: if description user has no profile but differs from owner, try description user already failed — keep null
     const emailData = Array.isArray(data.opportunity_form_email)
       ? data.opportunity_form_email[0]
       : data.opportunity_form_email;
@@ -1219,7 +1294,7 @@ export async function getOpportunityById(id: string): Promise<{ opportunity: Opp
       id: data.id,
       title: description?.title || data.title,
       organization: resolveOpportunityOrganization(
-        ngoProfile?.name || user?.full_name,
+        ngoProfile?.name,
         ngoProfile ? { id: ngoProfile.id, name: ngoProfile.name } : undefined,
         ngoProfile?.id
       ),
@@ -1252,6 +1327,8 @@ export async function getOpportunityById(id: string): Promise<{ opportunity: Opp
       metadata: metadata,
       criteria: criteria,
       isAdminPosted: user?.user_type === 'Admin',
+      ownerUserId,
+      ngoProfileId: ngoProfile?.id ?? null,
       processSteps,
       documents: parseOpportunityDocuments(metadata),
       trainingProgram,

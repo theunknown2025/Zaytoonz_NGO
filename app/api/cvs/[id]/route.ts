@@ -38,14 +38,16 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
       { data: skills },
       { data: languages },
       { data: certificates },
-      { data: projects }
+      { data: projects },
+      { data: externalLinks }
     ] = await Promise.all([
       supabase.from('cv_work_experiences').select('*').eq('cv_id', cvId).order('sort_order'),
       supabase.from('cv_education').select('*').eq('cv_id', cvId).order('sort_order'),
       supabase.from('cv_skills').select('*').eq('cv_id', cvId).order('sort_order'),
       supabase.from('cv_languages').select('*').eq('cv_id', cvId).order('sort_order'),
       supabase.from('cv_certificates').select('*').eq('cv_id', cvId).order('sort_order'),
-      supabase.from('cv_projects').select('*').eq('cv_id', cvId).order('sort_order')
+      supabase.from('cv_projects').select('*').eq('cv_id', cvId).order('sort_order'),
+      supabase.from('cv_external_links').select('*').eq('cv_id', cvId).order('sort_order')
     ]);
 
     // Construct full CV data
@@ -56,7 +58,8 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
       skills: skills || [],
       languages: languages || [],
       certificates: certificates || [],
-      projects: projects || []
+      projects: projects || [],
+      external_links: externalLinks || []
     };
 
     return NextResponse.json(fullCVData, { status: 200 });

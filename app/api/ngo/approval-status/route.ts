@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
     // First, try to fetch from ngo_profile table
     let { data: ngoProfile, error: profileError } = await supabase
       .from('ngo_profile')
-      .select('approval_status, admin_notes, approved_at, approved_by, launchingstatus')
+      .select('id, approval_status, admin_notes, approved_at, approved_by, launchingstatus, legal_rep_name, name')
       .eq('user_id', userId)
       .maybeSingle();
 
@@ -73,7 +73,7 @@ export async function GET(request: NextRequest) {
             approved_at: approvedAt,
             launchingstatus: 'not_shown'
           })
-          .select('approval_status, admin_notes, approved_at, approved_by, launchingstatus')
+          .select('id, approval_status, admin_notes, approved_at, approved_by, launchingstatus, legal_rep_name, name')
           .maybeSingle();
 
         if (!createError && newProfile) {
@@ -83,6 +83,28 @@ export async function GET(request: NextRequest) {
         } else {
           console.error('Error creating NGO profile:', createError);
           // Don't fail completely, just continue with default values
+        }
+      }
+    }
+
+    // Assistants may not own the ngo_profile row — resolve via ngo_users
+    if (!ngoProfile) {
+      const { data: teamMembership } = await supabase
+        .from('ngo_users')
+        .select('ngo_profile_id')
+        .eq('user_id', userId)
+        .eq('status', 'active')
+        .maybeSingle();
+
+      if (teamMembership?.ngo_profile_id) {
+        const { data: parentProfile, error: parentError } = await supabase
+          .from('ngo_profile')
+          .select('id, approval_status, admin_notes, approved_at, approved_by, launchingstatus, legal_rep_name, name')
+          .eq('id', teamMembership.ngo_profile_id)
+          .maybeSingle();
+
+        if (!parentError && parentProfile) {
+          ngoProfile = parentProfile;
         }
       }
     }
@@ -98,12 +120,20 @@ export async function GET(request: NextRequest) {
     
     console.log('Final approval status:', approvalStatus, 'Launching status:', launchingStatus);
 
+    const legalRepName = ngoProfile?.legal_rep_name &&
+      ngoProfile.legal_rep_name !== 'Not specified'
+        ? ngoProfile.legal_rep_name
+        : null;
+
     return NextResponse.json({
       approval_status: approvalStatus,
       admin_notes: ngoProfile?.admin_notes || null,
       approved_at: ngoProfile?.approved_at || null,
       approved_by: ngoProfile?.approved_by || null,
-      launchingstatus: launchingStatus
+      launchingstatus: launchingStatus,
+      legal_rep_name: legalRepName,
+      organization_name: ngoProfile?.name || null,
+      ngo_profile_id: (ngoProfile as any)?.id || null
     });
 
   } catch (error: any) {

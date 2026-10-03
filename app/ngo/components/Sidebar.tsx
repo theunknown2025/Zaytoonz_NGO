@@ -30,6 +30,8 @@ interface NGOApprovalStatus {
   approval_status: 'pending' | 'approved' | 'rejected';
   admin_notes?: string;
   launchingstatus?: 'not_shown' | 'shown';
+  legal_rep_name?: string | null;
+  organization_name?: string | null;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({ user }) => {
@@ -138,6 +140,9 @@ export const Sidebar: React.FC<SidebarProps> = ({ user }) => {
   const isApproved = approvalStatus?.approval_status === 'approved';
   const isPending = approvalStatus?.approval_status === 'pending';
   const isRejected = approvalStatus?.approval_status === 'rejected';
+
+  // Prefer legal representative name from NGO profile over login account name
+  const displayName = approvalStatus?.legal_rep_name || user.name || 'NGO';
   
   const menuItems = [
     { 
@@ -197,10 +202,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ user }) => {
       <div className="p-6 border-b border-gray-200 bg-gradient-to-r from-[#556B2F]/5 to-[#6B8E23]/10">
         <div className="flex items-center">
           <div className="w-12 h-12 bg-gradient-to-r from-[#556B2F] to-[#6B8E23] rounded-full flex items-center justify-center text-white mr-3">
-            {user.name?.charAt(0) || 'N'}
+            {displayName.charAt(0).toUpperCase()}
           </div>
           <div>
-            <h2 className="text-xl font-semibold mb-1 text-gray-800">Hello, {user.name}</h2>
+            <h2 className="text-xl font-semibold mb-1 text-gray-800">Hello, {displayName}</h2>
             <p className="text-sm text-gray-500">{user.email}</p>
           </div>
         </div>

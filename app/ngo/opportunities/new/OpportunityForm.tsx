@@ -131,9 +131,32 @@ export default function OpportunityForm({
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleNext = () => {
-    if (validateForm()) {
+  const handleNext = async () => {
+    if (!validateForm() || !opportunityId) return;
+
+    setIsSaving(true);
+    try {
+      const result = await saveOpportunityFormSettings(
+        opportunityId,
+        formData.applicationMethod,
+        {
+          selectedFormId: formData.selectedFormId,
+          contactEmails: formData.contactEmails,
+          referenceCodes: formData.referenceCodes
+        }
+      );
+
+      if (!result.success) {
+        toast.error(result.error || 'Failed to save the application form');
+        return;
+      }
+
       onNext();
+    } catch (error) {
+      console.error('Exception saving form settings:', error);
+      toast.error('An error occurred while saving the application form');
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -731,9 +754,10 @@ export default function OpportunityForm({
           <button
             type="button"
             onClick={handleNext}
-            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-gradient-to-r from-[#556B2F] to-[#6B8E23] hover:shadow-md transition-all duration-200"
+            disabled={isSaving}
+            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-gradient-to-r from-[#556B2F] to-[#6B8E23] hover:shadow-md transition-all duration-200 disabled:opacity-70 disabled:cursor-not-allowed"
           >
-            Next Step
+            {isSaving ? 'Saving...' : 'Next Step'}
           </button>
         </div>
       </div>

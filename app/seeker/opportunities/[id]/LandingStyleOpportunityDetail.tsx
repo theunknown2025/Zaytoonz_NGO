@@ -2,13 +2,16 @@
 
 import React from 'react';
 import type { Opportunity, RelatedOpportunitySummary } from '@/app/lib/opportunities';
-import UnifiedSeekerOpportunityDetail from './UnifiedSeekerOpportunityDetail';
+import UnifiedSeekerOpportunityDetail, {
+  type OpportunityDetailAudience,
+} from './UnifiedSeekerOpportunityDetail';
 
 interface LandingStyleOpportunityDetailProps {
   opportunity: Opportunity;
   pageUrl: string;
   relatedOpportunities?: RelatedOpportunitySummary[];
   ngoPageId?: string | null;
+  audience?: OpportunityDetailAudience;
 }
 
 /** Admin / platform-curated postings: full detail on Zaytoonz; application is not gated. */
@@ -17,6 +20,7 @@ export default function LandingStyleOpportunityDetail({
   pageUrl,
   relatedOpportunities = [],
   ngoPageId = null,
+  audience = 'seeker',
 }: LandingStyleOpportunityDetailProps) {
   return (
     <UnifiedSeekerOpportunityDetail
@@ -27,6 +31,7 @@ export default function LandingStyleOpportunityDetail({
       richDescription
       relatedOpportunities={relatedOpportunities}
       ngoPageId={ngoPageId}
+      audience={audience}
     />
   );
 }

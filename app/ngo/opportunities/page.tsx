@@ -17,6 +17,7 @@ import Recap from './new/Recap';
 import { toast } from 'react-hot-toast';
 import ListOpportunities from './liste/ListOpportunities';
 import { createInitialOpportunity as createOpportunityService, type OpportunityType, getOpportunityById, saveOpportunityProgress, updateOpportunityType } from './services/opportunityService';
+import { saveOpportunityFormSettings } from './services/opportunityFormService';
 import { getOpportunityFlowSteps } from './services/opportunityFlowService';
 import { supabase } from '@/app/lib/supabase';
 import type { OpportunityFlowStep } from '@/app/lib/opportunityFlow';
@@ -613,10 +614,36 @@ export default function OpportunitiesManagementPage() {
     opportunity_id: opportunityId,
   });
 
+  const persistApplicationMethod = async () => {
+    if (formData.applicationMethod !== 'form' && formData.applicationMethod !== 'email') {
+      return true;
+    }
+
+    const result = await saveOpportunityFormSettings(
+      opportunityId,
+      formData.applicationMethod,
+      {
+        selectedFormId: formData.selectedFormId,
+        contactEmails: formData.contactEmails,
+        referenceCodes: formData.referenceCodes,
+      }
+    );
+
+    if (!result.success) {
+      toast.error(result.error || 'Failed to save the application form');
+      return false;
+    }
+
+    return true;
+  };
+
   const handleSaveDraft = async () => {
     setSavingDraft(true);
 
     try {
+      const applicationSaved = await persistApplicationMethod();
+      if (!applicationSaved) return;
+
       const result = await saveOpportunityProgress(buildRecapSavePayload('draft'));
 
       if (result.error) {
@@ -643,6 +670,9 @@ export default function OpportunitiesManagementPage() {
     setLoading(true);
 
     try {
+      const applicationSaved = await persistApplicationMethod();
+      if (!applicationSaved) return;
+
       const publishedData = buildRecapSavePayload('published');
       const result = await saveOpportunityProgress(publishedData);
 

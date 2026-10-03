@@ -26,6 +26,7 @@ import {
 import { HeartIcon as HeartSolidIcon } from '@heroicons/react/24/solid';
 import { type Opportunity } from '@/app/lib/opportunities';
 import { AuthService, type User } from '@/app/lib/auth';
+import SeekerApplicationForm from '../SeekerApplicationForm';
 
 interface FormOpportunityClientProps {
   opportunity: Opportunity;
@@ -200,14 +201,43 @@ export default function FormOpportunityClient({ opportunity }: FormOpportunityCl
       return;
     }
     
+    if (!sessionUser) {
+      setErrors((prev) => ({ ...prev, _form: 'Sign in to submit this application.' }));
+      return;
+    }
+
+    if (!opportunity.applicationForm?.id) {
+      setErrors((prev) => ({ ...prev, _form: 'This opportunity does not have an application form.' }));
+      return;
+    }
+
     setIsSubmitting(true);
-    
-    // Simulate form submission
+
     try {
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      const response = await fetch('/api/opportunities/applications', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          opportunityId: opportunity.id,
+          seekerUserId: sessionUser.id,
+          formId: opportunity.applicationForm.id,
+          applicationData: formData,
+          selectedCVId: null,
+          selectedCVName: null,
+          notes: `Application submitted for ${opportunity.title}`,
+        }),
+      });
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to submit application');
+      }
       setSubmitted(true);
     } catch (error) {
       console.error('Error submitting form:', error);
+      setErrors((prev) => ({
+        ...prev,
+        _form: error instanceof Error ? error.message : 'Failed to submit application',
+      }));
     } finally {
       setIsSubmitting(false);
     }
@@ -699,40 +729,7 @@ export default function FormOpportunityClient({ opportunity }: FormOpportunityCl
               </div>
 
               {opportunity.applicationForm?.form_structure && opportunity.applicationForm.form_structure.length > 0 ? (
-                <form onSubmit={handleSubmit} className="space-y-6">
-                  {opportunity.applicationForm.form_structure.map((section: any, sectionIndex: number) => (
-                    <div key={section.id || sectionIndex} className="space-y-4">
-                      <h3 className="text-lg font-medium text-gray-900 border-b border-gray-200 pb-2">
-                        {section.title}
-                      </h3>
-                      <div className="space-y-4">
-                        {section.questions?.map((question: any) => renderFormField(question))}
-                      </div>
-                    </div>
-                  ))}
-
-                  <button
-                    type="submit"
-                    disabled={isSubmitting}
-                    className="w-full bg-purple-600 text-white py-4 px-6 rounded-lg hover:bg-purple-700 transition-colors font-semibold text-lg flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {isSubmitting ? (
-                      <>
-                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                        Submitting...
-                      </>
-                    ) : (
-                      <>
-                        <PaperAirplaneIcon className="w-5 h-5" />
-                        Submit Application
-                      </>
-                    )}
-                  </button>
-                  
-                  <p className="text-xs text-gray-500 mt-3 text-center">
-                    By submitting, you agree to our terms and conditions
-                  </p>
-                </form>
+                <SeekerApplicationForm opportunity={opportunity} />
               ) : (
                 <div className="text-center py-8">
                   <ExclamationTriangleIcon className="w-12 h-12 text-gray-400 mx-auto mb-4" />

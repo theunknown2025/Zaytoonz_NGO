@@ -32,20 +32,63 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    console.log('Fetching applications for NGO user:', ngoUserId);
+    console.log('Fetching applications for organization user:', ngoUserId);
 
-    // Debug: Check what opportunities exist in the database
-    const { data: allOpportunities, error: debugError } = await supabase
+    const { data: requester, error: requesterError } = await supabase
+      .from('users')
+      .select('id, user_type')
+      .eq('id', ngoUserId)
+      .maybeSingle();
+
+    const organizationTypes = new Set(['NGO', 'admin_ngo', 'assistant_ngo', 'Admin']);
+    if (requesterError || !requester || !organizationTypes.has(requester.user_type)) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 403 }
+      );
+    }
+
+    // Own the listing via opportunities.user_id. Description.user_id is not reliable:
+    // publish used to stamp a different account, which hid applications from the organization.
+    const { data: ownedOpportunities, error: ownedError } = await supabase
+      .from('opportunities')
+      .select('id')
+      .eq('user_id', ngoUserId);
+
+    if (ownedError) {
+      console.error('Error fetching owned opportunities:', ownedError);
+      return NextResponse.json(
+        { error: 'Failed to fetch opportunities' },
+        { status: 500 }
+      );
+    }
+
+    const { data: describedByUser, error: describedError } = await supabase
       .from('opportunity_description')
-      .select('opportunity_id, title, status, user_id')
+      .select('opportunity_id')
+      .eq('user_id', ngoUserId)
       .in('status', ['published', 'completed']);
-    
-    console.log('All opportunities in database:', allOpportunities);
-    console.log('Looking for user_id:', ngoUserId);
 
-    // Use a simpler approach - first get opportunity descriptions, then join with opportunities
-    // For now, let's get all opportunities regardless of user_id to debug the issue
-    const { data: opportunityDescriptions, error: descError } = await supabase
+    if (describedError) {
+      console.error('Error fetching described opportunities:', describedError);
+      return NextResponse.json(
+        { error: 'Failed to fetch opportunity descriptions' },
+        { status: 500 }
+      );
+    }
+
+    const opportunityIds = Array.from(
+      new Set([
+        ...(ownedOpportunities || []).map((row) => row.id),
+        ...(describedByUser || []).map((row) => row.opportunity_id),
+      ].filter(Boolean))
+    );
+
+    if (opportunityIds.length === 0) {
+      return NextResponse.json({ opportunities: [] }, { status: 200 });
+    }
+
+    const { data: ngoOpportunities, error: descError } = await supabase
       .from('opportunity_description')
       .select(`
         opportunity_id,
@@ -56,9 +99,8 @@ export async function GET(request: NextRequest) {
         created_at,
         user_id
       `)
-      .in('status', ['published', 'completed']); // Include both published and completed opportunities
-
-
+      .in('opportunity_id', opportunityIds)
+      .in('status', ['published', 'completed']);
 
     if (descError) {
       console.error('Error fetching opportunity descriptions:', descError);
@@ -68,30 +110,10 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    console.log('Filtered opportunities for user:', opportunityDescriptions);
-
-    // Filter to only show opportunities from NGO users
-    const ngoUserIds = await supabase
-      .from('users')
-      .select('id')
-      .eq('user_type', 'NGO');
-    
-    const ngoIds = ngoUserIds.data?.map(user => user.id) || [];
-    const ngoOpportunities = opportunityDescriptions?.filter(opp => ngoIds.includes(opp.user_id)) || [];
-    
-    console.log('NGO user IDs:', ngoIds);
-    console.log('NGO opportunities:', ngoOpportunities);
-
     if (!ngoOpportunities || ngoOpportunities.length === 0) {
-      console.log('No NGO opportunities found');
-      return NextResponse.json(
-        { opportunities: [] },
-        { status: 200 }
-      );
+      return NextResponse.json({ opportunities: [] }, { status: 200 });
     }
 
-    // Get the corresponding opportunities data
-    const opportunityIds = ngoOpportunities.map(desc => desc.opportunity_id);
     const { data: opportunitiesData, error: opportunitiesError } = await supabase
       .from('opportunities')
       .select(`
@@ -102,8 +124,6 @@ export async function GET(request: NextRequest) {
       `)
       .in('id', opportunityIds)
       .order('created_at', { ascending: false });
-
-
 
     if (opportunitiesError) {
       console.error('Error fetching NGO opportunities:', opportunitiesError);
@@ -147,6 +167,7 @@ export async function GET(request: NextRequest) {
         )
       `)
       .in('opportunity_id', opportunityIds)
+      .neq('status', 'draft')
       .order('submitted_at', { ascending: false });
 
 

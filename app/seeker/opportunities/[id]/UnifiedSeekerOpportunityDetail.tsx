@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import {
   AcademicCapIcon,
   BanknotesIcon,
@@ -12,13 +13,16 @@ import {
   ClockIcon,
   DocumentTextIcon,
   MapPinIcon,
+  PencilSquareIcon,
   TagIcon,
+  TrashIcon,
 } from '@heroicons/react/24/outline';
 import type { Opportunity, RelatedOpportunitySummary } from '@/app/lib/opportunities';
 import { displayOpportunityCountry } from '@/app/lib/locationNormalize';
 import type { User } from '@/app/lib/auth';
-import { AuthService } from '@/app/lib/auth';
+import { AuthService, useAuth } from '@/app/lib/auth';
 import ShareOpportunity from './ShareOpportunity';
+import SeekerApplicationForm from './SeekerApplicationForm';
 import FavoriteOpportunity from './FavoriteOpportunity';
 import OpportunityDescriptionRich from './OpportunityDescriptionRich';
 import ProcessTimeline from '@/app/components/ProcessTimeline';
@@ -27,8 +31,15 @@ import { hasVisibleTrainingProgram } from '@/app/lib/opportunityTrainingProgram'
 import OpportunityFaqDisplay from '@/app/components/OpportunityFaqDisplay';
 import OpportunityDocumentsList from '@/app/components/OpportunityDocumentsList';
 import OpportunityActionButtonsDisplay from '@/app/components/OpportunityActionButtonsDisplay';
+import { deleteOpportunity } from '@/app/ngo/opportunities/services/opportunityService';
+import toast from 'react-hot-toast';
+
+function isNgoAccount(userType?: string | null) {
+  return userType === 'NGO' || userType === 'admin_ngo' || userType === 'assistant_ngo';
+}
 
 export type SeekerListingKind = 'ngo_partner' | 'platform_curated' | 'external_feed';
+export type OpportunityDetailAudience = 'seeker' | 'ngo';
 
 export interface UnifiedSeekerOpportunityDetailProps {
   opportunity: Opportunity;
@@ -41,6 +52,8 @@ export interface UnifiedSeekerOpportunityDetailProps {
   relatedOpportunities?: RelatedOpportunitySummary[];
   /** Resolved NGO profile id for "View all" link when organizationProfile.id is missing */
   ngoPageId?: string | null;
+  /** Which app shell/route audience is viewing this page */
+  audience?: OpportunityDetailAudience;
 }
 
 const KIND_COPY: Record<
@@ -92,17 +105,37 @@ export default function UnifiedSeekerOpportunityDetail({
   richDescription = true,
   relatedOpportunities = [],
   ngoPageId = null,
+  audience = 'seeker',
 }: UnifiedSeekerOpportunityDetailProps) {
+  const router = useRouter();
+  const { user: sessionUser } = useAuth();
   const orgId = ngoPageId ?? opportunity.organizationProfile?.id;
   const orgName = opportunity.organization || 'Organization';
   const [user, setUser] = useState<User | null | undefined>(undefined);
+  const [viewerNgoProfileId, setViewerNgoProfileId] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const opportunityPathPrefix = audience === 'ngo' ? '/ngo/opportunities' : '/seeker/opportunities';
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
         const { user: u } = await AuthService.getUser();
-        if (!cancelled) setUser(u ?? null);
+        if (cancelled) return;
+        setUser(u ?? null);
+
+        if (u && isNgoAccount(u.userType)) {
+          try {
+            const response = await fetch(`/api/ngo/approval-status?userId=${u.id}`);
+            if (response.ok) {
+              const data = await response.json();
+              if (!cancelled) setViewerNgoProfileId(data.ngo_profile_id || null);
+            }
+          } catch {
+            // Ownership falls back to ownerUserId match
+          }
+        }
       } catch {
         if (!cancelled) setUser(null);
       }
@@ -122,9 +155,45 @@ export default function UnifiedSeekerOpportunityDetail({
   const isExternal = listingKind === 'external_feed';
 
   const authReady = user !== undefined;
-  const applyBlocked = applyAuthRequired && authReady && !user;
+  const resolvedUser = user !== undefined ? user : sessionUser;
+  const ngoViewer = audience === 'ngo' || Boolean((resolvedUser || sessionUser) && isNgoAccount((resolvedUser || sessionUser)?.userType));
+  // Marketing header (logo, nav, Sign in, Get started) is for guests only.
+  // A signed-in seeker already has the app sidebar, so this bar stays hidden.
+  const showPublicHeader = !sessionUser && !resolvedUser && !ngoViewer;
+  const opportunityOrgId = opportunity.organizationProfile?.id ?? opportunity.ngoProfileId ?? null;
+  const isOwner = Boolean(
+    authReady &&
+      user &&
+      ngoViewer &&
+      (
+        (opportunity.ownerUserId && resolvedUser?.id === opportunity.ownerUserId) ||
+        (viewerNgoProfileId && opportunityOrgId && viewerNgoProfileId === opportunityOrgId)
+      )
+  );
+  // Hide apply until auth resolves so NGO users never briefly see Apply
+  const hideApply = !authReady || ngoViewer;
+  const applyBlocked = !hideApply && applyAuthRequired && authReady && !resolvedUser;
 
   const kind = KIND_COPY[listingKind];
+
+  const handleDelete = async () => {
+    try {
+      setDeleting(true);
+      const result = await deleteOpportunity(opportunity.id);
+      if (result.success) {
+        toast.success('Opportunity deleted successfully');
+        setShowDeleteConfirm(false);
+        router.push('/ngo/opportunities?tab=list');
+      } else {
+        toast.error(result.error || 'Failed to delete opportunity');
+      }
+    } catch (error) {
+      console.error('Error deleting opportunity:', error);
+      toast.error('An error occurred while deleting the opportunity');
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   const compensation =
     opportunity.compensation && !/^competitive$/i.test(String(opportunity.compensation))
@@ -154,6 +223,7 @@ export default function UnifiedSeekerOpportunityDetail({
 
   return (
     <div className="min-h-screen bg-olive-50">
+      {showPublicHeader && (
       <header className="bg-white/95 backdrop-blur-sm border-b border-olive-200">
         <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -192,6 +262,7 @@ export default function UnifiedSeekerOpportunityDetail({
           </div>
         </div>
       </header>
+      )}
 
       <div className="relative overflow-hidden bg-gradient-to-r from-olive-900 via-olive-800 to-olive-600 text-white">
         <div
@@ -229,6 +300,26 @@ export default function UnifiedSeekerOpportunityDetail({
                   orgName
                 )}
               </p>
+
+              {isOwner && (
+                <div className="mt-6 flex flex-wrap items-center gap-3">
+                  <Link
+                    href={`/ngo/opportunities?edit=${opportunity.id}&tab=new`}
+                    className="inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2.5 text-sm font-semibold text-olive-800 shadow-sm hover:bg-olive-50 transition"
+                  >
+                    <PencilSquareIcon className="h-4 w-4" />
+                    Edit
+                  </Link>
+                  <button
+                    type="button"
+                    onClick={() => setShowDeleteConfirm(true)}
+                    className="inline-flex items-center gap-2 rounded-xl border border-white/40 bg-white/10 px-4 py-2.5 text-sm font-semibold text-white hover:bg-red-500/90 hover:border-red-400 transition"
+                  >
+                    <TrashIcon className="h-4 w-4" />
+                    Delete
+                  </button>
+                </div>
+              )}
             </div>
 
             {opportunity.organizationProfile?.profileImage && (
@@ -258,17 +349,49 @@ export default function UnifiedSeekerOpportunityDetail({
         </div>
       </div>
 
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
+            <h3 className="text-lg font-semibold text-olive-900">Delete opportunity</h3>
+            <p className="mt-2 text-sm text-olive-700">
+              Are you sure you want to delete &ldquo;{opportunity.title}&rdquo;? This action cannot be undone.
+            </p>
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setShowDeleteConfirm(false)}
+                disabled={deleting}
+                className="rounded-xl border border-olive-200 px-4 py-2 text-sm font-medium text-olive-800 hover:bg-olive-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleDelete}
+                disabled={deleting}
+                className="inline-flex items-center rounded-xl bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-60"
+              >
+                {deleting ? 'Deleting…' : 'Delete'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 pt-6 md:pt-8 pb-16 md:pb-20">
         <nav className="mb-4 text-sm text-olive-600" aria-label="Breadcrumb">
           <ol className="flex flex-wrap items-center gap-2">
             <li>
-              <Link href="/" className="hover:text-olive-800">
-                Home
+              <Link href={ngoViewer ? '/ngo/dashboard' : '/'} className="hover:text-olive-800">
+                {ngoViewer ? 'Dashboard' : 'Home'}
               </Link>
             </li>
             <li aria-hidden="true">/</li>
             <li>
-              <Link href="/seeker/opportunities" className="hover:text-olive-800">
+              <Link
+                href={ngoViewer ? '/ngo/opportunities?tab=list' : '/seeker/opportunities'}
+                className="hover:text-olive-800"
+              >
                 Opportunities
               </Link>
             </li>
@@ -280,12 +403,18 @@ export default function UnifiedSeekerOpportunityDetail({
         <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_380px] xl:grid-cols-[minmax(0,1fr)_420px] gap-2.5 xl:gap-3 items-stretch mb-3 md:mb-3.5">
           <div className="h-full rounded-xl border border-olive-100 bg-white px-5 py-4 md:px-6 md:py-5 shadow-sm">
             <p className="text-sm md:text-[15px] text-olive-700 leading-relaxed pl-4 border-l-[3px] border-olive-400">
-              {kind.hint}
+              {isOwner
+                ? 'This is your published opportunity. You can edit or delete it from the banner above.'
+                : resolvedUser && listingKind === 'ngo_partner'
+                  ? 'This opportunity was published by an NGO partner on Zaytoonz. Use the application form below to submit your details securely.'
+                  : kind.hint}
             </p>
           </div>
           <div className="h-full rounded-xl border border-olive-100 bg-white px-5 py-4 md:px-6 md:py-5 shadow-sm flex items-center">
-            <div className="grid w-full grid-cols-2 gap-2 [&>button]:w-full [&>button]:justify-center">
-              <FavoriteOpportunity opportunityId={opportunity.id} title={opportunity.title} />
+            <div className={`grid w-full gap-2 [&>button]:w-full [&>button]:justify-center ${ngoViewer ? 'grid-cols-1' : 'grid-cols-2'}`}>
+              {!ngoViewer && (
+                <FavoriteOpportunity opportunityId={opportunity.id} title={opportunity.title} />
+              )}
               <ShareOpportunity title={opportunity.title} pageUrl={pageUrl} />
             </div>
           </div>
@@ -347,6 +476,7 @@ export default function UnifiedSeekerOpportunityDetail({
               </section>
             )}
 
+            {!hideApply && (
             <section className="bg-white rounded-2xl shadow-sm border border-olive-100 p-7 md:p-9">
               <h2 className="text-xl font-semibold text-olive-900 mb-6">Apply now</h2>
 
@@ -406,16 +536,24 @@ export default function UnifiedSeekerOpportunityDetail({
                 </div>
               )}
 
-              {!applyBlocked && !isExternal && (showMailto || showFormApply) && (
-                <div className="flex flex-col sm:flex-row gap-3">
-                  {showFormApply && (
-                    <Link
-                      href={`/seeker/opportunities/${opportunity.id}/form`}
-                      className="inline-flex flex-1 items-center justify-center px-6 py-3.5 rounded-xl bg-olive-700 text-white font-semibold shadow-sm hover:bg-olive-800 transition text-center"
-                    >
-                      Apply with form
-                    </Link>
+              {!applyBlocked && !isExternal && showFormApply && (
+                <div className="space-y-4">
+                  <p className="text-sm text-olive-700">
+                    {opportunity.applicationForm?.title
+                      ? `Complete the ${opportunity.applicationForm.title} form to apply.`
+                      : 'Complete the application form to apply.'}
+                  </p>
+                  {opportunity.applicationForm?.instructions && (
+                    <p className="text-sm text-olive-700 whitespace-pre-wrap">
+                      {opportunity.applicationForm.instructions}
+                    </p>
                   )}
+                  <SeekerApplicationForm opportunity={opportunity} />
+                </div>
+              )}
+
+              {!applyBlocked && !isExternal && (showMailto || showFormApply) && showMailto && (
+                <div className={`flex flex-col sm:flex-row gap-3 ${showFormApply ? 'mt-4' : ''}`}>
                   {showMailto && (
                     <a
                       href={`mailto:${opportunity.contactEmails![0]}`}
@@ -435,6 +573,7 @@ export default function UnifiedSeekerOpportunityDetail({
                 <p className="text-sm text-olive-600">No application method is configured for this opportunity yet.</p>
               )}
             </section>
+            )}
           </div>
 
           {/* Right column — general info + documents */}
@@ -491,7 +630,7 @@ export default function UnifiedSeekerOpportunityDetail({
                   {relatedOpportunities.map((related) => (
                     <li key={related.id}>
                       <Link
-                        href={`/seeker/opportunities/${related.id}`}
+                        href={`${opportunityPathPrefix}/${related.id}`}
                         className="group flex items-start gap-3 rounded-xl border border-olive-100 p-3 hover:border-olive-300 hover:bg-olive-50/60 transition"
                       >
                         <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-olive-50 text-olive-700">

@@ -195,15 +195,19 @@ const ApplicationModal = ({
               )}
             </div>
             <div className="bg-gray-50 p-4 rounded-lg">
-              <h3 className="font-medium text-gray-800 mb-2">Submitted</h3>
+              <h3 className="font-medium text-gray-800 mb-2">
+                {application.status.toLowerCase() === 'draft' ? 'Draft' : 'Submitted'}
+              </h3>
               <p className="text-sm text-gray-600">
-                {new Date(application.submitted_at).toLocaleDateString('en-US', {
-                  year: 'numeric',
-                  month: 'long',
-                  day: 'numeric',
-                  hour: '2-digit',
-                  minute: '2-digit'
-                })}
+                {application.status.toLowerCase() === 'draft'
+                  ? 'Not submitted yet'
+                  : new Date(application.submitted_at).toLocaleDateString('en-US', {
+                      year: 'numeric',
+                      month: 'long',
+                      day: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit'
+                    })}
               </p>
             </div>
             <div className="bg-gray-50 p-4 rounded-lg">
@@ -348,6 +352,7 @@ export default function ApplicationsPage() {
       case 'rejected': return 'bg-red-100 text-red-800';
       case 'interview scheduled': return 'bg-blue-100 text-blue-800';
       case 'in_progress': return 'bg-blue-100 text-blue-800';
+      case 'draft': return 'bg-amber-100 text-amber-800';
       case 'submitted':
       case 'in review':
       case 'under review': return 'bg-yellow-100 text-yellow-800';
@@ -433,12 +438,10 @@ export default function ApplicationsPage() {
               <h3 className="font-medium text-blue-800 mb-1">Total Applications</h3>
               <p className="text-2xl font-bold text-blue-900">{filteredApplications.length}</p>
             </div>
-            <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-100">
-              <h3 className="font-medium text-yellow-800 mb-1">In Progress</h3>
-              <p className="text-2xl font-bold text-yellow-900">
-                {filteredApplications.filter(app => 
-                  ['submitted', 'in review', 'under review', 'interview scheduled'].includes(app.status.toLowerCase())
-                ).length}
+            <div className="bg-amber-50 p-4 rounded-lg border border-amber-100">
+              <h3 className="font-medium text-amber-800 mb-1">Drafts</h3>
+              <p className="text-2xl font-bold text-amber-900">
+                {filteredApplications.filter(app => app.status.toLowerCase() === 'draft').length}
               </p>
             </div>
             <div className="bg-green-50 p-4 rounded-lg border border-green-100">
@@ -512,7 +515,11 @@ export default function ApplicationsPage() {
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                     <div className="flex items-center gap-2 text-sm text-gray-600">
                       <ClockIcon className="w-4 h-4" />
-                      <span>Applied: {formatDate(application.submitted_at)}</span>
+                      <span>
+                        {application.status.toLowerCase() === 'draft'
+                          ? `Draft saved: ${formatDate(application.updated_at)}`
+                          : `Applied: ${formatDate(application.submitted_at || application.updated_at)}`}
+                      </span>
                     </div>
                     {application.opportunity_description?.location && (
                       <div className="flex items-center gap-2 text-sm text-gray-600">
@@ -526,14 +533,18 @@ export default function ApplicationsPage() {
                   
                   <div className="flex justify-between items-center">
                     <div className="text-sm text-gray-600">
-                      <p>Application submitted via form</p>
+                      <p>
+                        {application.status.toLowerCase() === 'draft'
+                          ? 'Draft — you can still edit this application'
+                          : 'Submitted — this application can no longer be edited'}
+                      </p>
                     </div>
                     <div className="flex gap-2">
                       <button
                         onClick={() => router.push(`/seeker/opportunities/${application.opportunity_id}`)}
                         className="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors text-sm font-medium"
                       >
-                        View Opportunity
+                        {application.status.toLowerCase() === 'draft' ? 'Continue application' : 'View Opportunity'}
                       </button>
                       <button
                         onClick={() => handleViewApplication(application)}
