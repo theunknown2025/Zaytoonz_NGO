@@ -488,7 +488,7 @@ export async function getOpportunities(): Promise<{ opportunities: Opportunity[]
             ? {
                 id: ngoProfile.id,
                 name: ngoProfile.name,
-                email: ngoProfile.email,
+                email: ngoProfile.email || '',
                 profileImage: ngoProfile.profile_image_url
               }
             : undefined,
@@ -673,7 +673,7 @@ export async function getOpportunitiesByCategory(category: 'job' | 'funding' | '
         organizationProfile: ngoProfile ? {
           id: ngoProfile.id,
           name: ngoProfile.name,
-          email: ngoProfile.email,
+          email: ngoProfile.email || '',
           profileImage: ngoProfile.profile_image_url
         } : undefined,
         location: resolveOpportunityLocation(description?.location),
@@ -892,7 +892,7 @@ export async function searchOpportunities(searchQuery: string, category?: 'job' 
         organizationProfile: ngoProfile ? {
           id: ngoProfile.id,
           name: ngoProfile.name,
-          email: ngoProfile.email,
+          email: ngoProfile.email || '',
           profileImage: ngoProfile.profile_image_url
         } : undefined,
         location: resolveOpportunityLocation(description?.location),
@@ -1335,7 +1335,7 @@ export async function getOpportunityById(id: string): Promise<{ opportunity: Opp
         ? {
             id: ngoProfile.id,
             name: ngoProfile.name,
-            email: ngoProfile.email,
+            email: ngoProfile.email || '',
             profileImage: ngoProfile.profile_image_url
           }
         : undefined,
