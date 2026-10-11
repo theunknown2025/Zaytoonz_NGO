@@ -29,6 +29,8 @@ import type { OpportunityFaqItem } from '@/app/lib/opportunityFaq';
 import { getOpportunityFaqItems } from './services/opportunityFaqService';
 import type { OpportunityActionButton } from '@/app/lib/opportunityActionButtons';
 import { getOpportunityActionButtons } from './services/opportunityActionButtonsService';
+import { getQualificationGroups, saveQualificationGroups } from './services/opportunityQualificationGroupsService';
+import { createDefaultQualificationGroups, type QualificationGroup } from '@/app/lib/qualificationGroups';
 
 interface OpportunityFormData {
   title: string;
@@ -122,6 +124,9 @@ export default function OpportunitiesManagementPage() {
   const [includeFaq, setIncludeFaq] = useState(false);
   const [actionButtons, setActionButtons] = useState<OpportunityActionButton[]>([]);
   const [includeActionButtons, setIncludeActionButtons] = useState(false);
+  const [qualificationGroups, setQualificationGroups] = useState<QualificationGroup[]>(
+    createDefaultQualificationGroups
+  );
 
   useEffect(() => {
     const tab = searchParams.get('tab');
@@ -248,6 +253,13 @@ export default function OpportunitiesManagementPage() {
         }
       } catch (error) {
         console.error('Error loading form email data:', error);
+      }
+
+      try {
+        const groups = await getQualificationGroups(opportunityId);
+        setQualificationGroups(groups.length > 0 ? groups : createDefaultQualificationGroups());
+      } catch (error) {
+        console.error('Error loading qualification groups:', error);
       }
 
       // Load process flow steps
@@ -634,6 +646,15 @@ export default function OpportunitiesManagementPage() {
       return false;
     }
 
+    if (formData.applicationMethod === 'form') {
+      try {
+        setQualificationGroups(await saveQualificationGroups(opportunityId, qualificationGroups));
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : 'Failed to save qualification groups');
+        return false;
+      }
+    }
+
     return true;
   };
 
@@ -927,6 +948,8 @@ export default function OpportunitiesManagementPage() {
             onApplicationMethodChange={handleApplicationMethodChange}
             onEmailsChange={handleEmailsChange}
             onReferenceCodesChange={handleReferenceCodesChange}
+            qualificationGroups={qualificationGroups}
+            onQualificationGroupsChange={setQualificationGroups}
             onPrevious={handlePrevious}
             onNext={handleNext}
           />
@@ -1017,6 +1040,7 @@ export default function OpportunitiesManagementPage() {
     setIncludeFaq(false);
     setActionButtons([]);
     setIncludeActionButtons(false);
+    setQualificationGroups(createDefaultQualificationGroups());
     setOpportunitySaved(false);
     setLoading(false);
     setSavingDraft(false);

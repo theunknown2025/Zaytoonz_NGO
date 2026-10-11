@@ -1,5 +1,5 @@
 /**
- * Resolves the Python scraper API base URL for browser vs server.
+ * Resolves the Scrape_Master API base URL for browser vs server.
  *
  * - Production (HTTPS): browser uses same-origin `/scraper-api` (nginx → python-scraper).
  * - Local Next.js on localhost: direct `http://localhost:8000` when env is unset.

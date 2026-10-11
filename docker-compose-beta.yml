@@ -65,7 +65,7 @@ services:
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - ENVIRONMENT=production
     volumes:
-      - ./python_scraper:/app/python_scraper:ro
+      - ./Scrape_Master:/app/Scrape_Master:ro
       - scraper-cache:/root/.cache/ms-playwright
     restart: unless-stopped
     networks:

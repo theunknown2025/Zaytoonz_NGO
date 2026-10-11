@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
+import Link from 'next/link';
 import {
   MagnifyingGlassCircleIcon,
   PlusIcon,
@@ -261,14 +262,14 @@ export default function ScraperPage() {
                 result = JSON.parse(text) as ScrapeResult;
               } else {
                 const errMsg = res.status === 502
-                  ? 'Scraper backend is not responding (502). Ensure python-scraper is running.'
+                  ? 'Scraper backend is not responding (502). Ensure the Scrape_Master API is running.'
                   : `Unexpected response (${res.status}): ${text.slice(0, 80)}`;
                 result = { success: false, error: errMsg };
               }
             } catch (_parseErr) {
               result = {
                 success: false,
-                error: 'Scraper returned invalid JSON (not running or misconfigured). Check python-scraper logs.',
+                error: 'Scraper returned invalid JSON (not running or misconfigured). Check Scrape_Master API logs.',
               };
             }
             if (!res.ok) {
@@ -294,7 +295,7 @@ export default function ScraperPage() {
       if (!completed) {
         allResults.push({
           success: false,
-          error: `Failed to reach scraper API. Tried: ${scraperBases.join(', ')}. Last error: ${lastError || 'Unknown'}. Start python scraper on port 8000 or configure nginx /scraper-api.`,
+          error: `Failed to reach scraper API. Tried: ${scraperBases.join(', ')}. Last error: ${lastError || 'Unknown'}. Start Scrape_Master (cd Scrape_Master && python run_api.py) on port 8000 or configure nginx /scraper-api.`,
         });
       }
     }
@@ -617,13 +618,13 @@ export default function ScraperPage() {
             <p className="text-gray-500 text-sm">AI-powered web scraping for opportunities</p>
           </div>
           </div>
-          <a
+          <Link
             href="/admin/Scraper/extracted"
-            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors border border-blue-200"
+            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-[#556B2F] bg-[#556B2F]/10 hover:bg-[#556B2F]/20 rounded-lg transition-colors border border-[#556B2F]/20"
           >
             <DocumentTextIcon className="h-5 w-5" />
             View Extracted
-          </a>
+          </Link>
         </div>
       </div>
 

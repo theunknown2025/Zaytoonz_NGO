@@ -10,7 +10,18 @@ from typing import Optional, List, Dict, Any
 import asyncio
 import json
 import os
+import sys
 from datetime import datetime
+
+# nest_asyncio conflicts with uvloop on Linux, so only apply it on Windows
+if sys.platform.startswith('win'):
+    asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
+    import nest_asyncio
+    nest_asyncio.apply()
+    # Emoji log lines crash on cp1252 consoles (e.g. background/PM2 runs)
+    for _stream in (sys.stdout, sys.stderr):
+        if hasattr(_stream, "reconfigure"):
+            _stream.reconfigure(encoding="utf-8", errors="replace")
 
 # Import your existing scraper modules
 from scraper import scrape_urls
@@ -32,6 +43,11 @@ def _cors_allow_origins() -> List[str]:
     return [
         "http://localhost:3000",
         "http://127.0.0.1:3000",
+        "http://localhost:3001",
+        "https://zaytoonz.com",
+        "https://www.zaytoonz.com",
+        "https://zaytoonz.org",
+        "https://www.zaytoonz.org",
         "https://beta-zaytoonz.pro",
         "http://beta-zaytoonz.pro",
     ]
@@ -191,14 +207,17 @@ async def scrape_job(request: ScrapeRequest):
     Main scraping endpoint that processes a URL and returns structured job data
     """
     try:
-        # Validate Supabase connection
-        supabase = get_supabase_client()
-        if not supabase:
-            raise HTTPException(status_code=500, detail="Supabase not configured")
-            
         # Validate URL
         if not request.url:
             raise HTTPException(status_code=400, detail="URL is required")
+
+        robots_status = check_url_allowed(request.url)
+        if not robots_status.get("allowed", True):
+            matched_rule = robots_status.get("matched_rule") or "Disallow rule"
+            raise HTTPException(
+                status_code=403,
+                detail=f"Blocked by robots.txt ({matched_rule}) for URL: {request.url}"
+            )
             
         # Validate model
         if request.model not in MODELS_USED:
@@ -337,14 +356,18 @@ async def get_raw_content(request: ScrapeRequest):
     This returns the FULL page content as-is.
     """
     try:
-        # Validate Supabase connection
-        supabase = get_supabase_client()
-        if not supabase:
-            raise HTTPException(status_code=500, detail="Supabase not configured")
-            
         # Validate URL
         if not request.url:
             raise HTTPException(status_code=400, detail="URL is required")
+
+        robots_status = check_url_allowed(request.url)
+        if not robots_status.get("allowed", True):
+            return {
+                "success": False,
+                "error": f"Blocked by robots.txt ({robots_status.get('matched_rule') or 'Disallow rule'})",
+                "url": request.url,
+                "robots": robots_status,
+            }
         
         # Fetch and store markdown data
         print(f"🌐 Fetching raw markdown for: {request.url}")

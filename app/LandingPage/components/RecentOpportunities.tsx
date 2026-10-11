@@ -199,11 +199,6 @@ const RecentOpportunities: React.FC<RecentOpportunitiesProps> = ({ lang, transla
                  type === 'funding' ? translations.funding : 
                  translations.training}
               </span>
-              <span className={`px-2 py-1 rounded-full text-xs ${
-                activeTab === type ? 'bg-white/20 text-white' : 'bg-olive-100 text-olive-700'
-              }`}>
-                {opportunities[type].length}
-              </span>
             </button>
           ))}
         </div>

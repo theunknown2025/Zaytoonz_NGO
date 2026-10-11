@@ -4,7 +4,6 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { 
   CheckCircleIcon, 
-  XCircleIcon, 
   EyeIcon, 
   ChatBubbleLeftRightIcon,
   DocumentArrowDownIcon,
@@ -27,6 +26,16 @@ import CvPreviewModal from './components/CvPreviewModal';
 import { useAuth } from '@/app/lib/auth';
 import { toast } from 'react-hot-toast';
 import ApplicationProcessPanel from '@/app/components/ApplicationProcessPanel';
+import CvExportProgressModal, { type CvExportProgress } from './components/CvExportProgressModal';
+import { exportCandidateCvs } from './utils/generateCvPdfs';
+import { getQualificationGroupColorClasses } from '@/app/lib/qualificationGroups';
+
+interface QualificationGroupRow {
+  id: string;
+  label: string;
+  color: string | null;
+  sort_order: number;
+}
 
 interface SeekerProfile {
   id: string;
@@ -50,6 +59,7 @@ interface Application {
   notes?: string;
   current_step_index?: number;
   process_status?: string;
+  qualification_group_id?: string | null;
   forms_templates: {
     id: string;
     title: string;
@@ -74,13 +84,16 @@ interface OpportunityWithApplications {
   };
   applications: Application[];
   application_count: number;
+  qualification_groups: QualificationGroupRow[];
 }
 
 export default function ApplicationsPage() {
   const [opportunities, setOpportunities] = useState<OpportunityWithApplications[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [filter, setFilter] = useState('all');
+  const [groupFilters, setGroupFilters] = useState<Record<string, string>>({});
+  const [selectedApplications, setSelectedApplications] = useState<Set<string>>(new Set());
+  const [cvExport, setCvExport] = useState<CvExportProgress | null>(null);
   const [expandedOpportunities, setExpandedOpportunities] = useState<Set<string>>(new Set());
   const [expandedApplications, setExpandedApplications] = useState<Set<string>>(new Set());
   const [extractorOpen, setExtractorOpen] = useState(false);
@@ -139,41 +152,96 @@ export default function ApplicationsPage() {
     }
   };
 
-  const updateApplicationStatus = async (applicationId: string, status: string, notes?: string) => {
+  const setApplicationGroupLocally = (applicationId: string, groupId: string | null) => {
+    setOpportunities((prev) =>
+      prev.map((opp) => ({
+        ...opp,
+        applications: opp.applications.map((app) =>
+          app.id === applicationId ? { ...app, qualification_group_id: groupId } : app
+        ),
+      }))
+    );
+  };
+
+  const handleAssignGroup = async (application: Application, groupId: string) => {
+    const previousGroupId = application.qualification_group_id ?? null;
+    const nextGroupId = previousGroupId === groupId ? null : groupId;
+    setApplicationGroupLocally(application.id, nextGroupId);
+
     try {
       const response = await fetch('/api/ngo/applications', {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          applicationId,
-          status,
-          notes
-        }),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ applicationId: application.id, qualificationGroupId: nextGroupId }),
       });
-
-      if (response.ok) {
-        // Refresh the data
-        if (authUser) {
-          await fetchApplications();
-        }
-      } else {
-        throw new Error('Failed to update application status');
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.error || 'Failed to move application');
       }
     } catch (error) {
-      console.error('Error updating application status:', error);
-      setError(error instanceof Error ? error.message : 'Failed to update application');
+      setApplicationGroupLocally(application.id, previousGroupId);
+      toast.error(error instanceof Error ? error.message : 'Failed to move application');
     }
   };
 
-  const handleApprove = (applicationId: string) => {
-    updateApplicationStatus(applicationId, 'approved');
+  const toggleApplicationSelected = (applicationId: string) => {
+    setSelectedApplications((prev) => {
+      const next = new Set(prev);
+      if (next.has(applicationId)) next.delete(applicationId);
+      else next.add(applicationId);
+      return next;
+    });
   };
 
-  const handleReject = (applicationId: string) => {
-    if (window.confirm('Are you sure you want to reject this application?')) {
-      updateApplicationStatus(applicationId, 'rejected');
+  const setApplicationsSelected = (applicationIds: string[], selected: boolean) => {
+    setSelectedApplications((prev) => {
+      const next = new Set(prev);
+      applicationIds.forEach((id) => (selected ? next.add(id) : next.delete(id)));
+      return next;
+    });
+  };
+
+  const handleDownloadSelectedCvs = async (opportunity: OpportunityWithApplications) => {
+    const selected = opportunity.applications.filter((app) => selectedApplications.has(app.id));
+    const withCv = selected.filter((app) => app.selected_cv_id);
+    const withoutCv = selected.filter((app) => !app.selected_cv_id);
+
+    if (withCv.length === 0) {
+      toast.error('None of the selected candidates included a CV');
+      return;
+    }
+
+    const items = withCv.map((app) => ({
+      applicationId: app.id,
+      cvId: app.selected_cv_id as string,
+      candidateName: app.seeker_profile?.full_name || app.selected_cv_name || 'Candidate',
+    }));
+
+    setCvExport({ done: 0, total: items.length, finished: false, generated: 0, failed: [] });
+    try {
+      const result = await exportCandidateCvs(items, `${opportunity.title}_CVs`, (done, total) =>
+        setCvExport((prev) => (prev ? { ...prev, done, total } : prev))
+      );
+      setCvExport((prev) =>
+        prev
+          ? {
+              ...prev,
+              finished: true,
+              generated: result.generated,
+              failed: [
+                ...result.failed,
+                ...withoutCv.map((app) => ({
+                  candidateName: app.seeker_profile?.full_name || 'Unknown applicant',
+                  error: 'No CV included with the application',
+                })),
+              ],
+            }
+          : prev
+      );
+    } catch (error) {
+      console.error('Error exporting CVs:', error);
+      setCvExport(null);
+      toast.error(error instanceof Error ? error.message : 'Failed to generate CVs');
     }
   };
 
@@ -242,10 +310,17 @@ export default function ApplicationsPage() {
     }
   };
 
-  // Filter applications based on status
-  const getFilteredApplications = (applications: Application[]) => {
-    if (filter === 'all') return applications;
-    return applications.filter(app => app.status === filter);
+  const getGroupFilter = (opportunityId: string) => groupFilters[opportunityId] || 'all';
+
+  const setGroupFilter = (opportunityId: string, value: string) => {
+    setGroupFilters((prev) => ({ ...prev, [opportunityId]: value }));
+  };
+
+  const getFilteredApplications = (opportunity: OpportunityWithApplications) => {
+    const filter = getGroupFilter(opportunity.opportunity_id);
+    if (filter === 'all') return opportunity.applications;
+    if (filter === 'unassigned') return opportunity.applications.filter((app) => !app.qualification_group_id);
+    return opportunity.applications.filter((app) => app.qualification_group_id === filter);
   };
 
   // Get total counts for filter buttons
@@ -257,9 +332,8 @@ export default function ApplicationsPage() {
     const allApps = getAllApplications();
     return {
       all: allApps.length,
-      pending: allApps.filter(app => app.status === 'submitted' || app.status === 'pending').length,
-      approved: allApps.filter(app => app.status === 'approved').length,
-      rejected: allApps.filter(app => app.status === 'rejected').length
+      unassigned: allApps.filter(app => !app.qualification_group_id).length,
+      grouped: allApps.filter(app => app.qualification_group_id).length,
     };
   };
 
@@ -535,12 +609,12 @@ export default function ApplicationsPage() {
             <div className="text-sm text-gray-600">Total Applications</div>
           </div>
           <div className="bg-white p-4 rounded-xl shadow-lg text-center">
-            <div className="text-2xl font-bold text-yellow-600">{statusCounts.pending}</div>
-            <div className="text-sm text-gray-600">Pending Review</div>
+            <div className="text-2xl font-bold text-yellow-600">{statusCounts.unassigned}</div>
+            <div className="text-sm text-gray-600">Not Yet Grouped</div>
           </div>
           <div className="bg-white p-4 rounded-xl shadow-lg text-center">
-            <div className="text-2xl font-bold text-green-600">{statusCounts.approved}</div>
-            <div className="text-sm text-gray-600">Approved</div>
+            <div className="text-2xl font-bold text-green-600">{statusCounts.grouped}</div>
+            <div className="text-sm text-gray-600">Sorted Into Groups</div>
           </div>
         </div>
 
@@ -617,9 +691,9 @@ export default function ApplicationsPage() {
                           <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
                             {opportunity.application_count} Total
                           </span>
-                          {opportunity.applications.some(app => app.status === 'submitted' || app.status === 'pending') && (
+                          {opportunity.applications.some(app => !app.qualification_group_id) && (
                             <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
-                              {opportunity.applications.filter(app => app.status === 'submitted' || app.status === 'pending').length} Pending
+                              {opportunity.applications.filter(app => !app.qualification_group_id).length} Not grouped
                             </span>
                           )}
                         </div>
@@ -689,7 +763,13 @@ export default function ApplicationsPage() {
         {/* Expanded Applications Details */}
         {opportunities.map((opportunity) => {
           const isExpanded = expandedOpportunities.has(opportunity.opportunity_id);
-          const filteredApps = getFilteredApplications(opportunity.applications);
+          const filteredApps = getFilteredApplications(opportunity);
+          const activeFilter = getGroupFilter(opportunity.opportunity_id);
+          const groups = opportunity.qualification_groups || [];
+          const groupsById = new Map(groups.map((g) => [g.id, g]));
+          const visibleIds = filteredApps.map((app) => app.id);
+          const allVisibleSelected = visibleIds.length > 0 && visibleIds.every((id) => selectedApplications.has(id));
+          const selectedCount = opportunity.applications.filter((app) => selectedApplications.has(app.id)).length;
 
           return isExpanded && (
             <div key={`expanded-${opportunity.opportunity_id}`} className="bg-white rounded-xl shadow-lg overflow-hidden mb-6">
@@ -703,39 +783,64 @@ export default function ApplicationsPage() {
               </div>
 
               {/* Filters for this opportunity */}
-              <div className="p-4 bg-gray-50 border-b">
+              <div className="p-4 bg-gray-50 border-b space-y-3">
                 <div className="flex flex-wrap gap-2">
                   <button
-                    onClick={() => setFilter('all')}
+                    onClick={() => setGroupFilter(opportunity.opportunity_id, 'all')}
                     className={`px-3 py-1 rounded-lg text-sm font-medium transition-colors ${
-                      filter === 'all' ? 'bg-[#556B2F] text-white' : 'text-gray-700 hover:bg-gray-100'
+                      activeFilter === 'all' ? 'bg-[#556B2F] text-white' : 'text-gray-700 hover:bg-gray-100'
                     }`}
                   >
                     All ({opportunity.applications.length})
                   </button>
                   <button
-                    onClick={() => setFilter('submitted')}
+                    onClick={() => setGroupFilter(opportunity.opportunity_id, 'unassigned')}
                     className={`px-3 py-1 rounded-lg text-sm font-medium transition-colors ${
-                      filter === 'submitted' ? 'bg-yellow-500 text-white' : 'text-gray-700 hover:bg-gray-100'
+                      activeFilter === 'unassigned' ? 'bg-yellow-500 text-white' : 'text-gray-700 hover:bg-gray-100'
                     }`}
                   >
-                    Pending ({opportunity.applications.filter(app => app.status === 'submitted' || app.status === 'pending').length})
+                    Not grouped ({opportunity.applications.filter(app => !app.qualification_group_id).length})
                   </button>
+                  {groups.map((group) => {
+                    const colors = getQualificationGroupColorClasses(group.color);
+                    const count = opportunity.applications.filter(app => app.qualification_group_id === group.id).length;
+                    return (
+                      <button
+                        key={group.id}
+                        onClick={() => setGroupFilter(opportunity.opportunity_id, group.id)}
+                        className={`inline-flex items-center px-3 py-1 rounded-lg text-sm font-medium border transition-colors ${
+                          activeFilter === group.id ? colors.active : `border-transparent text-gray-700 hover:bg-gray-100`
+                        }`}
+                      >
+                        <span className={`mr-2 h-2 w-2 rounded-full ${activeFilter === group.id ? 'bg-white' : colors.dot}`} />
+                        {group.label} ({count})
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <label className="inline-flex items-center gap-2 text-sm text-gray-700">
+                    <input
+                      type="checkbox"
+                      checked={allVisibleSelected}
+                      onChange={(e) => setApplicationsSelected(visibleIds, e.target.checked)}
+                      disabled={visibleIds.length === 0}
+                      className="h-4 w-4 rounded border-gray-300 text-[#556B2F] focus:ring-[#556B2F]"
+                    />
+                    Select all shown
+                    {selectedCount > 0 && (
+                      <span className="text-gray-500">({selectedCount} selected)</span>
+                    )}
+                  </label>
                   <button
-                    onClick={() => setFilter('approved')}
-                    className={`px-3 py-1 rounded-lg text-sm font-medium transition-colors ${
-                      filter === 'approved' ? 'bg-green-500 text-white' : 'text-gray-700 hover:bg-gray-100'
-                    }`}
+                    type="button"
+                    onClick={() => handleDownloadSelectedCvs(opportunity)}
+                    disabled={selectedCount === 0 || (cvExport !== null && !cvExport.finished)}
+                    className="inline-flex items-center px-3 py-1.5 bg-[#556B2F] text-white text-sm rounded-lg hover:bg-[#465924] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    Approved ({opportunity.applications.filter(app => app.status === 'approved').length})
-                  </button>
-                  <button
-                    onClick={() => setFilter('rejected')}
-                    className={`px-3 py-1 rounded-lg text-sm font-medium transition-colors ${
-                      filter === 'rejected' ? 'bg-red-500 text-white' : 'text-gray-700 hover:bg-gray-100'
-                    }`}
-                  >
-                    Rejected ({opportunity.applications.filter(app => app.status === 'rejected').length})
+                    <DocumentArrowDownIcon className="w-4 h-4 mr-1" />
+                    {selectedCount > 1 ? `Download ${selectedCount} CVs (ZIP)` : 'Download CV'}
                   </button>
                 </div>
               </div>
@@ -755,6 +860,13 @@ export default function ApplicationsPage() {
                           <div className="bg-gray-50 p-4">
                             <div className="flex items-center justify-between">
                               <div className="flex items-center space-x-4">
+                                <input
+                                  type="checkbox"
+                                  checked={selectedApplications.has(application.id)}
+                                  onChange={() => toggleApplicationSelected(application.id)}
+                                  aria-label={`Select ${profile?.full_name || 'applicant'}`}
+                                  className="h-4 w-4 rounded border-gray-300 text-[#556B2F] focus:ring-[#556B2F]"
+                                />
                                 <div className="w-12 h-12 bg-gray-300 rounded-full flex items-center justify-center">
                                   <UserIcon className="w-6 h-6 text-gray-600" />
                                 </div>
@@ -778,15 +890,20 @@ export default function ApplicationsPage() {
                               </div>
                               <div className="flex items-center space-x-4">
                                 <div className="flex items-center space-x-2">
-                                  <span className={`px-3 py-1 text-xs font-medium rounded-full ${
-                                    application.status === 'approved' 
-                                      ? 'bg-green-100 text-green-800' 
-                                      : application.status === 'rejected'
-                                        ? 'bg-red-100 text-red-800'
-                                        : 'bg-yellow-100 text-yellow-800'
-                                  }`}>
-                                    {application.status === 'submitted' ? 'Pending' : application.status.charAt(0).toUpperCase() + application.status.slice(1)}
-                                  </span>
+                                  {(() => {
+                                    const group = application.qualification_group_id
+                                      ? groupsById.get(application.qualification_group_id)
+                                      : undefined;
+                                    return group ? (
+                                      <span className={`px-3 py-1 text-xs font-medium rounded-full ${getQualificationGroupColorClasses(group.color).badge}`}>
+                                        {group.label}
+                                      </span>
+                                    ) : (
+                                      <span className="px-3 py-1 text-xs font-medium rounded-full bg-yellow-100 text-yellow-800">
+                                        Not grouped
+                                      </span>
+                                    );
+                                  })()}
                                   {application.selected_cv_id && (
                                     <button
                                       type="button"
@@ -813,6 +930,29 @@ export default function ApplicationsPage() {
                                 </button>
                               </div>
                             </div>
+                            {groups.length > 0 && (
+                              <div className="mt-3 flex flex-wrap items-center gap-2 pl-[5.5rem]">
+                                <span className="text-xs font-medium text-gray-500 mr-1">Move to:</span>
+                                {groups.map((group) => {
+                                  const colors = getQualificationGroupColorClasses(group.color);
+                                  const isCurrent = application.qualification_group_id === group.id;
+                                  return (
+                                    <button
+                                      key={group.id}
+                                      type="button"
+                                      onClick={() => handleAssignGroup(application, group.id)}
+                                      title={isCurrent ? 'Click again to remove from this group' : `Move to ${group.label}`}
+                                      className={`inline-flex items-center px-3 py-1 text-xs font-medium rounded-full border transition-colors ${
+                                        isCurrent ? colors.active : colors.button
+                                      }`}
+                                    >
+                                      {isCurrent && <CheckCircleIcon className="w-3.5 h-3.5 mr-1" />}
+                                      {group.label}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            )}
                           </div>
 
                           {/* Expanded Application Details */}
@@ -915,28 +1055,6 @@ export default function ApplicationsPage() {
                                       Message
                                     </Link>
                                   </div>
-                                  <div className="flex space-x-2">
-                                    {application.status !== 'approved' &&
-                                      application.status !== 'in_progress' && (
-                                      <button
-                                        onClick={() => handleApprove(application.id)}
-                                        className="inline-flex items-center px-3 py-2 bg-green-100 text-green-700 text-sm rounded-lg hover:bg-green-200 transition-colors"
-                                      >
-                                        <CheckCircleIcon className="w-4 h-4 mr-1" />
-                                        Approve
-                                      </button>
-                                    )}
-                                    {application.status !== 'rejected' &&
-                                      application.status !== 'in_progress' && (
-                                      <button
-                                        onClick={() => handleReject(application.id)}
-                                        className="inline-flex items-center px-3 py-2 bg-red-100 text-red-700 text-sm rounded-lg hover:bg-red-200 transition-colors"
-                                      >
-                                        <XCircleIcon className="w-4 h-4 mr-1" />
-                                        Reject
-                                      </button>
-                                    )}
-                                  </div>
                                 </div>
                               </div>
                             </div>
@@ -966,6 +1084,9 @@ export default function ApplicationsPage() {
           cvName={cvPreview.name}
           onClose={() => setCvPreview(null)}
         />
+      )}
+      {cvExport && (
+        <CvExportProgressModal progress={cvExport} onClose={() => setCvExport(null)} />
       )}
     </div>
   );

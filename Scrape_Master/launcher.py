@@ -8,12 +8,10 @@ import sys
 import asyncio
 import argparse
 
-# Apply event loop fixes for Windows and nested loops
+# nest_asyncio must not be applied here: it replaces asyncio.run without the
+# loop_factory argument that uvicorn needs. api_wrapper applies it after startup.
 if sys.platform.startswith('win'):
     asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
-
-import nest_asyncio
-nest_asyncio.apply()
 
 def launch_streamlit():
     """Launch the Streamlit application"""

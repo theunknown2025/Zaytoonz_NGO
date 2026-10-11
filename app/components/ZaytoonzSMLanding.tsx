@@ -1,23 +1,27 @@
 'use client';
 
-import React, { useEffect, useState, KeyboardEvent } from 'react';
-import { useRouter } from 'next/navigation';
+import React, { useEffect, useState, FormEvent } from 'react';
+import Link from 'next/link';
+import { SOCIAL_LINKS } from '../lib/socialLinks';
 
 interface ZaytoonzSMLandingProps {
-  initialShowModal?: boolean;
+  isAuthenticated: boolean;
+  nextPath: string;
 }
 
 const slides = ['/Health.png', '/Water.png', '/Green.png', '/Education.png'];
+const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '';
 
 export default function ZaytoonzSMLanding({
-  initialShowModal = false,
+  isAuthenticated,
+  nextPath,
 }: ZaytoonzSMLandingProps) {
   const [currentSlide, setCurrentSlide] = useState(0);
-  const [showModal, setShowModal] = useState(initialShowModal);
-  const [modalStep, setModalStep] = useState<'choice' | 'code'>('choice');
-  const [accessCode, setAccessCode] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [accessError, setAccessError] = useState('');
-  const router = useRouter();
+  const [submitting, setSubmitting] = useState(false);
+  const [showLogin, setShowLogin] = useState(!isAuthenticated);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -27,39 +31,62 @@ export default function ZaytoonzSMLanding({
     return () => clearInterval(interval);
   }, []);
 
-  const handleGoToSocial = () => {
-    setShowModal(false);
-    router.push('/');
-  };
-
-  const handleSelectTestApp = () => {
-    setModalStep('code');
+  const handleLogin = async (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (submitting) return;
+    setSubmitting(true);
     setAccessError('');
-    setAccessCode('');
-  };
-
-  const VALID_CODE = 'test@ZAYTOONZ2026';
-
-  const submitAccessCode = () => {
-    if (accessCode.trim() === VALID_CODE) {
-      setShowModal(false);
-      router.push('/app');
-    } else {
-      setAccessError(
-        'Incorrect access code. You can continue by exploring our social media channels.',
-      );
+    try {
+      const res = await fetch(`${basePath}/api/access/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify({ email, password }),
+      });
+      if (!res.ok) {
+        setAccessError('Invalid email or password.');
+        setSubmitting(false);
+        return;
+      }
+      window.location.assign(`${basePath}${nextPath}`);
+    } catch {
+      setAccessError('Unable to reach the server. Please try again.');
+      setSubmitting(false);
     }
   };
 
-  const handleCodeKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      submitAccessCode();
-    }
+  const handleLogout = async () => {
+    await fetch(`${basePath}/api/access/logout`, {
+      method: 'POST',
+      credentials: 'same-origin',
+    });
+    window.location.assign(`${basePath}/`);
   };
 
   return (
     <div className="zaytoonz-sm-root">
+      {!isAuthenticated && !showLogin && (
+        <div className="access-toolbar">
+          <button
+            type="button"
+            className="access-toolbar-button primary"
+            onClick={() => setShowLogin(true)}
+          >
+            Access web app
+          </button>
+        </div>
+      )}
+      {isAuthenticated && (
+        <div className="access-toolbar">
+          <Link href="/app" className="access-toolbar-button primary">
+            Open web app
+          </Link>
+          <button type="button" className="access-toolbar-button" onClick={handleLogout}>
+            Lock
+          </button>
+        </div>
+      )}
+
       {/* Background Slideshow */}
       <div className="background-slideshow">
         {slides.map((src, index) => (
@@ -91,221 +118,43 @@ export default function ZaytoonzSMLanding({
 
         {/* Social Links Grid */}
         <div className="links-container">
-          {/* WhatsApp */}
-          <a
-            href="https://chat.whatsapp.com/GlJyFL0Cxvm3AYUQRP4b9G"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="social-link whatsapp"
-            aria-label="Join our WhatsApp community chat"
-          >
-            <div className="card-front">
-              <div className="icon-wrapper">
-                <svg fill="white" viewBox="0 0 24 24" aria-hidden="true">
-                  <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
-                </svg>
+          {SOCIAL_LINKS.map((link) => (
+            <a
+              key={link.key}
+              href={link.href}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={`social-link ${link.key}`}
+              aria-label={link.ariaLabel}
+            >
+              <div className="card-front">
+                <div className="icon-wrapper">
+                  <svg fill="white" viewBox="0 0 24 24" aria-hidden="true">
+                    <path d={link.iconPath} />
+                  </svg>
+                </div>
+                <div className="link-title">{link.title}</div>
+                <div className="link-description">{link.description}</div>
               </div>
-              <div className="link-title">WhatsApp</div>
-              <div className="link-description">Community Chat</div>
-            </div>
-            <div className="card-back">
-              <div className="qr-code">
-                <img
-                  src="/sm/zz-whatsapp.png"
-                  alt="WhatsApp QR Code"
-                  onError={(e) => {
-                    const target = e.currentTarget;
-                    target.style.display = 'none';
-                    if (target.parentElement) {
-                      target.parentElement.innerHTML =
-                        "<span class='qr-placeholder'>QR Code</span>";
-                    }
-                  }}
-                />
+              <div className="card-back">
+                <div className="qr-code">
+                  <img
+                    src={link.qr}
+                    alt={`${link.title} QR Code`}
+                    onError={(e) => {
+                      const target = e.currentTarget;
+                      target.style.display = 'none';
+                      if (target.parentElement) {
+                        target.parentElement.innerHTML =
+                          "<span class='qr-placeholder'>QR Code</span>";
+                      }
+                    }}
+                  />
+                </div>
+                <span className="scan-text">{link.scanText}</span>
               </div>
-              <span className="scan-text">Scan to Join</span>
-            </div>
-          </a>
-
-          {/* Telegram */}
-          <a
-            href="https://t.me/zaytoonz"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="social-link telegram"
-            aria-label="Join our Telegram channel"
-          >
-            <div className="card-front">
-              <div className="icon-wrapper">
-                <svg fill="white" viewBox="0 0 24 24" aria-hidden="true">
-                  <path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z" />
-                </svg>
-              </div>
-              <div className="link-title">Telegram</div>
-              <div className="link-description">Channel</div>
-            </div>
-            <div className="card-back">
-              <div className="qr-code">
-                <img
-                  src="/sm/zz-telegram.png"
-                  alt="Telegram QR Code"
-                  onError={(e) => {
-                    const target = e.currentTarget;
-                    target.style.display = 'none';
-                    if (target.parentElement) {
-                      target.parentElement.innerHTML =
-                        "<span class='qr-placeholder'>QR Code</span>";
-                    }
-                  }}
-                />
-              </div>
-              <span className="scan-text">Scan to Join</span>
-            </div>
-          </a>
-
-          {/* Facebook Page */}
-          <a
-            href="https://www.facebook.com/zaytoonz/"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="social-link facebook"
-            aria-label="Follow our Facebook page"
-          >
-            <div className="card-front">
-              <div className="icon-wrapper">
-                <svg fill="white" viewBox="0 0 24 24" aria-hidden="true">
-                  <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
-                </svg>
-              </div>
-              <div className="link-title">Facebook</div>
-              <div className="link-description">Official Page</div>
-            </div>
-            <div className="card-back">
-              <div className="qr-code">
-                <img
-                  src="/sm/zz-facebook.png"
-                  alt="Facebook QR Code"
-                  onError={(e) => {
-                    const target = e.currentTarget;
-                    target.style.display = 'none';
-                    if (target.parentElement) {
-                      target.parentElement.innerHTML =
-                        "<span class='qr-placeholder'>QR Code</span>";
-                    }
-                  }}
-                />
-              </div>
-              <span className="scan-text">Scan to Follow</span>
-            </div>
-          </a>
-
-          {/* LinkedIn Page */}
-          <a
-            href="https://www.linkedin.com/company/zaytoonz/"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="social-link linkedin"
-            aria-label="Connect on LinkedIn company page"
-          >
-            <div className="card-front">
-              <div className="icon-wrapper">
-                <svg fill="white" viewBox="0 0 24 24" aria-hidden="true">
-                  <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z" />
-                </svg>
-              </div>
-              <div className="link-title">LinkedIn</div>
-              <div className="link-description">Company Page</div>
-            </div>
-            <div className="card-back">
-              <div className="qr-code">
-                <img
-                  src="/sm/zz-linkedin.png"
-                  alt="LinkedIn QR Code"
-                  onError={(e) => {
-                    const target = e.currentTarget;
-                    target.style.display = 'none';
-                    if (target.parentElement) {
-                      target.parentElement.innerHTML =
-                        "<span class='qr-placeholder'>QR Code</span>";
-                    }
-                  }}
-                />
-              </div>
-              <span className="scan-text">Scan to Connect</span>
-            </div>
-          </a>
-
-          {/* Facebook Group */}
-          <a
-            href="https://www.facebook.com/groups/654692163266122"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="social-link facebook-group"
-            aria-label="Join our Facebook community group"
-          >
-            <div className="card-front">
-              <div className="icon-wrapper">
-                <svg fill="white" viewBox="0 0 24 24" aria-hidden="true">
-                  <path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z" />
-                </svg>
-              </div>
-              <div className="link-title">FB Group</div>
-              <div className="link-description">Community</div>
-            </div>
-            <div className="card-back">
-              <div className="qr-code">
-                <img
-                  src="/sm/zz-facebookgroupe.png"
-                  alt="Facebook Group QR Code"
-                  onError={(e) => {
-                    const target = e.currentTarget;
-                    target.style.display = 'none';
-                    if (target.parentElement) {
-                      target.parentElement.innerHTML =
-                        "<span class='qr-placeholder'>QR Code</span>";
-                    }
-                  }}
-                />
-              </div>
-              <span className="scan-text">Scan to Join</span>
-            </div>
-          </a>
-
-          {/* LinkedIn Group */}
-          <a
-            href="https://www.linkedin.com/groups/12864122/"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="social-link linkedin-group"
-            aria-label="Join our LinkedIn networking group"
-          >
-            <div className="card-front">
-              <div className="icon-wrapper">
-                <svg fill="white" viewBox="0 0 24 24" aria-hidden="true">
-                  <path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z" />
-                </svg>
-              </div>
-              <div className="link-title">LI Group</div>
-              <div className="link-description">Networking</div>
-            </div>
-            <div className="card-back">
-              <div className="qr-code">
-                <img
-                  src="/sm/zz-linkedin.png"
-                  alt="LinkedIn Group QR Code"
-                  onError={(e) => {
-                    const target = e.currentTarget;
-                    target.style.display = 'none';
-                    if (target.parentElement) {
-                      target.parentElement.innerHTML =
-                        "<span class='qr-placeholder'>QR Code</span>";
-                    }
-                  }}
-                />
-              </div>
-              <span className="scan-text">Scan to Join</span>
-            </div>
-          </a>
+            </a>
+          ))}
         </div>
 
         {/* Footer */}
@@ -314,106 +163,70 @@ export default function ZaytoonzSMLanding({
         </div>
       </div>
 
-      {/* Entry Modal */}
-      {showModal && (
+      {/* Exclusive access login modal (cannot be dismissed) */}
+      {showLogin && (
         <div className="entry-modal-backdrop" role="dialog" aria-modal="true">
-          {modalStep === 'choice' ? (
-            <div className="entry-modal">
-              <h2 className="entry-modal-title">Welcome to Zaytoonz</h2>
-              <p className="entry-modal-subtitle">
-                Choose how you would like to connect with us.
-              </p>
+          <form className="entry-modal" onSubmit={handleLogin}>
+            <img src="/image.png" alt="Zaytoonz" className="entry-modal-logo" />
+            <h2 className="entry-modal-title">Exclusive Access</h2>
+            <p className="entry-modal-subtitle">
+              This preview is restricted. Sign in with your access credentials to continue.
+            </p>
 
-              <div className="entry-options">
-                <button
-                  type="button"
-                  className="entry-card entry-card--secondary"
-                  onClick={handleGoToSocial}
-                >
-                  <div className="entry-card-icon entry-card-icon--social">
-                    <span className="entry-card-icon-text">SM</span>
-                  </div>
-                  <h3 className="entry-card-title">Navigate Zaytoonz Social media</h3>
-                  <p className="entry-card-text">
-                    Join our community on WhatsApp, Telegram, Facebook and LinkedIn.
-                  </p>
-                </button>
-
-                <button
-                  type="button"
-                  className="entry-card entry-card--primary"
-                  onClick={handleSelectTestApp}
-                >
-                  <div className="entry-card-icon entry-card-icon--app">
-                    <span className="entry-card-icon-text">APP</span>
-                  </div>
-                  <h3 className="entry-card-title">Test Zaytoonz web app</h3>
-                  <p className="entry-card-text">
-                    Access a privileged preview of the Zaytoonz matching platform.
-                  </p>
-                  <p className="entry-card-note">
-                    NB: Testing access is limited and requires an access code.
-                  </p>
-                </button>
-              </div>
-            </div>
-          ) : (
-            <div className="entry-modal">
-              <h2 className="entry-modal-title">Enter Access Code</h2>
-              <p className="entry-modal-subtitle">
-                Testing access is reserved. Use the provided access code to continue.
-              </p>
-
+            <div className="entry-fields">
               <label className="entry-label">
-                Access Code
+                Access
                 <input
-                  type="password"
+                  type="email"
                   className="entry-input"
-                  value={accessCode}
+                  value={email}
                   onChange={(e) => {
-                    setAccessCode(e.target.value);
+                    setEmail(e.target.value);
                     setAccessError('');
                   }}
-                  onKeyDown={handleCodeKeyDown}
-                  placeholder="Enter your access code"
+                  placeholder="admin@zaytoonz.com"
+                  autoComplete="username"
+                  autoFocus
+                  required
                 />
               </label>
 
-              {accessError && (
-                <div className="entry-error">
-                  <p>{accessError}</p>
-                  <button
-                    type="button"
-                    className="entry-error-link"
-                    onClick={handleGoToSocial}
-                  >
-                    Go to social media instead
-                  </button>
-                </div>
-              )}
-
-              <div className="entry-modal-buttons entry-modal-buttons--inline">
-                <button
-                  className="entry-button secondary"
-                  type="button"
-                  onClick={() => {
-                    setModalStep('choice');
+              <label className="entry-label">
+                Password
+                <input
+                  type="password"
+                  className="entry-input"
+                  value={password}
+                  onChange={(e) => {
+                    setPassword(e.target.value);
                     setAccessError('');
-                    setAccessCode('');
                   }}
-                >
-                  Back
-                </button>
-                <button
-                  className="entry-button primary"
-                  type="button"
-                  onClick={submitAccessCode}
-                >
-                  Continue
-                </button>
-              </div>
+                  placeholder="Enter your password"
+                  autoComplete="current-password"
+                  required
+                />
+              </label>
             </div>
-          )}
+
+            {accessError && (
+              <div className="entry-error">
+                <p>{accessError}</p>
+              </div>
+            )}
+
+            <div className="entry-modal-buttons">
+              <button className="entry-button primary" type="submit" disabled={submitting}>
+                {submitting ? 'Signing in...' : 'Sign in'}
+              </button>
+              <button
+                className="entry-button secondary"
+                type="button"
+                onClick={() => setShowLogin(false)}
+              >
+                Access Social Media
+              </button>
+            </div>
+          </form>
         </div>
       )}
 
@@ -675,10 +488,76 @@ export default function ZaytoonzSMLanding({
           position: fixed;
           inset: 0;
           background: rgba(0, 0, 0, 0.6);
+          backdrop-filter: blur(8px);
           display: flex;
           align-items: center;
           justify-content: center;
           z-index: 10;
+        }
+
+        form.entry-modal {
+          max-width: 420px;
+        }
+
+        form.entry-modal .entry-error {
+          margin: 0 0 16px;
+        }
+
+        .entry-modal-logo {
+          width: 140px;
+          height: auto;
+          margin: 0 auto 12px;
+          display: block;
+        }
+
+        .entry-fields {
+          display: flex;
+          flex-direction: column;
+          gap: 14px;
+          margin-bottom: 18px;
+        }
+
+        .entry-button:disabled {
+          opacity: 0.7;
+          cursor: not-allowed;
+        }
+
+        .access-toolbar {
+          position: fixed;
+          top: 20px;
+          right: 20px;
+          display: flex;
+          gap: 10px;
+          z-index: 5;
+        }
+
+        .access-toolbar-button {
+          border-radius: 999px;
+          padding: 10px 18px;
+          font-size: 0.9rem;
+          font-weight: 600;
+          cursor: pointer;
+          text-decoration: none;
+          color: white;
+          background: rgba(255, 255, 255, 0.12);
+          border: 1px solid rgba(255, 255, 255, 0.4);
+          backdrop-filter: blur(10px);
+          transition: background-color 0.18s ease, transform 0.18s ease;
+        }
+
+        .access-toolbar-button:hover {
+          background: rgba(255, 255, 255, 0.25);
+          transform: translateY(-1px);
+        }
+
+        .access-toolbar-button.primary {
+          background: #a8d94a;
+          border-color: #a8d94a;
+          color: #1a2f1a;
+        }
+
+        .access-toolbar-button.primary:hover {
+          background: #b8e65c;
         }
 
         .entry-modal {

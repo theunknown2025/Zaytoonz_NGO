@@ -47,9 +47,64 @@ export async function GET(request: NextRequest) {
       console.error('Error counting scraped opportunities:', countError);
     }
 
+    const scraped = (opportunities || []).map((o: Record<string, unknown>) => ({ ...o, source: 'scraped' }));
+
+    // Extracted (full-content) listings are published as soon as extraction completes,
+    // so they only belong in the "active" list.
+    let extracted: Record<string, unknown>[] = [];
+    let extractedCount = 0;
+    if (status === 'active') {
+      let extractedQuery = supabase
+        .from('extracted_opportunity_content')
+        .select(
+          'id, title, opportunity_type, source_url, description, location, company, salary_range, job_type, deadline, extracted_at, created_at, ngo_profile ( id, name )',
+          { count: 'exact' }
+        )
+        .eq('extraction_status', 'completed')
+        .order('extracted_at', { ascending: false })
+        .range(offset, offset + limit - 1);
+
+      if (type && ['job', 'funding', 'training'].includes(type)) {
+        extractedQuery = extractedQuery.eq('opportunity_type', type);
+      }
+
+      const { data: extractedRows, error: extractedError, count: exCount } = await extractedQuery;
+      if (extractedError) {
+        console.error('Error fetching extracted opportunities:', extractedError);
+      } else {
+        extractedCount = exCount || 0;
+        extracted = (extractedRows || []).map((row: any) => {
+          const ngo = Array.isArray(row.ngo_profile) ? row.ngo_profile[0] : row.ngo_profile;
+          return {
+            id: `extracted_${row.id}`,
+            title: row.title,
+            opportunity_type: row.opportunity_type,
+            source_url: row.source_url,
+            status: 'active',
+            scraped_at: row.extracted_at || row.created_at,
+            created_at: row.created_at,
+            description: row.description,
+            location: row.location,
+            company: ngo?.name || row.company,
+            hours: null,
+            salary_range: row.salary_range,
+            deadline: row.deadline,
+            tags: row.job_type ? [row.job_type] : [],
+            source: 'extracted',
+          };
+        });
+      }
+    }
+
+    const merged = [...scraped, ...extracted].sort(
+      (a: any, b: any) =>
+        new Date(b.scraped_at || b.created_at || 0).getTime() -
+        new Date(a.scraped_at || a.created_at || 0).getTime()
+    );
+
     return NextResponse.json({ 
-      opportunities: opportunities || [],
-      total: count || 0,
+      opportunities: merged,
+      total: (count || 0) + extractedCount,
       limit,
       offset
     });
@@ -70,6 +125,13 @@ export async function PATCH(request: NextRequest) {
 
     if (!['active', 'inactive', 'archived'].includes(status)) {
       return NextResponse.json({ error: 'Invalid status' }, { status: 400 });
+    }
+
+    if (String(id).startsWith('extracted_')) {
+      return NextResponse.json(
+        { error: 'Extracted opportunities have no status; delete them from the Extracted Opportunities page instead' },
+        { status: 400 }
+      );
     }
 
     const { data, error } = await supabase
@@ -104,10 +166,11 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: 'Opportunity ID is required' }, { status: 400 });
     }
 
+    const isExtracted = id.startsWith('extracted_');
     const { error } = await supabase
-      .from('scraped_opportunities')
+      .from(isExtracted ? 'extracted_opportunity_content' : 'scraped_opportunities')
       .delete()
-      .eq('id', id);
+      .eq('id', isExtracted ? id.slice('extracted_'.length) : id);
 
     if (error) {
       console.error('Error deleting scraped opportunity:', error);

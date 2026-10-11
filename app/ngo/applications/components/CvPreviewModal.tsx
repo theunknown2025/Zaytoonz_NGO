@@ -5,7 +5,7 @@ import { XMarkIcon } from '@heroicons/react/24/outline';
 import CVPreview from '@/app/seeker/tools/cv-maker/components/CVPreview';
 import type { CVData } from '@/app/seeker/tools/cv-maker/types';
 
-function mapStoredCv(raw: any): { cvData: CVData; addedSections: string[] } {
+export function mapStoredCv(raw: any): { cvData: CVData; addedSections: string[] } {
   const general = raw.general_info || {};
   const cvData: CVData = {
     general: {

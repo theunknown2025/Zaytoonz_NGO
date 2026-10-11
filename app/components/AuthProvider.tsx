@@ -16,7 +16,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const pathname = usePathname();
 
   // Check if current route is public (default to true if pathname not yet available)
-  const isPublicRoute = pathname ? PUBLIC_ROUTES.includes(pathname) : true;
+  const normalizedPath = pathname && pathname.length > 1 ? pathname.replace(/\/$/, '') : pathname;
+  const isPublicRoute = normalizedPath ? PUBLIC_ROUTES.includes(normalizedPath) : true;
 
   // For public routes, start with loading=false to render immediately
   // For protected routes, start with loading=true to wait for auth check

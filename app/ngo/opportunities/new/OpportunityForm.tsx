@@ -4,6 +4,9 @@ import { useState, useEffect } from 'react';
 import { DocumentTextIcon, EnvelopeIcon, PlusIcon, XMarkIcon, EyeIcon, CloudArrowUpIcon } from '@heroicons/react/24/outline';
 import { getUserForms, getPublishedForms, getFormById } from '../../resources/tools/FormMaker/services/formService';
 import { saveOpportunityFormSettings } from '../services/opportunityFormService';
+import { saveQualificationGroups } from '../services/opportunityQualificationGroupsService';
+import QualificationGroupsEditor from './QualificationGroupsEditor';
+import type { QualificationGroup } from '@/app/lib/qualificationGroups';
 import { toast } from 'react-hot-toast';
 
 interface FormTemplate {
@@ -25,6 +28,8 @@ interface OpportunityFormProps {
   onApplicationMethodChange: (method: 'form' | 'email') => void;
   onEmailsChange: (emails: string[]) => void;
   onReferenceCodesChange: (codes: string[]) => void;
+  qualificationGroups: QualificationGroup[];
+  onQualificationGroupsChange: (groups: QualificationGroup[]) => void;
   onPrevious: () => void;
   onNext: () => void;
 }
@@ -36,6 +41,8 @@ export default function OpportunityForm({
   onApplicationMethodChange,
   onEmailsChange,
   onReferenceCodesChange,
+  qualificationGroups,
+  onQualificationGroupsChange,
   onPrevious,
   onNext
 }: OpportunityFormProps) {
@@ -121,6 +128,10 @@ export default function OpportunityForm({
       newErrors.selectedFormId = 'Please select a form template';
     }
 
+    if (formData.applicationMethod === 'form' && !qualificationGroups.some((g) => g.label.trim())) {
+      newErrors.qualificationGroups = 'Please define at least one qualification group';
+    }
+
     if (formData.applicationMethod === 'email') {
       if (!formData.contactEmails || formData.contactEmails.length === 0) {
         newErrors.contactEmails = 'Please add at least one contact email';
@@ -129,6 +140,19 @@ export default function OpportunityForm({
     
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
+  };
+
+  const persistQualificationGroups = async () => {
+    if (formData.applicationMethod !== 'form') return true;
+    try {
+      const saved = await saveQualificationGroups(opportunityId, qualificationGroups);
+      onQualificationGroupsChange(saved);
+      return true;
+    } catch (error) {
+      console.error('Error saving qualification groups:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to save qualification groups');
+      return false;
+    }
   };
 
   const handleNext = async () => {
@@ -150,6 +174,8 @@ export default function OpportunityForm({
         toast.error(result.error || 'Failed to save the application form');
         return;
       }
+
+      if (!(await persistQualificationGroups())) return;
 
       onNext();
     } catch (error) {
@@ -342,6 +368,7 @@ export default function OpportunityForm({
       );
 
       if (result.success) {
+        if (!(await persistQualificationGroups())) return;
         toast.success('Application method settings saved successfully!');
       } else {
         toast.error(result.error || 'Failed to save progress');
@@ -479,6 +506,14 @@ export default function OpportunityForm({
               <p className="mt-2 text-xs text-green-600">
                 Selected form will be used for applicants to apply to this opportunity.
               </p>
+            )}
+
+            {formData.selectedFormId && (
+              <QualificationGroupsEditor
+                groups={qualificationGroups}
+                onChange={onQualificationGroupsChange}
+                error={errors.qualificationGroups}
+              />
             )}
             
             {/* Form Preview Section */}

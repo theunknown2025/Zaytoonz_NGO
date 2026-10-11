@@ -1,6 +1,6 @@
 FROM python:3.11-slim
 
-WORKDIR /app/python_scraper
+WORKDIR /app/Scrape_Master
 
 # ── System dependencies for Chrome / Playwright ───────────────────────────
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -22,14 +22,14 @@ RUN mkdir -p /etc/apt/keyrings \
     && rm -rf /var/lib/apt/lists/*
 
 # ── Python dependencies ────────────────────────────────────────────────────
-COPY python_scraper/requirements.txt .
+COPY Scrape_Master/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # ── Playwright Chromium (headless browser for crawl4ai) ───────────────────
 RUN playwright install chromium --with-deps
 
 # ── Copy scraper source ────────────────────────────────────────────────────
-COPY python_scraper/ .
+COPY Scrape_Master/ .
 
 EXPOSE 8000
 

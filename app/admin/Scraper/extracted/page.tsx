@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import Link from 'next/link';
 import {
   DocumentTextIcon,
   ArrowPathIcon,
@@ -377,7 +378,7 @@ export default function ExtractedOpportunitiesPage() {
     const styles = {
       completed: 'bg-green-100 text-green-700 border-green-200',
       pending: 'bg-yellow-100 text-yellow-700 border-yellow-200',
-      processing: 'bg-blue-100 text-blue-700 border-blue-200',
+      processing: 'bg-[#556B2F]/15 text-[#556B2F] border-[#556B2F]/20',
       failed: 'bg-red-100 text-red-700 border-red-200',
     };
     return styles[status as keyof typeof styles] || 'bg-gray-100 text-gray-700 border-gray-200';
@@ -496,7 +497,7 @@ export default function ExtractedOpportunitiesPage() {
       <div className="max-w-7xl mx-auto mb-8">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <div className="p-3 bg-blue-600 rounded-xl">
+            <div className="p-3 bg-[#556B2F] rounded-xl">
               <DocumentTextIcon className="h-8 w-8 text-white" />
             </div>
             <div>
@@ -513,12 +514,12 @@ export default function ExtractedOpportunitiesPage() {
               <ArrowDownTrayIcon className="h-4 w-4" />
               Export to Excel
             </button>
-            <a
+            <Link
               href="/admin/Scraper"
               className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
             >
               ← Back to Scraper
-            </a>
+            </Link>
             <button
               onClick={fetchOpportunities}
               disabled={isLoading}
@@ -544,7 +545,7 @@ export default function ExtractedOpportunitiesPage() {
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Search opportunities..."
-                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#556B2F]/20 focus:border-[#556B2F]"
                 />
               </div>
             </div>
@@ -555,7 +556,7 @@ export default function ExtractedOpportunitiesPage() {
               <select
                 value={typeFilter}
                 onChange={(e) => { setTypeFilter(e.target.value); setCurrentPage(1); }}
-                className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#556B2F]/20 focus:border-[#556B2F]"
               >
                 <option value="all">All Types</option>
                 <option value="job">Jobs</option>
@@ -568,7 +569,7 @@ export default function ExtractedOpportunitiesPage() {
             <select
               value={statusFilter}
               onChange={(e) => { setStatusFilter(e.target.value); setCurrentPage(1); }}
-              className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+              className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#556B2F]/20 focus:border-[#556B2F]"
             >
               <option value="all">All Status</option>
               <option value="completed">Completed</option>
@@ -582,7 +583,7 @@ export default function ExtractedOpportunitiesPage() {
               <button
                 type="button"
                 onClick={() => setOrgFilterOpen((o) => !o)}
-                className="w-full flex items-center justify-between gap-2 px-3 py-2 border border-gray-300 rounded-lg text-sm text-left bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                className="w-full flex items-center justify-between gap-2 px-3 py-2 border border-gray-300 rounded-lg text-sm text-left bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-[#556B2F]/20 focus:border-[#556B2F]"
               >
                 <span className="flex items-center gap-2 min-w-0">
                   <BuildingOfficeIcon className="h-4 w-4 text-gray-400 flex-shrink-0" />
@@ -600,7 +601,7 @@ export default function ExtractedOpportunitiesPage() {
                         value={orgFilterSearch}
                         onChange={(e) => setOrgFilterSearch(e.target.value)}
                         placeholder="Search organizations…"
-                        className="w-full pl-8 pr-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                        className="w-full pl-8 pr-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[#556B2F]/20 focus:border-[#556B2F]"
                         autoFocus
                       />
                     </div>
@@ -611,7 +612,7 @@ export default function ExtractedOpportunitiesPage() {
                         type="button"
                         onClick={() => selectOrganizationFilter('all')}
                         className={`w-full text-left px-3 py-2 text-sm hover:bg-gray-50 ${
-                          organizationFilter === 'all' ? 'bg-blue-50 text-blue-900 font-medium' : 'text-gray-800'
+                          organizationFilter === 'all' ? 'bg-[#556B2F]/10 text-[#3A4D1F] font-medium' : 'text-gray-800'
                         }`}
                       >
                         All organizations
@@ -622,7 +623,7 @@ export default function ExtractedOpportunitiesPage() {
                         type="button"
                         onClick={() => selectOrganizationFilter('unassigned')}
                         className={`w-full text-left px-3 py-2 text-sm hover:bg-gray-50 ${
-                          organizationFilter === 'unassigned' ? 'bg-blue-50 text-blue-900 font-medium' : 'text-gray-800'
+                          organizationFilter === 'unassigned' ? 'bg-[#556B2F]/10 text-[#3A4D1F] font-medium' : 'text-gray-800'
                         }`}
                       >
                         Unassigned (no NGO)
@@ -637,7 +638,7 @@ export default function ExtractedOpportunitiesPage() {
                             type="button"
                             onClick={() => selectOrganizationFilter(n.id)}
                             className={`w-full text-left px-3 py-2 text-sm hover:bg-gray-50 truncate ${
-                              organizationFilter === n.id ? 'bg-blue-50 text-blue-900 font-medium' : 'text-gray-800'
+                              organizationFilter === n.id ? 'bg-[#556B2F]/10 text-[#3A4D1F] font-medium' : 'text-gray-800'
                             }`}
                             title={n.name}
                           >
@@ -655,7 +656,7 @@ export default function ExtractedOpportunitiesPage() {
             <select
               value={countryFilter}
               onChange={(e) => { setCountryFilter(e.target.value); setCurrentPage(1); }}
-              className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+              className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#556B2F]/20 focus:border-[#556B2F]"
             >
               <option value="all">All Countries</option>
               {allCountries.map(country => (
@@ -669,9 +670,9 @@ export default function ExtractedOpportunitiesPage() {
             <div className="flex items-center gap-2 mt-3 pt-3 border-t border-gray-200">
               <span className="text-sm text-gray-500">Active filters:</span>
               {typeFilter !== 'all' && (
-                <span className="inline-flex items-center gap-1 px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs">
+                <span className="inline-flex items-center gap-1 px-2 py-1 bg-[#556B2F]/15 text-[#556B2F] rounded text-xs">
                   Type: {typeFilter}
-                  <button onClick={() => setTypeFilter('all')} className="hover:text-blue-900">
+                  <button onClick={() => setTypeFilter('all')} className="hover:text-[#3A4D1F]">
                     <XMarkIcon className="h-3 w-3" />
                   </button>
                 </span>
@@ -740,7 +741,7 @@ export default function ExtractedOpportunitiesPage() {
         <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
           {isLoading ? (
             <div className="flex flex-col items-center py-16">
-              <div className="w-12 h-12 border-4 border-gray-200 border-t-blue-600 rounded-full animate-spin"></div>
+              <div className="w-12 h-12 border-4 border-gray-200 border-t-[#556B2F] rounded-full animate-spin"></div>
               <p className="mt-4 text-gray-500">Loading extracted opportunities...</p>
             </div>
           ) : filteredOpportunities.length === 0 ? (
@@ -809,7 +810,7 @@ export default function ExtractedOpportunitiesPage() {
                               href={opp.source_url}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="text-blue-600 hover:text-blue-800 text-sm break-all line-clamp-2 flex items-start gap-1"
+                              className="text-[#556B2F] hover:text-[#3A4D1F] text-sm break-all line-clamp-2 flex items-start gap-1"
                             >
                               <LinkIcon className="h-4 w-4 flex-shrink-0 mt-0.5" />
                               <span className="break-all">{opp.source_url.replace(/^https?:\/\//, '').slice(0, 40)}...</span>
@@ -886,7 +887,7 @@ export default function ExtractedOpportunitiesPage() {
                                       )}
                                       <button
                                         onClick={() => { setSelectedOpportunity(opp); setShowDetailModal(true); }}
-                                        className="text-blue-600 hover:text-blue-800 text-sm font-medium flex items-center gap-1"
+                                        className="text-[#556B2F] hover:text-[#3A4D1F] text-sm font-medium flex items-center gap-1"
                                       >
                                         <EyeIcon className="h-4 w-4" />
                                         View Full Content
@@ -906,7 +907,7 @@ export default function ExtractedOpportunitiesPage() {
                           <div className="flex items-start justify-end gap-1">
                             <button
                               onClick={() => { setSelectedOpportunity(opp); setShowDetailModal(true); }}
-                              className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                              className="p-2 text-[#556B2F] hover:bg-[#556B2F]/10 rounded-lg transition-colors"
                               title="View Details"
                             >
                               <EyeIcon className="h-5 w-5" />
@@ -973,7 +974,7 @@ export default function ExtractedOpportunitiesPage() {
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 overflow-y-auto" onClick={() => setShowDetailModal(false)}>
           <div className="bg-white rounded-xl max-w-4xl w-full max-h-[90vh] overflow-hidden my-8" onClick={(e) => e.stopPropagation()}>
             {/* Modal Header */}
-            <div className="bg-blue-600 p-6 text-white">
+            <div className="bg-[#556B2F] p-6 text-white">
               <div className="flex justify-between items-start">
                 <div className="flex-1 min-w-0 pr-4">
                   <div className="flex items-center gap-3 mb-2 flex-wrap">
@@ -991,7 +992,7 @@ export default function ExtractedOpportunitiesPage() {
                   </div>
                   <h2 className="text-xl font-bold">{selectedOpportunity.title}</h2>
                   {attributedNgoName(selectedOpportunity) && (
-                    <p className="mt-2 text-sm text-blue-100">
+                    <p className="mt-2 text-sm text-white/80">
                       Attributed NGO:{' '}
                       <span className="font-medium text-white">{attributedNgoName(selectedOpportunity)}</span>
                     </p>
@@ -1017,7 +1018,7 @@ export default function ExtractedOpportunitiesPage() {
                       href={selectedOpportunity.source_url} 
                       target="_blank" 
                       rel="noopener noreferrer"
-                      className="text-blue-600 hover:underline truncate"
+                      className="text-[#556B2F] hover:underline truncate"
                     >
                       {selectedOpportunity.source_url}
                     </a>
@@ -1032,10 +1033,10 @@ export default function ExtractedOpportunitiesPage() {
               </div>
 
               {/* Main Information Summary */}
-              <div className="mb-6 grid grid-cols-2 md:grid-cols-3 gap-4 p-4 bg-blue-50 rounded-lg border border-blue-100">
+              <div className="mb-6 grid grid-cols-2 md:grid-cols-3 gap-4 p-4 bg-[#556B2F]/10 rounded-lg border border-[#556B2F]/20">
                 {selectedOpportunity.company && (
                   <div>
-                    <span className="text-xs text-blue-600 font-medium uppercase">Company</span>
+                    <span className="text-xs text-[#556B2F] font-medium uppercase">Company</span>
                     <p className="text-gray-900 font-medium flex items-center gap-1">
                       <BuildingOfficeIcon className="h-4 w-4 text-gray-400" />
                       {selectedOpportunity.company}
@@ -1044,7 +1045,7 @@ export default function ExtractedOpportunitiesPage() {
                 )}
                 {selectedOpportunity.location && (
                   <div>
-                    <span className="text-xs text-blue-600 font-medium uppercase">Location</span>
+                    <span className="text-xs text-[#556B2F] font-medium uppercase">Location</span>
                     <p className="text-gray-900 font-medium flex items-center gap-1">
                       <MapPinIcon className="h-4 w-4 text-gray-400" />
                       {selectedOpportunity.location}
@@ -1053,7 +1054,7 @@ export default function ExtractedOpportunitiesPage() {
                 )}
                 {selectedOpportunity.salary_range && (
                   <div>
-                    <span className="text-xs text-blue-600 font-medium uppercase">Salary</span>
+                    <span className="text-xs text-[#556B2F] font-medium uppercase">Salary</span>
                     <p className="text-gray-900 font-medium flex items-center gap-1">
                       <CurrencyDollarIcon className="h-4 w-4 text-gray-400" />
                       {selectedOpportunity.salary_range}
@@ -1062,7 +1063,7 @@ export default function ExtractedOpportunitiesPage() {
                 )}
                 {selectedOpportunity.job_type && (
                   <div>
-                    <span className="text-xs text-blue-600 font-medium uppercase">Contract Type</span>
+                    <span className="text-xs text-[#556B2F] font-medium uppercase">Contract Type</span>
                     <p className="text-gray-900 font-medium flex items-center gap-1">
                       <BriefcaseIcon className="h-4 w-4 text-gray-400" />
                       {selectedOpportunity.job_type}
@@ -1071,7 +1072,7 @@ export default function ExtractedOpportunitiesPage() {
                 )}
                 {selectedOpportunity.deadline && (
                   <div>
-                    <span className="text-xs text-blue-600 font-medium uppercase">Deadline</span>
+                    <span className="text-xs text-[#556B2F] font-medium uppercase">Deadline</span>
                     <p className="text-gray-900 font-medium flex items-center gap-1">
                       <CalendarIcon className="h-4 w-4 text-gray-400" />
                       {new Date(selectedOpportunity.deadline).toLocaleDateString()}
@@ -1099,7 +1100,7 @@ export default function ExtractedOpportunitiesPage() {
                 <div className="bg-gray-50 rounded-lg border border-gray-200 max-h-[400px] overflow-y-auto">
                   {isPolishingContent ? (
                     <div className="flex flex-col items-center justify-center py-12">
-                      <div className="w-8 h-8 border-4 border-gray-200 border-t-blue-600 rounded-full animate-spin mb-3"></div>
+                      <div className="w-8 h-8 border-4 border-gray-200 border-t-[#556B2F] rounded-full animate-spin mb-3"></div>
                       <p className="text-sm text-gray-500">Cleaning content with AI...</p>
                     </div>
                   ) : polishedContent && polishedContent.combinedPlainText ? (
@@ -1107,7 +1108,7 @@ export default function ExtractedOpportunitiesPage() {
                       {/* Overview / Description */}
                       {polishedContent.overview && (
                         <div className="p-4">
-                          <h4 className="text-xs font-semibold text-blue-600 uppercase mb-2">Description</h4>
+                          <h4 className="text-xs font-semibold text-[#556B2F] uppercase mb-2">Description</h4>
                           <p className="text-gray-700 whitespace-pre-wrap leading-relaxed text-sm">
                             {polishedContent.overview}
                           </p>
@@ -1117,7 +1118,7 @@ export default function ExtractedOpportunitiesPage() {
                       {/* Responsibilities */}
                       {polishedContent.responsibilities && (
                         <div className="p-4">
-                          <h4 className="text-xs font-semibold text-blue-600 uppercase mb-2">Responsibilities / Scope of Work</h4>
+                          <h4 className="text-xs font-semibold text-[#556B2F] uppercase mb-2">Responsibilities / Scope of Work</h4>
                           <p className="text-gray-700 whitespace-pre-wrap leading-relaxed text-sm">
                             {polishedContent.responsibilities}
                           </p>
@@ -1127,7 +1128,7 @@ export default function ExtractedOpportunitiesPage() {
                       {/* Requirements */}
                       {polishedContent.requirements && (
                         <div className="p-4">
-                          <h4 className="text-xs font-semibold text-blue-600 uppercase mb-2">Requirements</h4>
+                          <h4 className="text-xs font-semibold text-[#556B2F] uppercase mb-2">Requirements</h4>
                           <p className="text-gray-700 whitespace-pre-wrap leading-relaxed text-sm">
                             {polishedContent.requirements}
                           </p>
@@ -1137,7 +1138,7 @@ export default function ExtractedOpportunitiesPage() {
                       {/* Qualifications */}
                       {polishedContent.qualifications && (
                         <div className="p-4">
-                          <h4 className="text-xs font-semibold text-blue-600 uppercase mb-2">Qualifications</h4>
+                          <h4 className="text-xs font-semibold text-[#556B2F] uppercase mb-2">Qualifications</h4>
                           <p className="text-gray-700 whitespace-pre-wrap leading-relaxed text-sm">
                             {polishedContent.qualifications}
                           </p>
@@ -1147,7 +1148,7 @@ export default function ExtractedOpportunitiesPage() {
                       {/* Benefits */}
                       {polishedContent.benefits && (
                         <div className="p-4">
-                          <h4 className="text-xs font-semibold text-blue-600 uppercase mb-2">Benefits</h4>
+                          <h4 className="text-xs font-semibold text-[#556B2F] uppercase mb-2">Benefits</h4>
                           <p className="text-gray-700 whitespace-pre-wrap leading-relaxed text-sm">
                             {polishedContent.benefits}
                           </p>
@@ -1157,7 +1158,7 @@ export default function ExtractedOpportunitiesPage() {
                       {/* Application Instructions */}
                       {polishedContent.howToApply && (
                         <div className="p-4">
-                          <h4 className="text-xs font-semibold text-blue-600 uppercase mb-2">How to Apply</h4>
+                          <h4 className="text-xs font-semibold text-[#556B2F] uppercase mb-2">How to Apply</h4>
                           <p className="text-gray-700 whitespace-pre-wrap leading-relaxed text-sm">
                             {polishedContent.howToApply}
                           </p>
@@ -1167,7 +1168,7 @@ export default function ExtractedOpportunitiesPage() {
                       {/* Contact Info */}
                       {polishedContent.contactInfo && (
                         <div className="p-4">
-                          <h4 className="text-xs font-semibold text-blue-600 uppercase mb-2">Contact Information</h4>
+                          <h4 className="text-xs font-semibold text-[#556B2F] uppercase mb-2">Contact Information</h4>
                           <p className="text-gray-700 whitespace-pre-wrap leading-relaxed text-sm">
                             {polishedContent.contactInfo}
                           </p>
@@ -1177,7 +1178,7 @@ export default function ExtractedOpportunitiesPage() {
                       {/* Additional Details */}
                       {polishedContent.extra && (
                         <div className="p-4">
-                          <h4 className="text-xs font-semibold text-blue-600 uppercase mb-2">Additional Details</h4>
+                          <h4 className="text-xs font-semibold text-[#556B2F] uppercase mb-2">Additional Details</h4>
                           <p className="text-gray-700 whitespace-pre-wrap leading-relaxed text-sm">
                             {polishedContent.extra}
                           </p>
@@ -1272,7 +1273,7 @@ export default function ExtractedOpportunitiesPage() {
                   href={selectedOpportunity.source_url} 
                   target="_blank" 
                   rel="noopener noreferrer" 
-                  className="inline-flex items-center gap-2 px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors"
+                  className="inline-flex items-center gap-2 px-6 py-2.5 bg-[#556B2F] hover:bg-[#6B8E23] text-white font-medium rounded-lg transition-colors"
                 >
                   <ArrowTopRightOnSquareIcon className="w-4 h-4" />
                   View Original
@@ -1366,7 +1367,7 @@ export default function ExtractedOpportunitiesPage() {
                 <div className="flex gap-2">
                   <button
                     onClick={() => setSelectedColumns(availableColumns.map(col => col.key))}
-                    className="px-3 py-1.5 text-xs font-medium text-blue-700 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors"
+                    className="px-3 py-1.5 text-xs font-medium text-[#556B2F] bg-[#556B2F]/10 rounded-lg hover:bg-[#556B2F]/20 transition-colors"
                   >
                     Select All
                   </button>
@@ -1396,7 +1397,7 @@ export default function ExtractedOpportunitiesPage() {
                     </h3>
                     <button
                       onClick={() => toggleGroup('basic')}
-                      className="text-xs text-blue-600 hover:text-blue-800 font-medium"
+                      className="text-xs text-[#556B2F] hover:text-[#3A4D1F] font-medium"
                     >
                       {getColumnsByGroup('basic').every(col => selectedColumns.includes(col.key)) ? 'Unselect All' : 'Select All'}
                     </button>
@@ -1408,7 +1409,7 @@ export default function ExtractedOpportunitiesPage() {
                           type="checkbox"
                           checked={selectedColumns.includes(col.key)}
                           onChange={() => toggleColumn(col.key)}
-                          className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
+                          className="w-4 h-4 text-[#556B2F] rounded focus:ring-2 focus:ring-[#556B2F]"
                         />
                         <span className="text-sm text-gray-700">{col.label}</span>
                       </label>
@@ -1425,7 +1426,7 @@ export default function ExtractedOpportunitiesPage() {
                     </h3>
                     <button
                       onClick={() => toggleGroup('details')}
-                      className="text-xs text-blue-600 hover:text-blue-800 font-medium"
+                      className="text-xs text-[#556B2F] hover:text-[#3A4D1F] font-medium"
                     >
                       {getColumnsByGroup('details').every(col => selectedColumns.includes(col.key)) ? 'Unselect All' : 'Select All'}
                     </button>
@@ -1437,7 +1438,7 @@ export default function ExtractedOpportunitiesPage() {
                           type="checkbox"
                           checked={selectedColumns.includes(col.key)}
                           onChange={() => toggleColumn(col.key)}
-                          className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
+                          className="w-4 h-4 text-[#556B2F] rounded focus:ring-2 focus:ring-[#556B2F]"
                         />
                         <span className="text-sm text-gray-700">{col.label}</span>
                       </label>
@@ -1454,7 +1455,7 @@ export default function ExtractedOpportunitiesPage() {
                     </h3>
                     <button
                       onClick={() => toggleGroup('content')}
-                      className="text-xs text-blue-600 hover:text-blue-800 font-medium"
+                      className="text-xs text-[#556B2F] hover:text-[#3A4D1F] font-medium"
                     >
                       {getColumnsByGroup('content').every(col => selectedColumns.includes(col.key)) ? 'Unselect All' : 'Select All'}
                     </button>
@@ -1466,7 +1467,7 @@ export default function ExtractedOpportunitiesPage() {
                           type="checkbox"
                           checked={selectedColumns.includes(col.key)}
                           onChange={() => toggleColumn(col.key)}
-                          className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
+                          className="w-4 h-4 text-[#556B2F] rounded focus:ring-2 focus:ring-[#556B2F]"
                         />
                         <span className="text-sm text-gray-700">{col.label}</span>
                       </label>
@@ -1483,7 +1484,7 @@ export default function ExtractedOpportunitiesPage() {
                     </h3>
                     <button
                       onClick={() => toggleGroup('metadata')}
-                      className="text-xs text-blue-600 hover:text-blue-800 font-medium"
+                      className="text-xs text-[#556B2F] hover:text-[#3A4D1F] font-medium"
                     >
                       {getColumnsByGroup('metadata').every(col => selectedColumns.includes(col.key)) ? 'Unselect All' : 'Select All'}
                     </button>
@@ -1495,7 +1496,7 @@ export default function ExtractedOpportunitiesPage() {
                           type="checkbox"
                           checked={selectedColumns.includes(col.key)}
                           onChange={() => toggleColumn(col.key)}
-                          className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
+                          className="w-4 h-4 text-[#556B2F] rounded focus:ring-2 focus:ring-[#556B2F]"
                         />
                         <span className="text-sm text-gray-700">{col.label}</span>
                       </label>

@@ -25,7 +25,16 @@ export const translations = {
       aboutUs: 'About us',
       signIn: 'Sign In',
       getStarted: 'Get Started',
-      language: 'Language'
+      language: 'Language',
+      megaMenu: {
+        home: 'Discover our mission and impact',
+        opportunities: 'Browse the newest jobs, trainings and funding',
+        howItWorks: 'How seekers and NGOs use Zaytoonz',
+        morchid: 'Meet our AI career assistant',
+        partners: 'Organizations working with us',
+        about: 'Our mission, vision and values',
+        contact: 'Send a message or join our community'
+      }
     },
     // Hero Section
     hero: {
@@ -148,7 +157,9 @@ export const translations = {
       other: 'Other',
       message: 'Message',
       messagePlaceholder: 'Tell us how we can help you...',
-      sendMessage: 'Send Message'
+      sendMessage: 'Send Message',
+      socialTitle: 'Join Our Community',
+      socialDescription: 'Hover to scan the QR code, or click to open the page.'
     },
     // Footer
     footer: {
@@ -175,7 +186,16 @@ export const translations = {
       aboutUs: 'À propos',
       signIn: 'Connexion',
       getStarted: 'Commencer',
-      language: 'Langue'
+      language: 'Langue',
+      megaMenu: {
+        home: 'Découvrez notre mission et notre impact',
+        opportunities: 'Les derniers emplois, formations et financements',
+        howItWorks: 'Comment les talents et les ONG utilisent Zaytoonz',
+        morchid: 'Rencontrez notre assistant carrière IA',
+        partners: 'Les organisations qui travaillent avec nous',
+        about: 'Notre mission, vision et valeurs',
+        contact: 'Envoyez un message ou rejoignez notre communauté'
+      }
     },
     // Hero Section
     hero: {
@@ -298,7 +318,9 @@ export const translations = {
       other: 'Autre',
       message: 'Message',
       messagePlaceholder: 'Dites-nous comment nous pouvons vous aider...',
-      sendMessage: 'Envoyer le Message'
+      sendMessage: 'Envoyer le Message',
+      socialTitle: 'Rejoignez Notre Communauté',
+      socialDescription: 'Survolez pour scanner le QR code, ou cliquez pour ouvrir la page.'
     },
     // Footer
     footer: {
@@ -325,7 +347,16 @@ export const translations = {
       aboutUs: 'من نحن',
       signIn: 'تسجيل الدخول',
       getStarted: 'ابدأ الآن',
-      language: 'اللغة'
+      language: 'اللغة',
+      megaMenu: {
+        home: 'اكتشف مهمتنا وتأثيرنا',
+        opportunities: 'أحدث الوظائف والتدريبات وفرص التمويل',
+        howItWorks: 'كيف يستخدم الباحثون والمنظمات زيتونز',
+        morchid: 'تعرّف على مساعدنا المهني الذكي',
+        partners: 'المنظمات التي تعمل معنا',
+        about: 'مهمتنا ورؤيتنا وقيمنا',
+        contact: 'أرسل رسالة أو انضم إلى مجتمعنا'
+      }
     },
     // Hero Section
     hero: {
@@ -448,7 +479,9 @@ export const translations = {
       other: 'آخر',
       message: 'الرسالة',
       messagePlaceholder: 'أخبرنا كيف يمكننا مساعدتك...',
-      sendMessage: 'إرسال الرسالة'
+      sendMessage: 'إرسال الرسالة',
+      socialTitle: 'انضم إلى مجتمعنا',
+      socialDescription: 'مرر المؤشر لمسح رمز QR، أو انقر لفتح الصفحة.'
     },
     // Footer
     footer: {

@@ -1,13 +1,27 @@
 # markdown.py
 
 import asyncio
+import sys
+from collections import OrderedDict
 from typing import List
 from api_management import get_supabase_client
 from utils import generate_unique_name
+from robots_guard import check_url_allowed
 
-# Apply nest_asyncio globally to handle nested event loops
-import nest_asyncio
-nest_asyncio.apply()
+# nest_asyncio conflicts with uvloop on Linux, so only apply it on Windows
+if sys.platform.startswith('win'):
+    import nest_asyncio
+    nest_asyncio.apply()
+
+# In-process copy of recently fetched pages so scraping still works when Supabase is down
+_LOCAL_RAW_CACHE: "OrderedDict[str, str]" = OrderedDict()
+_LOCAL_RAW_CACHE_MAX = 50
+
+def _remember_raw_data(unique_name: str, raw_data: str) -> None:
+    _LOCAL_RAW_CACHE[unique_name] = raw_data
+    _LOCAL_RAW_CACHE.move_to_end(unique_name)
+    while len(_LOCAL_RAW_CACHE) > _LOCAL_RAW_CACHE_MAX:
+        _LOCAL_RAW_CACHE.popitem(last=False)
 
 def get_supabase():
     """Get supabase client lazily to avoid module-level imports"""
@@ -18,6 +32,11 @@ async def get_fit_markdown_async(url: str) -> str:
     Async function using crawl4ai's AsyncWebCrawler to produce the regular raw markdown.
     (Reverting from the 'fit' approach back to normal.)
     """
+    robots_status = check_url_allowed(url)
+    if not robots_status.get("allowed", True):
+        print(f"🚫 Blocked by robots.txt: {url} | rule: {robots_status.get('matched_rule')}")
+        return ""
+
     # Import crawl4ai only when needed to avoid Playwright subprocess issues at startup
     from crawl4ai import AsyncWebCrawler
 
@@ -51,8 +70,11 @@ def read_raw_data(unique_name: str) -> str:
     """
     Query the 'scraped_data' table for the row with this unique_name,
     and return the 'raw_data' field. If Supabase is unavailable, fall
-    back to an empty string so scraping can proceed.
+    back to the in-process cache, then to an empty string.
     """
+    if unique_name in _LOCAL_RAW_CACHE:
+        return _LOCAL_RAW_CACHE[unique_name]
+
     supabase = get_supabase()
     if not supabase:
         print("WARN: Supabase credentials missing; skipping cache lookup.")
@@ -78,6 +100,8 @@ def save_raw_data(unique_name: str, url: str, raw_data: str) -> None:
     If Supabase is unavailable or times out, log and continue without failing
     the scraping flow.
     """
+    _remember_raw_data(unique_name, raw_data)
+
     supabase = get_supabase()
     if not supabase:
         print("WARN: Supabase credentials missing; skipping cache save.")
@@ -121,6 +145,9 @@ def fetch_and_store_markdowns(urls: List[str]) -> List[str]:
         else:
             # fetch fit markdown; let this raise so caller sees crawl issues, but not Supabase
             fit_md = fetch_fit_markdown(url)
+            if not fit_md:
+                print(f"{MAGENTA}No content fetched for {url}, skipping.{RESET}")
+                continue
             print(fit_md)
             save_raw_data(unique_name, url, fit_md)
         unique_names.append(unique_name)

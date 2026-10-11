@@ -19,9 +19,10 @@ import {
   PresentationChartBarIcon,
   StarIcon,
   HomeIcon,
-  MagnifyingGlassCircleIcon
+  MagnifyingGlassCircleIcon,
+  DocumentTextIcon
 } from "@heroicons/react/24/outline";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 interface SidebarProps {
   user: {
@@ -40,6 +41,19 @@ export function Sidebar({ user }: SidebarProps) {
   const { signOut } = useAuth();
   const [showExternal, setShowExternal] = useState(false);
   const [showInternal, setShowInternal] = useState(false);
+  const isInScraper = pathname?.startsWith("/admin/Scraper") ?? false;
+  const [showScraper, setShowScraper] = useState(isInScraper);
+
+  useEffect(() => {
+    if (isInScraper) setShowScraper(true);
+  }, [isInScraper]);
+
+  const subLinkClass = (href: string) =>
+    `flex items-center px-4 py-2 text-sm rounded-xl group transition-all duration-200 ${
+      pathname === href
+        ? "bg-[#556B2F]/15 text-[#556B2F] font-medium"
+        : "text-gray-700 hover:bg-[#556B2F]/10"
+    }`;
 
   const handleLogout = async () => {
     try {
@@ -180,10 +194,32 @@ export function Sidebar({ user }: SidebarProps) {
           </li>
 
           <li>
-            <Link href="/admin/Scraper" className="flex items-center px-4 py-3 text-sm rounded-xl group transition-all duration-200 text-gray-700 hover:bg-[#556B2F]/10">
-              <MagnifyingGlassCircleIcon className="mr-3 h-5 w-5 flex-shrink-0 text-[#556B2F]" />
-              Opportunities Scraper
-            </Link>
+            <button
+              onClick={() => setShowScraper(!showScraper)}
+              className={`flex items-center justify-between w-full px-4 py-3 text-sm rounded-xl group transition-all duration-200 hover:bg-[#556B2F]/10 ${
+                isInScraper ? "text-[#556B2F] font-medium" : "text-gray-700"
+              }`}
+            >
+              <span className="flex items-center">
+                <MagnifyingGlassCircleIcon className="mr-3 h-5 w-5 flex-shrink-0 text-[#556B2F]" />
+                Opportunities Scraper
+              </span>
+              <ChevronDownIcon className={`h-4 w-4 transform transition-transform duration-200 ${showScraper ? 'rotate-180' : ''}`} />
+            </button>
+            {showScraper && (
+              <ul className="pl-10 mt-1 space-y-1">
+                <li>
+                  <Link href="/admin/Scraper" className={subLinkClass("/admin/Scraper")}>
+                    <MagnifyingGlassCircleIcon className="mr-3 h-4 w-4 flex-shrink-0 text-[#556B2F]" /> Scraper
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/admin/Scraper/extracted" className={subLinkClass("/admin/Scraper/extracted")}>
+                    <DocumentTextIcon className="mr-3 h-4 w-4 flex-shrink-0 text-[#556B2F]" /> Extracted Opportunities
+                  </Link>
+                </li>
+              </ul>
+            )}
           </li>
 
           <li>

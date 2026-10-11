@@ -93,9 +93,16 @@ def save_formatted_data(unique_name: str, formatted_data):
         data_json = formatted_data
 
     supabase = get_supabase()
-    supabase.table("scraped_data").update({
-        "formatted_data": data_json
-    }).eq("unique_name", unique_name).execute()
+    if not supabase:
+        print(f"WARN: Supabase credentials missing; formatted_data not saved for {unique_name}")
+        return
+    try:
+        supabase.table("scraped_data").update({
+            "formatted_data": data_json
+        }).eq("unique_name", unique_name).execute()
+    except Exception as exc:
+        print(f"WARN: Supabase save of formatted_data failed for {unique_name}: {exc}")
+        return
     MAGENTA = "\033[35m"
     RESET = "\033[0m"  # Reset color to default
     print(f"{MAGENTA}INFO:Scraped data saved for {unique_name}{RESET}")

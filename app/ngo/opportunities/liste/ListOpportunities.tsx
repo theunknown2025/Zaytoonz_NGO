@@ -21,7 +21,9 @@ import {
   EnvelopeIcon,
   UserIcon,
   CheckCircleIcon,
-  ExclamationCircleIcon
+  ExclamationCircleIcon,
+  LockClosedIcon,
+  LockOpenIcon,
 } from '@heroicons/react/24/outline';
 import { getOpportunities, deleteOpportunity } from '../services/opportunityService';
 import { getOpportunityProcess } from '../../resources/tools/ProcessMakers/services/opportunityProcessService';
@@ -35,6 +37,9 @@ interface Opportunity {
   created_at: string;
   updated_at: string;
   status?: string;
+  isClosed?: boolean;
+  deadlineExtended?: boolean;
+  deadline?: string;
 }
 
 interface OpportunityDetail {
@@ -98,6 +103,13 @@ export default function ListOpportunities() {
   const [deleting, setDeleting] = useState<Record<string, boolean>>({});
   const [publishing, setPublishing] = useState<Record<string, boolean>>({});
   const [publishedOpportunities, setPublishedOpportunities] = useState<Record<string, boolean>>({});
+  const [togglingClose, setTogglingClose] = useState<Record<string, boolean>>({});
+  const [extendingDeadline, setExtendingDeadline] = useState<Record<string, boolean>>({});
+  const [extendDeadlineModal, setExtendDeadlineModal] = useState<{
+    opportunityId: string;
+    currentDeadline?: string;
+  } | null>(null);
+  const [newDeadline, setNewDeadline] = useState('');
   
   // New state for separating opportunities by status
   const [activeTab, setActiveTab] = useState<'draft' | 'published'>('draft');
@@ -189,7 +201,9 @@ export default function ListOpportunities() {
           user_id,
           opportunity_description (
             status,
-            title
+            title,
+            metadata,
+            criteria
           )
         `)
         .eq('user_id', user.id)
@@ -207,13 +221,18 @@ export default function ListOpportunities() {
         const description = Array.isArray(opp.opportunity_description) 
           ? opp.opportunity_description[0] 
           : opp.opportunity_description;
+        const metadata = description?.metadata || {};
+        const criteria = description?.criteria || {};
         
         return {
           id: opp.id,
           title: description?.title || opp.title || 'Draft Opportunity',
           created_at: opp.created_at,
           updated_at: opp.updated_at,
-          status: description?.status || 'draft'
+          status: description?.status || 'draft',
+          isClosed: Boolean(metadata?.is_closed),
+          deadlineExtended: Boolean(metadata?.deadline_extended),
+          deadline: criteria?.deadline || metadata?.deadline || metadata?.application_deadline,
         };
       }) || [];
       
@@ -256,6 +275,131 @@ export default function ListOpportunities() {
       toast.error('An error occurred while deleting the opportunity');
     } finally {
       setDeleting(prev => ({ ...prev, [opportunityId]: false }));
+    }
+  };
+
+  const handleToggleClose = async (opportunityId: string) => {
+    try {
+      setTogglingClose(prev => ({ ...prev, [opportunityId]: true }));
+
+      const { data, error: fetchError } = await supabase
+        .from('opportunity_description')
+        .select('metadata')
+        .eq('opportunity_id', opportunityId)
+        .maybeSingle();
+
+      if (fetchError) throw fetchError;
+
+      const metadata = { ...(data?.metadata || {}) };
+      const currentlyClosed = Boolean(metadata.is_closed);
+      const now = new Date().toISOString();
+
+      if (currentlyClosed) {
+        metadata.is_closed = false;
+        metadata.closed_at = null;
+        metadata.reopened_at = now;
+      } else {
+        metadata.is_closed = true;
+        metadata.closed_at = now;
+      }
+
+      const { error: updateError } = await supabase
+        .from('opportunity_description')
+        .update({
+          metadata,
+          updated_at: now,
+        })
+        .eq('opportunity_id', opportunityId);
+
+      if (updateError) throw updateError;
+
+      await supabase
+        .from('opportunities')
+        .update({ updated_at: now })
+        .eq('id', opportunityId);
+
+      toast.success(currentlyClosed ? 'Opportunity reopened' : 'Opportunity closed');
+      fetchOpportunities();
+    } catch (error) {
+      console.error('Error toggling opportunity close state:', error);
+      toast.error('Failed to update opportunity status');
+    } finally {
+      setTogglingClose(prev => ({ ...prev, [opportunityId]: false }));
+    }
+  };
+
+  const openExtendDeadlineModal = (opportunity: Opportunity) => {
+    setExtendDeadlineModal({
+      opportunityId: opportunity.id,
+      currentDeadline: opportunity.deadline,
+    });
+    setNewDeadline(opportunity.deadline || '');
+  };
+
+  const handleExtendDeadline = async () => {
+    if (!extendDeadlineModal) return;
+
+    const { opportunityId, currentDeadline } = extendDeadlineModal;
+    if (!newDeadline) {
+      toast.error('Please select a new deadline');
+      return;
+    }
+
+    if (currentDeadline && newDeadline <= currentDeadline) {
+      toast.error('New deadline must be after the current deadline');
+      return;
+    }
+
+    try {
+      setExtendingDeadline(prev => ({ ...prev, [opportunityId]: true }));
+
+      const { data, error: fetchError } = await supabase
+        .from('opportunity_description')
+        .select('metadata, criteria')
+        .eq('opportunity_id', opportunityId)
+        .maybeSingle();
+
+      if (fetchError) throw fetchError;
+
+      const criteria = { ...(data?.criteria || {}) };
+      const metadata = { ...(data?.metadata || {}) };
+      const previousDeadline = criteria.deadline || metadata.deadline || currentDeadline;
+
+      if (!metadata.original_deadline && previousDeadline) {
+        metadata.original_deadline = previousDeadline;
+      }
+
+      criteria.deadline = newDeadline;
+      metadata.deadline = newDeadline;
+      metadata.deadline_extended = true;
+      metadata.deadline_extended_at = new Date().toISOString();
+
+      const now = new Date().toISOString();
+      const { error: updateError } = await supabase
+        .from('opportunity_description')
+        .update({
+          criteria,
+          metadata,
+          updated_at: now,
+        })
+        .eq('opportunity_id', opportunityId);
+
+      if (updateError) throw updateError;
+
+      await supabase
+        .from('opportunities')
+        .update({ updated_at: now })
+        .eq('id', opportunityId);
+
+      toast.success('Deadline extended successfully');
+      setExtendDeadlineModal(null);
+      setNewDeadline('');
+      fetchOpportunities();
+    } catch (error) {
+      console.error('Error extending deadline:', error);
+      toast.error('Failed to extend deadline');
+    } finally {
+      setExtendingDeadline(prev => ({ ...prev, [opportunityId]: false }));
     }
   };
 
@@ -931,8 +1075,8 @@ export default function ListOpportunities() {
         onClick={() => toggleOpportunity(opportunity.id)}
       >
         <div className="flex-1">
-          <div className="flex items-center mb-2">
-            <h3 className="text-lg font-medium text-gray-900 mr-3">{opportunity.title}</h3>
+          <div className="flex items-center mb-2 flex-wrap gap-2">
+            <h3 className="text-lg font-medium text-gray-900 mr-1">{opportunity.title}</h3>
             {/* Status Badge */}
             <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
               isPublishedStatus(opportunity.status)
@@ -941,20 +1085,39 @@ export default function ListOpportunities() {
             }`}>
               {statusLabel(opportunity.status)}
             </span>
+            {opportunity.isClosed && (
+              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                Closed
+              </span>
+            )}
+            {opportunity.deadlineExtended && (
+              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800">
+                Deadline extended
+              </span>
+            )}
           </div>
-          <div className="flex items-center text-sm text-gray-500 mt-1">
+          <div className="flex items-center text-sm text-gray-500 mt-1 flex-wrap gap-y-1">
             <ClockIcon className="h-4 w-4 mr-1" />
             <span>Created: {formatDate(opportunity.created_at)}</span>
-            <span className="mx-2">â€¢</span>
+            <span className="mx-2">•</span>
             <span>Updated: {formatDate(opportunity.updated_at)}</span>
             
             {/* Show published status if published */}
-            {isPublishedStatus(opportunity.status) && opportunity.status === 'published' && (
+            {isPublishedStatus(opportunity.status) && opportunity.status === 'published' && !opportunity.isClosed && (
               <>
-                <span className="mx-2">â€¢</span>
+                <span className="mx-2">•</span>
                 <span className="text-green-600 font-medium flex items-center">
                   <GlobeAltIcon className="h-4 w-4 mr-1" /> 
                   Live
+                </span>
+              </>
+            )}
+            {opportunity.deadline && (
+              <>
+                <span className="mx-2">•</span>
+                <span className={`flex items-center ${opportunity.deadlineExtended ? 'text-amber-700 font-medium' : ''}`}>
+                  <CalendarDaysIcon className="h-4 w-4 mr-1" />
+                  {opportunity.deadlineExtended ? `New deadline: ${opportunity.deadline}` : `Deadline: ${opportunity.deadline}`}
                 </span>
               </>
             )}
@@ -998,6 +1161,56 @@ export default function ListOpportunities() {
               <PlayIcon className="h-5 w-5" />
               <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 text-xs text-white bg-gray-900 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
                 Continue unfinished Opportunity
+              </div>
+            </button>
+          )}
+
+          {/* Close / Open - published opportunities only */}
+          {isPublishedStatus(opportunity.status) && (
+            <button
+              className={`p-2 mr-1 relative group ${
+                opportunity.isClosed
+                  ? 'text-green-600 hover:text-green-800'
+                  : 'text-orange-600 hover:text-orange-800'
+              } ${togglingClose[opportunity.id] ? 'opacity-50 cursor-not-allowed' : ''}`}
+              onClick={(e) => {
+                e.stopPropagation();
+                if (!togglingClose[opportunity.id]) {
+                  handleToggleClose(opportunity.id);
+                }
+              }}
+              disabled={togglingClose[opportunity.id]}
+              title={opportunity.isClosed ? 'Open opportunity' : 'Close opportunity'}
+            >
+              {togglingClose[opportunity.id] ? (
+                <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 714 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+              ) : opportunity.isClosed ? (
+                <LockOpenIcon className="h-5 w-5" />
+              ) : (
+                <LockClosedIcon className="h-5 w-5" />
+              )}
+              <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 text-xs text-white bg-gray-900 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-10">
+                {opportunity.isClosed ? 'Open opportunity' : 'Close opportunity'}
+              </div>
+            </button>
+          )}
+
+          {/* Extend deadline - published opportunities only */}
+          {isPublishedStatus(opportunity.status) && (
+            <button
+              className="text-indigo-600 hover:text-indigo-800 p-2 mr-1 relative group"
+              onClick={(e) => {
+                e.stopPropagation();
+                openExtendDeadlineModal(opportunity);
+              }}
+              title="Extend deadline"
+            >
+              <CalendarDaysIcon className="h-5 w-5" />
+              <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 text-xs text-white bg-gray-900 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-10">
+                Extend deadline
               </div>
             </button>
           )}
@@ -1337,6 +1550,71 @@ export default function ListOpportunities() {
                   </div>
                 ) : (
                   'Delete'
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Extend Deadline Modal */}
+      {extendDeadlineModal && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 shadow-xl max-w-md w-full">
+            <div className="mb-4">
+              <h3 className="text-lg font-medium text-gray-900 mb-2">Extend Deadline</h3>
+              <p className="text-sm text-gray-600 mb-4">
+                Choose a new application deadline. The opportunity card will show &quot;Deadline extended&quot; with the new date.
+              </p>
+              {extendDeadlineModal.currentDeadline && (
+                <p className="text-sm text-gray-700 mb-3">
+                  Current deadline:{' '}
+                  <span className="font-medium">{extendDeadlineModal.currentDeadline}</span>
+                </p>
+              )}
+              <label htmlFor="new-deadline" className="block text-sm font-medium text-gray-700 mb-1">
+                New deadline
+              </label>
+              <input
+                id="new-deadline"
+                type="date"
+                value={newDeadline}
+                min={extendDeadlineModal.currentDeadline || undefined}
+                onChange={(e) => setNewDeadline(e.target.value)}
+                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#6B8E23] focus:border-[#6B8E23]"
+              />
+            </div>
+
+            <div className="mt-6 flex justify-end space-x-3">
+              <button
+                onClick={() => {
+                  setExtendDeadlineModal(null);
+                  setNewDeadline('');
+                }}
+                className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 transition-colors"
+                disabled={extendingDeadline[extendDeadlineModal.opportunityId]}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleExtendDeadline}
+                disabled={extendingDeadline[extendDeadlineModal.opportunityId] || !newDeadline}
+                className={`px-4 py-2 bg-[#556B2F] text-white rounded-md hover:bg-[#4A5F29] transition-colors ${
+                  extendingDeadline[extendDeadlineModal.opportunityId] || !newDeadline
+                    ? 'opacity-50 cursor-not-allowed'
+                    : ''
+                }`}
+              >
+                {extendingDeadline[extendDeadlineModal.opportunityId] ? (
+                  <div className="flex items-center">
+                    <svg className="animate-spin h-4 w-4 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 818-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 714 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Saving...
+                  </div>
+                ) : (
+                  'Extend deadline'
                 )}
               </button>
             </div>

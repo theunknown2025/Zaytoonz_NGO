@@ -609,6 +609,16 @@ function OpportunitiesPageContent() {
             {categoryIcon}
             <span className="capitalize">{opportunity.category}</span>
           </div>
+          {opportunity.isClosed && (
+            <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border bg-red-50 text-red-700 border-red-200">
+              Closed
+            </div>
+          )}
+          {opportunity.deadlineExtended && !opportunity.isClosed && (
+            <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border bg-amber-50 text-amber-800 border-amber-200">
+              Deadline extended
+            </div>
+          )}
         </div>
 
         {/* Details */}
@@ -635,9 +645,17 @@ function OpportunitiesPageContent() {
           )}
 
           {opportunity.deadline && (
-            <div className="flex items-center gap-2 text-sm text-olive-600">
+            <div className={`flex items-center gap-2 text-sm ${
+              opportunity.deadlineExtended && !opportunity.isClosed
+                ? 'text-amber-700 font-medium'
+                : 'text-olive-600'
+            }`}>
               <CalendarDaysIcon className="w-4 h-4" />
-              <span>{opportunity.deadline}</span>
+              <span>
+                {opportunity.deadlineExtended && !opportunity.isClosed
+                  ? `New deadline: ${opportunity.deadline}`
+                  : opportunity.deadline}
+              </span>
             </div>
           )}
         </div>
@@ -710,6 +728,16 @@ function OpportunitiesPageContent() {
                   {categoryIcon}
                   <span className="capitalize">{opportunity.category}</span>
                 </div>
+                {opportunity.isClosed && (
+                  <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border bg-red-50 text-red-700 border-red-200">
+                    Closed
+                  </div>
+                )}
+                {opportunity.deadlineExtended && !opportunity.isClosed && (
+                  <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border bg-amber-50 text-amber-800 border-amber-200">
+                    Deadline extended
+                  </div>
+                )}
               </div>
 
               <h3 className="text-lg font-semibold text-olive-800 mb-1 truncate">
@@ -744,9 +772,15 @@ function OpportunitiesPageContent() {
                 )}
 
                 {opportunity.deadline && (
-                  <div className="flex items-center gap-1">
+                  <div className={`flex items-center gap-1 ${
+                    opportunity.deadlineExtended && !opportunity.isClosed ? 'text-amber-700 font-medium' : ''
+                  }`}>
                     <CalendarDaysIcon className="w-4 h-4" />
-                    <span className="truncate">{opportunity.deadline}</span>
+                    <span className="truncate">
+                      {opportunity.deadlineExtended && !opportunity.isClosed
+                        ? `New deadline: ${opportunity.deadline}`
+                        : opportunity.deadline}
+                    </span>
                   </div>
                 )}
               </div>

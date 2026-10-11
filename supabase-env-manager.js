@@ -27,7 +27,7 @@ const NEW_VPS_SUPABASE_URL = 'http://195.35.28.149:8000';
 const NEW_VPS_SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyAgCiAgICAicm9sZSI6ICJhbm9uIiwKICAgICJpc3MiOiAic3VwYWJhc2UtZGVtbyIsCiAgICAiaWF0IjogMTY0MTc2OTIwMCwKICAgICJleHAiOiAxNzk5NTM1NjAwCn0.dc_X5iR_VP_qT0zsiyj_I_OZ2T9FtRU2BBNWN8Bu4GE';
 
 const ENV_FILES = ['.env.local', '.env'];
-const PYTHON_ENV_FILES = ['python_scraper/.env', 'morchid-ai-service/.env'];
+const PYTHON_ENV_FILES = ['Scrape_Master/.env', 'morchid-ai-service/.env'];
 
 // Colors for terminal output
 const colors = {

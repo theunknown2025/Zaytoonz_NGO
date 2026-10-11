@@ -15,6 +15,31 @@ function resolveOpportunityLocation(raw: string | null | undefined): string | un
   return displayOpportunityCountry(raw) ?? undefined;
 }
 
+/** Closed / deadline-extended flags stored on opportunity_description.metadata */
+export function resolveOpportunityLifecycleFlags(metadata: any): {
+  isClosed: boolean;
+  deadlineExtended: boolean;
+} {
+  return {
+    isClosed: Boolean(metadata?.is_closed),
+    deadlineExtended: Boolean(metadata?.deadline_extended),
+  };
+}
+
+/** Prefer reopened_at so reopened listings rise to the top of public pages. */
+export function resolveInternalSortTimestamp(
+  createdAt: string | null | undefined,
+  metadata: any
+): number {
+  const created = createdAt ? new Date(createdAt).getTime() : 0;
+  const reopened = metadata?.reopened_at ? new Date(metadata.reopened_at).getTime() : 0;
+  if (Number.isNaN(created) && Number.isNaN(reopened)) return 0;
+  return Math.max(
+    Number.isNaN(created) ? 0 : created,
+    Number.isNaN(reopened) ? 0 : reopened
+  );
+}
+
 export interface Opportunity {
   id: string;
   title: string;
@@ -32,6 +57,10 @@ export interface Opportunity {
   posted: string;
   description?: string;
   deadline?: string;
+  /** True when the NGO has closed this published opportunity. */
+  isClosed?: boolean;
+  /** True when the NGO has extended the application deadline. */
+  deadlineExtended?: boolean;
   status?: string;
   hours?: string;
   contactEmails?: string[];
@@ -468,9 +497,10 @@ export async function getOpportunities(): Promise<{ opportunities: Opportunity[]
           type: type,
           category: item.opportunity_type as 'job' | 'funding' | 'training',
           posted: formatDate(item.created_at),
-          sortTimestamp: item.created_at ? new Date(item.created_at).getTime() : 0,
+          sortTimestamp: resolveInternalSortTimestamp(item.created_at, metadata),
           description: description?.description || 'No description available',
           deadline: criteria?.deadline || metadata?.deadline || metadata?.application_deadline,
+          ...resolveOpportunityLifecycleFlags(metadata),
           status: description?.status,
           hours: description?.hours || criteria?.duration || metadata?.duration,
           contactEmails: emailData?.contact_emails || [],
@@ -651,9 +681,10 @@ export async function getOpportunitiesByCategory(category: 'job' | 'funding' | '
         type: metadata?.employment_type || metadata?.funding_type || getTypeLabel(item.opportunity_type),
         category: item.opportunity_type as 'job' | 'funding' | 'training',
         posted: formatDate(item.created_at),
-        sortTimestamp: item.created_at ? new Date(item.created_at).getTime() : 0,
+        sortTimestamp: resolveInternalSortTimestamp(item.created_at, metadata),
         description: description?.description || 'No description available',
-        deadline: metadata?.deadline || metadata?.application_deadline,
+        deadline: description?.criteria?.deadline || metadata?.deadline || metadata?.application_deadline,
+        ...resolveOpportunityLifecycleFlags(metadata),
         status: description?.status,
         hours: description?.hours || metadata?.duration,
         contactEmails: emailData?.contact_emails || [],
@@ -869,8 +900,10 @@ export async function searchOpportunities(searchQuery: string, category?: 'job' 
         type: metadata?.employment_type || metadata?.funding_type || getTypeLabel(item.opportunity_type),
         category: item.opportunity_type as 'job' | 'funding' | 'training',
         posted: formatDate(item.created_at),
+        sortTimestamp: resolveInternalSortTimestamp(item.created_at, metadata),
         description: description?.description || 'No description available',
-        deadline: metadata?.deadline || metadata?.application_deadline,
+        deadline: description?.criteria?.deadline || metadata?.deadline || metadata?.application_deadline,
+        ...resolveOpportunityLifecycleFlags(metadata),
         status: description?.status,
         hours: description?.hours || metadata?.duration,
         contactEmails: emailData?.contact_emails || [],
@@ -1311,8 +1344,10 @@ export async function getOpportunityById(id: string): Promise<{ opportunity: Opp
       type,
       category: data.opportunity_type as 'job' | 'funding' | 'training',
       posted: formatDate(data.created_at),
+      sortTimestamp: resolveInternalSortTimestamp(data.created_at, metadata),
       description: description?.description || 'No description available',
       deadline,
+      ...resolveOpportunityLifecycleFlags(metadata),
       status: description?.status,
       hours,
       contactEmails: emailData?.contact_emails || [],

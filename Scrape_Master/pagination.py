@@ -10,8 +10,6 @@ from typing import List
 from pydantic import create_model
 from llm_calls import (call_llm_model)
 
-supabase = get_supabase_client()
-
 
 class PaginationModel(BaseModel):
     page_urls: List[str]
@@ -54,9 +52,17 @@ def save_pagination_data(unique_name: str, pagination_data):
         except json.JSONDecodeError:
             pagination_data = {"raw_text": pagination_data}
 
-    supabase.table("scraped_data").update({
-        "pagination_data": pagination_data
-    }).eq("unique_name", unique_name).execute()
+    supabase = get_supabase_client()
+    if not supabase:
+        print(f"WARN: Supabase credentials missing; pagination_data not saved for {unique_name}")
+        return
+    try:
+        supabase.table("scraped_data").update({
+            "pagination_data": pagination_data
+        }).eq("unique_name", unique_name).execute()
+    except Exception as exc:
+        print(f"WARN: Supabase save of pagination_data failed for {unique_name}: {exc}")
+        return
     MAGENTA = "\033[35m"
     RESET = "\033[0m" 
     print(f"{MAGENTA}INFO:Pagination data saved for {unique_name}{RESET}")

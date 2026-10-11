@@ -31,10 +31,14 @@ import {
   Compass,
   GraduationCap,
   Bot,
-  Zap
+  Zap,
+  Home as HomeIcon,
+  Handshake,
+  Info
 } from 'lucide-react';
 import RecentOpportunities from './components/RecentOpportunities';
 import OurPartners from './components/OurPartners';
+import SocialMediaLinks from './components/SocialMediaLinks';
 import { languages, getTranslations, getLanguageByCode, type LanguageCode, type Language } from './translations';
 import { useAuth } from '@/app/lib/auth';
 import Link from 'next/link';
@@ -46,16 +50,43 @@ export default function LandingPage() {
   const [isLangOpen, setIsLangOpen] = useState(false);
   const [selectedLang, setSelectedLang] = useState<Language>(languages[0]);
   const langDropdownRef = useRef<HTMLDivElement>(null);
+  const [isMegaMenuOpen, setIsMegaMenuOpen] = useState(false);
+  const [isMobileSectionsOpen, setIsMobileSectionsOpen] = useState(false);
+  const megaMenuRef = useRef<HTMLDivElement>(null);
+  const megaMenuCloseTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Get translations based on selected language
   const t = getTranslations(selectedLang.code);
   const isRTL = selectedLang.dir === 'rtl';
 
-  // Close language dropdown when clicking outside
+  const megaMenuItems = [
+    { href: '#home', icon: HomeIcon, title: t.nav.home, description: t.nav.megaMenu.home },
+    { href: '#opportunities', icon: Briefcase, title: t.opportunities.latestTitle, description: t.nav.megaMenu.opportunities },
+    { href: '#how-it-works', icon: Lightbulb, title: t.howItWorks.title, description: t.nav.megaMenu.howItWorks },
+    { href: '#morchid', icon: Bot, title: t.morchid.title, description: t.nav.megaMenu.morchid },
+    { href: '#partners', icon: Handshake, title: t.partners.title, description: t.nav.megaMenu.partners },
+    { href: '#about', icon: Info, title: t.about.title, description: t.nav.megaMenu.about },
+    { href: '#contact', icon: Mail, title: t.contact.title, description: t.nav.megaMenu.contact },
+  ];
+
+  const openMegaMenu = () => {
+    if (megaMenuCloseTimer.current) clearTimeout(megaMenuCloseTimer.current);
+    setIsMegaMenuOpen(true);
+  };
+
+  const scheduleMegaMenuClose = () => {
+    if (megaMenuCloseTimer.current) clearTimeout(megaMenuCloseTimer.current);
+    megaMenuCloseTimer.current = setTimeout(() => setIsMegaMenuOpen(false), 150);
+  };
+
+  // Close language dropdown and mega menu when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (langDropdownRef.current && !langDropdownRef.current.contains(event.target as Node)) {
         setIsLangOpen(false);
+      }
+      if (megaMenuRef.current && !megaMenuRef.current.contains(event.target as Node)) {
+        setIsMegaMenuOpen(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -94,10 +125,46 @@ export default function LandingPage() {
               <img src="/image.png" alt="Zaytoonz" className="h-12 w-auto" />
             </div>
             
-            <nav className={`hidden md:flex ${isRTL ? 'space-x-reverse space-x-8' : 'space-x-8'}`}>
-              <a href="#home" className="text-olive-700 hover:text-olive-600 font-medium transition-colors">
-                {t.nav.home}
-              </a>
+            <nav className={`hidden md:flex items-center ${isRTL ? 'space-x-reverse space-x-8' : 'space-x-8'}`}>
+              <div
+                ref={megaMenuRef}
+                onMouseEnter={openMegaMenu}
+                onMouseLeave={scheduleMegaMenuClose}
+              >
+                <button
+                  type="button"
+                  onClick={() => setIsMegaMenuOpen((open) => !open)}
+                  aria-expanded={isMegaMenuOpen}
+                  aria-haspopup="true"
+                  className="flex items-center gap-1 text-olive-700 hover:text-olive-600 font-medium transition-colors"
+                >
+                  {t.nav.home}
+                  <ChevronDown className={`h-4 w-4 transition-transform duration-200 ${isMegaMenuOpen ? 'rotate-180' : ''}`} />
+                </button>
+
+                {isMegaMenuOpen && (
+                  <div className="absolute left-0 right-0 top-16 bg-white border-b border-olive-200 shadow-xl animate-in fade-in slide-in-from-top-2 duration-200">
+                    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 grid grid-cols-2 lg:grid-cols-4 gap-4">
+                      {megaMenuItems.map(({ href, icon: Icon, title, description }) => (
+                        <a
+                          key={href}
+                          href={href}
+                          onClick={() => setIsMegaMenuOpen(false)}
+                          className={`group flex items-start gap-4 p-4 rounded-xl hover:bg-olive-50 transition-colors ${isRTL ? 'text-right' : ''}`}
+                        >
+                          <div className="flex-shrink-0 w-12 h-12 rounded-xl bg-olive-100 text-olive-700 flex items-center justify-center transition-colors group-hover:bg-olive-700 group-hover:text-white">
+                            <Icon className="h-6 w-6" />
+                          </div>
+                          <div>
+                            <div className="font-semibold text-olive-800">{title}</div>
+                            <div className="text-sm text-olive-600 mt-1">{description}</div>
+                          </div>
+                        </a>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
               <Link
                 href="/seeker/opportunities?category=job"
                 className="text-olive-700 hover:text-olive-600 font-medium transition-colors"
@@ -196,9 +263,32 @@ export default function LandingPage() {
           {isMenuOpen && (
             <div className="md:hidden">
               <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3 bg-white border-t border-olive-200">
-                <a href="#home" className="block px-3 py-2 text-olive-700 hover:text-olive-600">
-                  {t.nav.home}
-                </a>
+                <button
+                  type="button"
+                  onClick={() => setIsMobileSectionsOpen((open) => !open)}
+                  aria-expanded={isMobileSectionsOpen}
+                  className={`w-full flex items-center justify-between px-3 py-2 text-olive-700 hover:text-olive-600 ${isRTL ? 'text-right' : 'text-left'}`}
+                >
+                  <span>{t.nav.home}</span>
+                  <ChevronDown className={`h-4 w-4 transition-transform duration-200 ${isMobileSectionsOpen ? 'rotate-180' : ''}`} />
+                </button>
+                {isMobileSectionsOpen && (
+                  <div className="grid grid-cols-1 gap-1 px-2 pb-2">
+                    {megaMenuItems.map(({ href, icon: Icon, title }) => (
+                      <a
+                        key={href}
+                        href={href}
+                        onClick={() => setIsMenuOpen(false)}
+                        className="flex items-center gap-3 px-3 py-2 rounded-lg text-olive-700 hover:bg-olive-50"
+                      >
+                        <span className="w-8 h-8 rounded-lg bg-olive-100 flex items-center justify-center">
+                          <Icon className="h-4 w-4" />
+                        </span>
+                        <span className="text-sm font-medium">{title}</span>
+                      </a>
+                    ))}
+                  </div>
+                )}
                 <Link
                   href="/seeker/opportunities?category=job"
                   className="block px-3 py-2 text-olive-700 hover:text-olive-600"
@@ -391,7 +481,7 @@ export default function LandingPage() {
       </section>
 
       {/* Recent Opportunities Section */}
-      <section className="py-20 bg-olive-50">
+      <section id="opportunities" className="py-20 bg-olive-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
             <h2 className="text-4xl font-bold text-olive-800 mb-4">
@@ -404,7 +494,7 @@ export default function LandingPage() {
       </section>
 
       {/* How It Works Section */}
-      <section className="py-20 bg-white">
+      <section id="how-it-works" className="py-20 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
             <h2 className="text-4xl font-bold text-olive-800 mb-4">
@@ -862,7 +952,8 @@ export default function LandingPage() {
             </p>
           </div>
 
-          <div className="bg-olive-100 rounded-2xl p-8 max-w-4xl mx-auto">
+          <div className="grid lg:grid-cols-2 gap-8 items-start">
+          <div className="bg-olive-100 rounded-2xl p-8">
             <h3 className="text-2xl font-bold text-olive-800 mb-6 text-center">{t.contact.formTitle}</h3>
             
             <form className="space-y-6">
@@ -879,7 +970,7 @@ export default function LandingPage() {
                 />
               </div>
               
-              <div className="grid md:grid-cols-3 gap-4">
+              <div className="grid sm:grid-cols-2 gap-4">
                 <div>
                   <label className={`block text-sm font-medium text-olive-700 mb-2 ${isRTL ? 'text-right' : ''}`}>
                     {t.contact.firstName}
@@ -900,7 +991,7 @@ export default function LandingPage() {
                     placeholder={t.contact.lastNamePlaceholder}
                   />
                 </div>
-                <div>
+                <div className="sm:col-span-2">
                   <label className={`block text-sm font-medium text-olive-700 mb-2 ${isRTL ? 'text-right' : ''}`}>
                     {t.contact.email}
                   </label>
@@ -945,6 +1036,13 @@ export default function LandingPage() {
                 <Send className={`${isRTL ? 'mr-2 rotate-180' : 'ml-2'} h-5 w-5`} />
               </button>
             </form>
+          </div>
+
+          <div className="bg-olive-50 rounded-2xl p-8 border border-olive-100">
+            <h3 className="text-2xl font-bold text-olive-800 mb-2 text-center">{t.contact.socialTitle}</h3>
+            <p className="text-olive-600 mb-6 text-center">{t.contact.socialDescription}</p>
+            <SocialMediaLinks />
+          </div>
           </div>
         </div>
       </section>

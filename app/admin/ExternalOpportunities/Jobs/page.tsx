@@ -29,6 +29,7 @@ interface ScrapedOpportunity {
   hours: string;
   salary_range: string;
   tags: string[];
+  source?: 'scraped' | 'extracted';
 }
 
 export default function ExternalJobsPage() {
@@ -317,15 +318,21 @@ export default function ExternalJobsPage() {
                       </a>
 
                       <div className="flex items-center space-x-2">
-                        <select
-                          value={opportunity.status}
-                          onChange={(e) => handleStatusChange(opportunity.id, e.target.value)}
-                          className="px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-[#556B2F]"
-                        >
-                          <option value="active">Active</option>
-                          <option value="inactive">Inactive</option>
-                          <option value="archived">Archived</option>
-                        </select>
+                        {opportunity.source === 'extracted' ? (
+                          <span className="px-2 py-1 bg-[#556B2F]/10 text-[#556B2F] border border-[#556B2F]/20 rounded text-xs font-medium">
+                            Extracted
+                          </span>
+                        ) : (
+                          <select
+                            value={opportunity.status}
+                            onChange={(e) => handleStatusChange(opportunity.id, e.target.value)}
+                            className="px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-[#556B2F]"
+                          >
+                            <option value="active">Active</option>
+                            <option value="inactive">Inactive</option>
+                            <option value="archived">Archived</option>
+                          </select>
+                        )}
 
                         <button
                           onClick={() => handleDelete(opportunity.id)}

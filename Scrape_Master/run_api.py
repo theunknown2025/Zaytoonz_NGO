@@ -7,11 +7,10 @@ import sys
 import asyncio
 
 # Apply event loop fixes for Windows and nested loops
+# nest_asyncio must not be applied here: it replaces asyncio.run without the
+# loop_factory argument that uvicorn needs. api_wrapper applies it after startup.
 if sys.platform.startswith('win'):
     asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
-
-import nest_asyncio
-nest_asyncio.apply()
 
 if __name__ == "__main__":
     import uvicorn

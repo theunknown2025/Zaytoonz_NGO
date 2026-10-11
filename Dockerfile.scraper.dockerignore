@@ -1,6 +1,6 @@
 # Ignore file for Dockerfile.scraper builds only.
 # This replaces the root .dockerignore when building with Dockerfile.scraper.
-# python_scraper/ is intentionally NOT excluded here.
+# Scrape_Master/ is intentionally NOT excluded here.
 
 node_modules/
 .next/
@@ -37,7 +37,7 @@ logs/
 
 certbot/
 
-Scrape_Master/
+python_scraper/
 NLWeb-main/
 morchid-ai-service/
 browser-extension/
@@ -51,6 +51,8 @@ public/
 coverage/
 .nyc_output/
 
-# Block secrets inside python_scraper
-python_scraper/.env
-python_scraper/.env.*
+# Block secrets and local artifacts inside Scrape_Master
+Scrape_Master/.env
+Scrape_Master/.env.*
+Scrape_Master/venv/
+Scrape_Master/__pycache__/

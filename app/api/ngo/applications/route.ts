@@ -159,6 +159,7 @@ export async function GET(request: NextRequest) {
         notes,
         current_step_index,
         process_status,
+        qualification_group_id,
         forms_templates(
           id,
           title,
@@ -201,6 +202,11 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    const qualificationGroupsByOpportunity = await loadQualificationGroups(
+      supabase,
+      opportunitiesData.map((opportunity) => opportunity.id)
+    );
+
     // Group applications by opportunity
     const opportunitiesWithApplications = opportunitiesData.map(opportunity => {
       const opportunityApplications = applications?.filter(
@@ -233,7 +239,8 @@ export async function GET(request: NextRequest) {
           created_at: opportunity.created_at
         },
         applications: applicationsWithProfiles,
-        application_count: applicationsWithProfiles.length
+        application_count: applicationsWithProfiles.length,
+        qualification_groups: qualificationGroupsByOpportunity[opportunity.id] || []
       };
     });
 
@@ -250,28 +257,118 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// PUT - Update application status
+type QualificationGroupRow = {
+  id: string;
+  opportunity_id: string;
+  label: string;
+  color: string | null;
+  sort_order: number;
+};
+
+const DEFAULT_QUALIFICATION_GROUPS = [
+  { label: 'Shortlisted', color: 'green' },
+  { label: 'Waiting list', color: 'amber' },
+  { label: 'Pending', color: 'gray' },
+];
+
+// Opportunities created before qualification groups existed get the default groups on first load.
+async function loadQualificationGroups(
+  supabase: ReturnType<typeof getSupabaseClient>,
+  opportunityIds: string[]
+): Promise<Record<string, QualificationGroupRow[]>> {
+  const byOpportunity: Record<string, QualificationGroupRow[]> = {};
+  if (opportunityIds.length === 0) return byOpportunity;
+
+  const { data, error } = await supabase
+    .from('opportunity_qualification_groups')
+    .select('id, opportunity_id, label, color, sort_order')
+    .in('opportunity_id', opportunityIds)
+    .order('sort_order', { ascending: true });
+
+  if (error) {
+    console.error('Error fetching qualification groups:', error);
+    return byOpportunity;
+  }
+
+  for (const row of data || []) {
+    (byOpportunity[row.opportunity_id] ||= []).push(row);
+  }
+
+  const missing = opportunityIds.filter((id) => !byOpportunity[id]?.length);
+  if (missing.length > 0) {
+    const { data: seeded, error: seedError } = await supabase
+      .from('opportunity_qualification_groups')
+      .insert(
+        missing.flatMap((opportunityId) =>
+          DEFAULT_QUALIFICATION_GROUPS.map((group, index) => ({
+            opportunity_id: opportunityId,
+            label: group.label,
+            color: group.color,
+            sort_order: index,
+          }))
+        )
+      )
+      .select('id, opportunity_id, label, color, sort_order');
+
+    if (seedError) {
+      console.error('Error seeding qualification groups:', seedError);
+    } else {
+      for (const row of (seeded || []).sort((a, b) => a.sort_order - b.sort_order)) {
+        (byOpportunity[row.opportunity_id] ||= []).push(row);
+      }
+    }
+  }
+
+  return byOpportunity;
+}
+
+// PUT - Move an application into a qualification group, or update its status
 export async function PUT(request: NextRequest) {
   try {
     const supabase = getSupabaseClient();
     const body = await request.json();
-    const { applicationId, status, notes } = body;
+    const { applicationId, status, notes, qualificationGroupId } = body;
+    const hasGroupChange = qualificationGroupId !== undefined;
 
-    if (!applicationId || !status) {
+    if (!applicationId || (!status && !hasGroupChange)) {
       return NextResponse.json(
         { error: 'Missing required fields' },
         { status: 400 }
       );
     }
 
-    // Update the application status
+    const updates: Record<string, unknown> = { updated_at: new Date().toISOString() };
+    if (status) {
+      updates.status = status;
+      updates.notes = notes || '';
+    }
+
+    if (hasGroupChange) {
+      if (qualificationGroupId) {
+        const { data: application } = await supabase
+          .from('opportunity_applications')
+          .select('opportunity_id')
+          .eq('id', applicationId)
+          .maybeSingle();
+        const { data: group } = await supabase
+          .from('opportunity_qualification_groups')
+          .select('opportunity_id')
+          .eq('id', qualificationGroupId)
+          .maybeSingle();
+
+        if (!application || !group || group.opportunity_id !== application.opportunity_id) {
+          return NextResponse.json(
+            { error: 'Qualification group does not belong to this opportunity' },
+            { status: 400 }
+          );
+        }
+      }
+      updates.qualification_group_id = qualificationGroupId || null;
+    }
+
     const { data: application, error } = await supabase
       .from('opportunity_applications')
-      .update({
-        status,
-        notes: notes || '',
-        updated_at: new Date().toISOString()
-      })
+      .update(updates)
       .eq('id', applicationId)
       .select()
       .single();
