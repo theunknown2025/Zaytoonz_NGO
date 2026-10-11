@@ -1,7 +1,8 @@
 # Build stage
 FROM node:20-alpine AS builder
 
-WORKDIR /app
+# Must not be /app: Next.js 14 mis-maps the app/app route onto / when the project root is /app
+WORKDIR /zaytoonz
 
 # Build arguments for Next.js public environment variables
 # These are needed at build time for static page generation
@@ -55,7 +56,7 @@ RUN test -d .next && \
 # Production stage
 FROM node:20-alpine AS runner
 
-WORKDIR /app
+WORKDIR /zaytoonz
 
 # Copy package files (including package-lock.json)
 COPY package.json package-lock.json* ./
@@ -69,9 +70,9 @@ RUN if [ -f package-lock.json ]; then \
     fi
 
 # Copy built application from builder
-COPY --from=builder /app/.next ./.next
-COPY --from=builder /app/public ./public
-COPY --from=builder /app/next.config.js ./next.config.js
+COPY --from=builder /zaytoonz/.next ./.next
+COPY --from=builder /zaytoonz/public ./public
+COPY --from=builder /zaytoonz/next.config.js ./next.config.js
 
 # Set environment to production
 ENV NODE_ENV=production

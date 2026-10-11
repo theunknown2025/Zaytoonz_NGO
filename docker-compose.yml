@@ -56,7 +56,7 @@ services:
       - ACCESS_GATE_SECRET=${ACCESS_GATE_SECRET}
       - ADMIN_FORMS_TEMPLATE_USER_ID=${ADMIN_FORMS_TEMPLATE_USER_ID:-}
     volumes:
-      - ./public:/app/public:ro
+      - ./public:/zaytoonz/public:ro
     restart: unless-stopped
     networks:
       - zaytoonz-network
