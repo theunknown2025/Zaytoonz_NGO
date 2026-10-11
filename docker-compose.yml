@@ -1,34 +1,17 @@
 # =============================================================================
-# Zaytoonz NGO — Web App Deployment (Phase 1)
-# Domains: zaytoonz.com  |  zaytoonz.org
+# Zaytoonz NGO — Production deployment
+# Server: 168.231.87.171   Domain: https://zaytoonz.com
 #
-# Services in this phase:
-#   nextjs   — Next.js web app (Social Page + full web app)
-#   nginx    — Reverse proxy with SSL (auto-switches HTTP ↔ HTTPS)
-#   certbot  — Let's Encrypt SSL auto-renewal
+# Services:
+#   nextjs          — Next.js web app (Social landing at /, web app at /app)
+#   python-scraper  — Scrape_Master FastAPI (proxied by nginx at /scraper-api)
+#   nginx           — Reverse proxy with SSL (auto-switches HTTP ↔ HTTPS)
+#   certbot         — Let's Encrypt SSL auto-renewal
 #
-# Scraper and NLWeb are NOT included in this phase.
-# NEXT_PUBLIC_USE_EXTERNAL_SCRAPER=false in .env disables scraper UI features.
+# Only nginx is exposed publicly (80/443). nextjs and python-scraper are bound
+# to 127.0.0.1 so they can be debugged from the server but not from the internet.
 #
-# DEPLOYMENT STEPS (PuTTY)
-# ─────────────────────────
-# 1. git clone + create .env  (copy .env.production, fill OPENAI_API_KEY)
-# 2. mkdir -p certbot/conf certbot/www
-# 3. docker compose build
-# 4. docker compose up -d
-#    → nginx starts in HTTP mode (no certs yet)
-# 5. Get SSL certs:
-#      docker compose run --rm certbot certonly --webroot \
-#        -w /var/www/certbot \
-#        -d zaytoonz.com -d www.zaytoonz.com \
-#        --email you@example.com --agree-tos --non-interactive
-#
-#      docker compose run --rm certbot certonly --webroot \
-#        -w /var/www/certbot \
-#        -d zaytoonz.org -d www.zaytoonz.org \
-#        --email you@example.com --agree-tos --non-interactive
-# 6. docker compose restart nginx
-#    → nginx auto-detects certs and switches to HTTPS
+# See DEPLOY_NEW_SERVER.md for the full step-by-step guide.
 # =============================================================================
 
 services:
@@ -42,32 +25,43 @@ services:
         - NEXT_PUBLIC_SUPABASE_URL=${NEXT_PUBLIC_SUPABASE_URL}
         - NEXT_PUBLIC_SUPABASE_ANON_KEY=${NEXT_PUBLIC_SUPABASE_ANON_KEY}
         - NEXT_PUBLIC_OPENAI_API_KEY=${NEXT_PUBLIC_OPENAI_API_KEY}
-        - NEXT_PUBLIC_USE_EXTERNAL_SCRAPER=${NEXT_PUBLIC_USE_EXTERNAL_SCRAPER:-false}
-        - NEXT_PUBLIC_EXTERNAL_SCRAPER_URL=${NEXT_PUBLIC_EXTERNAL_SCRAPER_URL:-}
+        - NEXT_PUBLIC_USE_EXTERNAL_SCRAPER=${NEXT_PUBLIC_USE_EXTERNAL_SCRAPER:-true}
+        - NEXT_PUBLIC_EXTERNAL_SCRAPER_URL=${NEXT_PUBLIC_EXTERNAL_SCRAPER_URL:-http://python-scraper:8000}
         - NEXT_PUBLIC_FALLBACK_TO_LOCAL=${NEXT_PUBLIC_FALLBACK_TO_LOCAL:-false}
+        - NEXT_PUBLIC_SITE_URL=${NEXT_PUBLIC_SITE_URL:-https://zaytoonz.com}
+        - NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL:-https://zaytoonz.com}
     image: zaytoonz-nextjs:latest
     container_name: zaytoonz-nextjs
     ports:
-      - "3002:3000"
+      - "127.0.0.1:3002:3000"
     environment:
       - NODE_ENV=production
       - PORT=3000
       - NEXT_PUBLIC_SUPABASE_URL=${NEXT_PUBLIC_SUPABASE_URL}
       - NEXT_PUBLIC_SUPABASE_ANON_KEY=${NEXT_PUBLIC_SUPABASE_ANON_KEY}
+      - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY:-}
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - NEXT_PUBLIC_OPENAI_API_KEY=${NEXT_PUBLIC_OPENAI_API_KEY}
       - OPENAI_MODEL=${OPENAI_MODEL:-gpt-4o-mini}
       - OPENAI_MAX_TOKENS=${OPENAI_MAX_TOKENS:-2000}
-      - NEXT_PUBLIC_USE_EXTERNAL_SCRAPER=${NEXT_PUBLIC_USE_EXTERNAL_SCRAPER:-false}
-      - NEXT_PUBLIC_EXTERNAL_SCRAPER_URL=${NEXT_PUBLIC_EXTERNAL_SCRAPER_URL:-}
+      - NEXT_PUBLIC_USE_EXTERNAL_SCRAPER=${NEXT_PUBLIC_USE_EXTERNAL_SCRAPER:-true}
+      - NEXT_PUBLIC_EXTERNAL_SCRAPER_URL=${NEXT_PUBLIC_EXTERNAL_SCRAPER_URL:-http://python-scraper:8000}
+      - SCRAPER_INTERNAL_URL=http://python-scraper:8000
       - NEXT_PUBLIC_FALLBACK_TO_LOCAL=${NEXT_PUBLIC_FALLBACK_TO_LOCAL:-false}
+      - NEXT_PUBLIC_SITE_URL=${NEXT_PUBLIC_SITE_URL:-https://zaytoonz.com}
+      - NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL:-https://zaytoonz.com}
+      - ACCESS_GATE_ENABLED=${ACCESS_GATE_ENABLED:-true}
+      - ACCESS_GATE_EMAIL=${ACCESS_GATE_EMAIL}
+      - ACCESS_GATE_PASSWORD=${ACCESS_GATE_PASSWORD}
+      - ACCESS_GATE_SECRET=${ACCESS_GATE_SECRET}
+      - ADMIN_FORMS_TEMPLATE_USER_ID=${ADMIN_FORMS_TEMPLATE_USER_ID:-}
     volumes:
       - ./public:/app/public:ro
     restart: unless-stopped
     networks:
       - zaytoonz-network
     healthcheck:
-      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000/', r => process.exit(r.statusCode === 200 ? 0 : 1))"]
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000/', r => process.exit(r.statusCode < 500 ? 0 : 1)).on('error', () => process.exit(1))"]
       interval: 30s
       timeout: 10s
       retries: 5
@@ -79,6 +73,43 @@ services:
           memory: 2G
         reservations:
           cpus: '0.5'
+          memory: 512M
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ── Python Scraper (Scrape_Master) ─────────────────────────────────────────
+  python-scraper:
+    build:
+      context: .
+      dockerfile: Dockerfile.scraper
+    image: zaytoonz-scraper:latest
+    container_name: zaytoonz-scraper
+    ports:
+      - "127.0.0.1:8000:8000"
+    environment:
+      - NEXT_PUBLIC_SUPABASE_URL=${NEXT_PUBLIC_SUPABASE_URL}
+      - NEXT_PUBLIC_SUPABASE_ANON_KEY=${NEXT_PUBLIC_SUPABASE_ANON_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - SCRAPER_CORS_ORIGINS=${SCRAPER_CORS_ORIGINS:-https://zaytoonz.com,https://www.zaytoonz.com}
+    restart: unless-stopped
+    networks:
+      - zaytoonz-network
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 3G
+        reservations:
+          cpus: '0.25'
           memory: 512M
     logging:
       driver: json-file
@@ -110,7 +141,8 @@ services:
         else
           echo '[nginx] No SSL certs yet — starting in HTTP-only mode';
           cp /etc/nginx/conf.d/nginx-http.conf /etc/nginx/nginx.conf;
-        fi
+        fi;
+        rm -f /etc/nginx/conf.d/default.conf;
         nginx -t && nginx -g 'daemon off;'
       "
     restart: unless-stopped
