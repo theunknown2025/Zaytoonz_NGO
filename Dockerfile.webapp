@@ -37,17 +37,20 @@ COPY . .
 RUN rm -rf .next
 
 # Verify critical files exist before build
-RUN test -f app/page.tsx && \
-    test -f app/components/ZaytoonzSMLanding.tsx && \
-    grep -q "ZaytoonzSMLanding" app/page.tsx && \
+RUN ls app/ && \
+    ls app/page.* && \
+    test "$(ls app/page.* | wc -l)" -eq 1 && \
+    grep -q "import ZaytoonzSMLanding" app/page.tsx && \
+    grep -q "force-dynamic" app/page.tsx && \
     echo "✓ Root page configuration verified"
 
 # Build the application
 RUN npm run build
 
-# Verify build output contains correct page
+# The root page must be dynamic (access gate); a static index.html means the wrong page was built
 RUN test -d .next && \
-    echo "✓ Build completed successfully"
+    test ! -f .next/server/app/index.html && \
+    echo "✓ Build completed successfully (root page is dynamic)"
 
 # Production stage
 FROM node:20-alpine AS runner
