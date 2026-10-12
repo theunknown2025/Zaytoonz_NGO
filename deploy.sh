@@ -60,6 +60,22 @@ for _ in $(seq 1 60); do
 done
 docker compose ps "${SERVICES[@]}"
 
+if grep -qE 'unhealthy|Restarting|Exited|health: starting' <<<"$STATUS"; then
+  step "A container is not healthy — last logs:"
+  for name in $(grep -E 'unhealthy|Restarting|Exited|health: starting' <<<"$STATUS" | cut -d: -f1); do
+    echo "----- $name -----"
+    docker logs --tail=60 "$name" || true
+  done
+  exit 1
+fi
+
+# nginx copies its config at container start; restart it so it picks up config
+# changes and reconnects to recreated containers.
+if [[ ${#SERVICES[@]} -eq 0 || " ${SERVICES[*]} " != *" nginx "* ]]; then
+  step "Restarting nginx"
+  docker compose restart nginx
+fi
+
 step "Cleaning up dangling images"
 docker image prune -f >/dev/null
 
