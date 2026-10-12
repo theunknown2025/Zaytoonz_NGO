@@ -37,7 +37,7 @@ export function isAccessGateEnabled(): boolean {
 function getCredentials() {
   return {
     email: (process.env.ACCESS_GATE_EMAIL || 'admin@zaytoonz.com').trim().toLowerCase(),
-    password: process.env.ACCESS_GATE_PASSWORD || 'admin@ZAYTOONZ2026',
+    password: process.env.ACCESS_GATE_PASSWORD || 'admin@ZAYTOONZ',
   };
 }
 

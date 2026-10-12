@@ -17,7 +17,11 @@ import Recap from './new/Recap';
 import { toast } from 'react-hot-toast';
 import ListOpportunities from './liste/ListOpportunities';
 import { createInitialOpportunity as createOpportunityService, type OpportunityType, getOpportunityById, saveOpportunityProgress, updateOpportunityType } from './services/opportunityService';
-import { saveOpportunityFormSettings } from './services/opportunityFormService';
+import {
+  getOpportunityExternalSettings,
+  saveOpportunityExternalSettings,
+  saveOpportunityFormSettings
+} from './services/opportunityFormService';
 import { getOpportunityFlowSteps } from './services/opportunityFlowService';
 import { supabase } from '@/app/lib/supabase';
 import type { OpportunityFlowStep } from '@/app/lib/opportunityFlow';
@@ -47,6 +51,8 @@ interface OpportunityFormData {
   selectedFormId: string;
   contactEmails: string[];
   referenceCodes: string[];
+  isExternal: boolean;
+  externalUrl: string;
   selectedEvaluationId: string;
   selectedEvaluationName: string;
   criteria?: {
@@ -106,6 +112,8 @@ export default function OpportunitiesManagementPage() {
     selectedFormId: '',
     contactEmails: [],
     referenceCodes: [],
+    isExternal: false,
+    externalUrl: '',
     selectedEvaluationId: '',
     selectedEvaluationName: '',
     criteria: {}
@@ -253,6 +261,13 @@ export default function OpportunitiesManagementPage() {
         }
       } catch (error) {
         console.error('Error loading form email data:', error);
+      }
+
+      try {
+        const { isExternal, externalUrl } = await getOpportunityExternalSettings(opportunityId);
+        setFormData(prev => ({ ...prev, isExternal, externalUrl }));
+      } catch (error) {
+        console.error('Error loading external opportunity settings:', error);
       }
 
       try {
@@ -443,6 +458,10 @@ export default function OpportunitiesManagementPage() {
     }
   };
 
+  const handleIsExternalChange = (isExternal: boolean) => {
+    setFormData(prev => ({ ...prev, isExternal }));
+  };
+
   const handleApplicationMethodChange = (method: 'form' | 'email') => {
     setFormData(prev => ({
       ...prev,
@@ -627,6 +646,17 @@ export default function OpportunitiesManagementPage() {
   });
 
   const persistApplicationMethod = async () => {
+    const externalResult = await saveOpportunityExternalSettings(
+      opportunityId,
+      formData.isExternal,
+      formData.externalUrl
+    );
+    if (!externalResult.success) {
+      toast.error(externalResult.error || 'Failed to save the external opportunity settings');
+      return false;
+    }
+    if (formData.isExternal) return true;
+
     if (formData.applicationMethod !== 'form' && formData.applicationMethod !== 'email') {
       return true;
     }
@@ -942,9 +972,12 @@ export default function OpportunitiesManagementPage() {
               applicationMethod: formData.applicationMethod,
               selectedFormId: formData.selectedFormId,
               contactEmails: formData.contactEmails,
-              referenceCodes: formData.referenceCodes
+              referenceCodes: formData.referenceCodes,
+              isExternal: formData.isExternal,
+              externalUrl: formData.externalUrl
             }}
             onChange={handleChange}
+            onIsExternalChange={handleIsExternalChange}
             onApplicationMethodChange={handleApplicationMethodChange}
             onEmailsChange={handleEmailsChange}
             onReferenceCodesChange={handleReferenceCodesChange}
@@ -978,7 +1011,9 @@ export default function OpportunitiesManagementPage() {
               selectedFormId: formData.selectedFormId,
               selectedFormTitle: selectedFormTitle,
               contactEmails: formData.contactEmails,
-              referenceCodes: formData.referenceCodes
+              referenceCodes: formData.referenceCodes,
+              isExternal: formData.isExternal,
+              externalUrl: formData.externalUrl
             }}
             processData={{
               flowSteps: flowSteps
@@ -1021,6 +1056,8 @@ export default function OpportunitiesManagementPage() {
       selectedFormId: '',
       contactEmails: [],
       referenceCodes: [],
+      isExternal: false,
+      externalUrl: '',
       selectedEvaluationId: '',
       selectedEvaluationName: '',
       criteria: {}

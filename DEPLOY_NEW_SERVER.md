@@ -229,6 +229,7 @@ docker compose config --quiet && echo "compose + .env OK"
 
 ```bash
 cd /opt/zaytoonz
+export BUILDKIT_PROGRESS=plain                  # stream every build step live (npm ci, next build, ...)
 docker compose build python-scraper             # Scrape_Master: Chrome + Playwright (~5-10 min)
 docker compose build nextjs                     # Next.js production build (~5-10 min)
 docker images | grep zaytoonz                   # zaytoonz-nextjs and zaytoonz-scraper
@@ -287,7 +288,7 @@ docker compose exec nginx nginx -t              # syntax is ok / test is success
 ```
 
 Renewal: the `certbot` container renews automatically. nginx loads a renewed certificate
-on restart, so add a monthly restart:
+on restart, so add a weekly restart (Mondays 04:00):
 
 ```bash
 (crontab -l 2>/dev/null; echo "0 4 * * 1 cd /opt/zaytoonz && docker compose restart nginx >/dev/null 2>&1") | crontab -
@@ -333,14 +334,13 @@ On your PC: commit and push to `main`. Then on the VPS:
 
 ```bash
 cd /opt/zaytoonz
-git pull
-docker compose up -d --build                    # rebuilds only what changed, then restarts
-docker image prune -f                           # remove old image layers
-docker compose ps
+./deploy.sh                                     # git pull + build (live progress) + restart + health check
 ```
 
-Only the scraper changed? `docker compose up -d --build python-scraper`.
-Only the web app changed? `docker compose up -d --build nextjs`.
+Only the web app changed? `./deploy.sh nextjs`. Only the scraper? `./deploy.sh python-scraper`.
+Each build step is printed as it runs (with its duration), and the full output is saved in
+`logs/deploy-<timestamp>.log`. The first time, run `chmod +x deploy.sh` if Git didn't keep the
+executable bit.
 
 ---
 

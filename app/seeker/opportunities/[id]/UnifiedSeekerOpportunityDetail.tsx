@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
   AcademicCapIcon,
+  ArrowTopRightOnSquareIcon,
   BanknotesIcon,
   BriefcaseIcon,
   BuildingOffice2Icon,
@@ -153,6 +154,7 @@ export default function UnifiedSeekerOpportunityDetail({
   );
   const sourceUrl = opportunity.sourceUrl?.trim();
   const isExternal = listingKind === 'external_feed';
+  const externalApplicationUrl = isExternal ? undefined : opportunity.externalApplicationUrl?.trim();
 
   const authReady = user !== undefined;
   const resolvedUser = user !== undefined ? user : sessionUser;
@@ -172,7 +174,9 @@ export default function UnifiedSeekerOpportunityDetail({
   );
   // Hide apply until auth resolves so NGO users never briefly see Apply
   const hideApply = !authReady || ngoViewer;
-  const applyBlocked = !hideApply && applyAuthRequired && authReady && !resolvedUser;
+  // External-URL opportunities collect nothing on Zaytoonz, so no sign-in is needed to follow the link
+  const applyBlocked =
+    !hideApply && applyAuthRequired && !externalApplicationUrl && authReady && !resolvedUser;
 
   const kind = KIND_COPY[listingKind];
 
@@ -405,6 +409,8 @@ export default function UnifiedSeekerOpportunityDetail({
             <p className="text-sm md:text-[15px] text-olive-700 leading-relaxed pl-4 border-l-[3px] border-olive-400">
               {isOwner
                 ? 'This is your published opportunity. You can edit or delete it from the banner above.'
+                : externalApplicationUrl
+                  ? 'This opportunity is managed by the organization on its own website. Use the Apply button below to submit your application there.'
                 : resolvedUser && listingKind === 'ngo_partner'
                   ? 'This opportunity was published by an NGO partner on Zaytoonz. Use the application form below to submit your details securely.'
                   : kind.hint}
@@ -480,7 +486,7 @@ export default function UnifiedSeekerOpportunityDetail({
             <section className="bg-white rounded-2xl shadow-sm border border-olive-100 p-7 md:p-9">
               <h2 className="text-xl font-semibold text-olive-900 mb-6">Apply now</h2>
 
-              {applyAuthRequired && !authReady && (
+              {applyAuthRequired && !externalApplicationUrl && !authReady && (
                 <div className="flex justify-center py-8">
                   <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-olive-600" />
                 </div>
@@ -536,7 +542,24 @@ export default function UnifiedSeekerOpportunityDetail({
                 </div>
               )}
 
-              {!applyBlocked && !isExternal && showFormApply && (
+              {!applyBlocked && externalApplicationUrl && (
+                <div className="space-y-4">
+                  <p className="text-sm text-olive-700">
+                    Applications for this opportunity are handled on the organization&apos;s website.
+                  </p>
+                  <a
+                    href={externalApplicationUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex w-full items-center justify-center gap-2 px-6 py-3.5 rounded-xl bg-olive-700 text-white font-semibold shadow-sm hover:bg-olive-800 transition"
+                  >
+                    Apply
+                    <ArrowTopRightOnSquareIcon className="h-5 w-5" />
+                  </a>
+                </div>
+              )}
+
+              {!applyBlocked && !isExternal && !externalApplicationUrl && showFormApply && (
                 <div className="space-y-4">
                   <p className="text-sm text-olive-700">
                     {opportunity.applicationForm?.title
@@ -552,7 +575,7 @@ export default function UnifiedSeekerOpportunityDetail({
                 </div>
               )}
 
-              {!applyBlocked && !isExternal && (showMailto || showFormApply) && showMailto && (
+              {!applyBlocked && !isExternal && !externalApplicationUrl && showMailto && (
                 <div className={`flex flex-col sm:flex-row gap-3 ${showFormApply ? 'mt-4' : ''}`}>
                   {showMailto && (
                     <a
@@ -569,7 +592,7 @@ export default function UnifiedSeekerOpportunityDetail({
                 </div>
               )}
 
-              {!applyBlocked && !isExternal && !showMailto && !showFormApply && (
+              {!applyBlocked && !isExternal && !externalApplicationUrl && !showMailto && !showFormApply && (
                 <p className="text-sm text-olive-600">No application method is configured for this opportunity yet.</p>
               )}
             </section>

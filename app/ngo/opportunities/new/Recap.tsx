@@ -14,7 +14,8 @@ import {
   BriefcaseIcon,
   CurrencyDollarIcon,
   AcademicCapIcon,
-  EyeIcon
+  EyeIcon,
+  GlobeAltIcon
 } from '@heroicons/react/24/outline';
 import { getFormById } from '../../resources/tools/FormMaker/services/formService';
 import FullPreview from './FullPreview';
@@ -51,6 +52,8 @@ interface RecapProps {
     selectedFormTitle?: string;
   contactEmails?: string[];
   referenceCodes?: string[];
+    isExternal?: boolean;
+    externalUrl?: string;
   };
   processData: {
     flowSteps: OpportunityFlowStep[];
@@ -451,7 +454,9 @@ export default function Recap({
             onClick={() => toggleSection('form')}
           >
             <div className="flex items-center">
-              {formData.applicationMethod === 'form' ? (
+              {formData.isExternal ? (
+                <GlobeAltIcon className="h-5 w-5 text-[#556B2F] mr-2" />
+              ) : formData.applicationMethod === 'form' ? (
                 <DocumentTextIcon className="h-5 w-5 text-[#556B2F] mr-2" />
               ) : (
                 <EnvelopeIcon className="h-5 w-5 text-[#556B2F] mr-2" />
@@ -473,7 +478,13 @@ export default function Recap({
               <div className="flex items-center">
                 <span className="font-medium mr-2">Method:</span> 
                 <span>
-                  {formData.applicationMethod === 'form' 
+                  {formData.isExternal
+                    ? (
+                      <>
+                        External: <span className="font-medium text-[#556B2F] break-all">{formData.externalUrl}</span>
+                      </>
+                    )
+                    : formData.applicationMethod === 'form' 
                     ? (
                       <>
                         Form Template: <span className="font-medium text-[#556B2F]">{formData.selectedFormTitle || truncateText(formData.selectedFormId, 25) || 'No form selected'}</span>
@@ -488,7 +499,30 @@ export default function Recap({
           )}
           
           {/* Full details when open */}
-          {openSections.form && (
+          {openSections.form && formData.isExternal && (
+            <div className="px-6 py-4 bg-white border-t border-gray-200 space-y-4">
+              <div>
+                <h4 className="text-sm font-semibold text-gray-700 mb-2">Application Method</h4>
+                <div className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-[#556B2F]/10 text-[#556B2F]">
+                  <GlobeAltIcon className="h-4 w-4 mr-1" />
+                  External Opportunity
+                </div>
+              </div>
+              <div>
+                <h4 className="text-sm font-semibold text-gray-700 mb-1">Application URL</h4>
+                <a
+                  href={formData.externalUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-[#556B2F] underline break-all"
+                >
+                  {formData.externalUrl}
+                </a>
+              </div>
+            </div>
+          )}
+
+          {openSections.form && !formData.isExternal && (
             <div className="px-6 py-4 bg-white border-t border-gray-200">
               <div className="space-y-4">
                 <div>

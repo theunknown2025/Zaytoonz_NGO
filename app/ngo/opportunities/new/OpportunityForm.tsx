@@ -1,9 +1,13 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { DocumentTextIcon, EnvelopeIcon, PlusIcon, XMarkIcon, EyeIcon, CloudArrowUpIcon } from '@heroicons/react/24/outline';
+import { DocumentTextIcon, EnvelopeIcon, PlusIcon, XMarkIcon, EyeIcon, CloudArrowUpIcon, GlobeAltIcon, LinkIcon } from '@heroicons/react/24/outline';
 import { getUserForms, getPublishedForms, getFormById } from '../../resources/tools/FormMaker/services/formService';
-import { saveOpportunityFormSettings } from '../services/opportunityFormService';
+import {
+  normalizeExternalUrl,
+  saveOpportunityExternalSettings,
+  saveOpportunityFormSettings
+} from '../services/opportunityFormService';
 import { saveQualificationGroups } from '../services/opportunityQualificationGroupsService';
 import QualificationGroupsEditor from './QualificationGroupsEditor';
 import type { QualificationGroup } from '@/app/lib/qualificationGroups';
@@ -23,8 +27,11 @@ interface OpportunityFormProps {
     selectedFormId: string;
     contactEmails?: string[];
     referenceCodes?: string[];
+    isExternal: boolean;
+    externalUrl: string;
   };
   onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => void;
+  onIsExternalChange: (isExternal: boolean) => void;
   onApplicationMethodChange: (method: 'form' | 'email') => void;
   onEmailsChange: (emails: string[]) => void;
   onReferenceCodesChange: (codes: string[]) => void;
@@ -38,6 +45,7 @@ export default function OpportunityForm({
   opportunityId = 'temp-id',
   formData,
   onChange,
+  onIsExternalChange,
   onApplicationMethodChange,
   onEmailsChange,
   onReferenceCodesChange,
@@ -60,10 +68,10 @@ export default function OpportunityForm({
   const [newReferenceCode, setNewReferenceCode] = useState('');
 
   useEffect(() => {
-    if (formData.applicationMethod === 'form') {
+    if (!formData.isExternal && formData.applicationMethod === 'form') {
       fetchFormTemplates();
     }
-  }, [formData.applicationMethod]);
+  }, [formData.applicationMethod, formData.isExternal]);
 
   // Fetch form details when a form is selected
   useEffect(() => {
@@ -119,6 +127,16 @@ export default function OpportunityForm({
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
+
+    if (formData.isExternal) {
+      if (!formData.externalUrl.trim()) {
+        newErrors.externalUrl = 'Please provide the URL where applicants should apply';
+      } else if (!normalizeExternalUrl(formData.externalUrl)) {
+        newErrors.externalUrl = 'Please enter a valid URL (e.g. https://example.org/apply)';
+      }
+      setErrors(newErrors);
+      return Object.keys(newErrors).length === 0;
+    }
     
     if (!formData.applicationMethod) {
       newErrors.applicationMethod = 'Please select an application method';
@@ -155,28 +173,42 @@ export default function OpportunityForm({
     }
   };
 
+  const persistSubmissionSettings = async () => {
+    const externalResult = await saveOpportunityExternalSettings(
+      opportunityId,
+      formData.isExternal,
+      formData.externalUrl
+    );
+    if (!externalResult.success) {
+      toast.error(externalResult.error || 'Failed to save the external opportunity settings');
+      return false;
+    }
+    if (formData.isExternal) return true;
+
+    const result = await saveOpportunityFormSettings(
+      opportunityId,
+      formData.applicationMethod,
+      {
+        selectedFormId: formData.selectedFormId,
+        contactEmails: formData.contactEmails,
+        referenceCodes: formData.referenceCodes
+      }
+    );
+
+    if (!result.success) {
+      toast.error(result.error || 'Failed to save the application form');
+      return false;
+    }
+
+    return persistQualificationGroups();
+  };
+
   const handleNext = async () => {
     if (!validateForm() || !opportunityId) return;
 
     setIsSaving(true);
     try {
-      const result = await saveOpportunityFormSettings(
-        opportunityId,
-        formData.applicationMethod,
-        {
-          selectedFormId: formData.selectedFormId,
-          contactEmails: formData.contactEmails,
-          referenceCodes: formData.referenceCodes
-        }
-      );
-
-      if (!result.success) {
-        toast.error(result.error || 'Failed to save the application form');
-        return;
-      }
-
-      if (!(await persistQualificationGroups())) return;
-
+      if (!(await persistSubmissionSettings())) return;
       onNext();
     } catch (error) {
       console.error('Exception saving form settings:', error);
@@ -346,7 +378,9 @@ export default function OpportunityForm({
 
   // Handle save progress
   const handleSaveProgress = async () => {
-    if (!formData.applicationMethod) {
+    if (formData.isExternal) {
+      if (!validateForm()) return;
+    } else if (!formData.applicationMethod) {
       setErrors(prev => ({
         ...prev,
         applicationMethod: 'Please select an application method before saving'
@@ -357,22 +391,8 @@ export default function OpportunityForm({
     setIsSaving(true);
 
     try {
-      const result = await saveOpportunityFormSettings(
-        opportunityId,
-        formData.applicationMethod,
-        {
-          selectedFormId: formData.selectedFormId,
-          contactEmails: formData.contactEmails,
-          referenceCodes: formData.referenceCodes
-        }
-      );
-
-      if (result.success) {
-        if (!(await persistQualificationGroups())) return;
+      if (await persistSubmissionSettings()) {
         toast.success('Application method settings saved successfully!');
-      } else {
-        toast.error(result.error || 'Failed to save progress');
-        console.error('Error saving form settings:', result.error);
       }
     } catch (error) {
       console.error('Exception saving form settings:', error);
@@ -392,6 +412,92 @@ export default function OpportunityForm({
       </div>
       
       <div className="space-y-6">
+        <div className={`border rounded-lg p-4 transition-all duration-200 ${
+          formData.isExternal ? 'border-[#556B2F] bg-[#556B2F]/5' : 'border-gray-200'
+        }`}>
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center">
+              <div className={`flex-shrink-0 h-10 w-10 rounded-md flex items-center justify-center ${
+                formData.isExternal ? 'bg-[#556B2F] text-white' : 'bg-gray-100 text-gray-500'
+              }`}>
+                <GlobeAltIcon className="h-6 w-6" />
+              </div>
+              <div className="ml-4">
+                <p className={`text-sm font-medium ${formData.isExternal ? 'text-[#556B2F]' : 'text-gray-700'}`}>
+                  External Opportunity
+                </p>
+                <p className="text-xs text-gray-500">
+                  Applicants apply on your own website instead of a Zaytoonz form or email
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <span className="text-sm font-medium text-gray-700">{formData.isExternal ? 'Yes' : 'No'}</span>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={formData.isExternal}
+                aria-label="External Opportunity"
+                onClick={() => {
+                  setErrors({});
+                  onIsExternalChange(!formData.isExternal);
+                }}
+                className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-[#556B2F] focus:ring-offset-2 ${
+                  formData.isExternal ? 'bg-[#556B2F]' : 'bg-gray-200'
+                }`}
+              >
+                <span
+                  className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ${
+                    formData.isExternal ? 'translate-x-5' : 'translate-x-0'
+                  }`}
+                />
+              </button>
+            </div>
+          </div>
+
+          {formData.isExternal && (
+            <div className="mt-4">
+              <label htmlFor="externalUrl" className="block text-sm font-medium text-gray-700 mb-1">
+                Application URL <span className="text-red-500">*</span>
+              </label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <LinkIcon className="h-5 w-5 text-gray-400" />
+                </div>
+                <input
+                  id="externalUrl"
+                  name="externalUrl"
+                  type="url"
+                  value={formData.externalUrl}
+                  onChange={(e) => {
+                    if (errors.externalUrl) {
+                      setErrors(prev => {
+                        const next = { ...prev };
+                        delete next.externalUrl;
+                        return next;
+                      });
+                    }
+                    onChange(e);
+                  }}
+                  placeholder="https://your-organization.org/apply"
+                  className={`pl-10 pr-3 py-2 block w-full border border-gray-300 rounded-md shadow-sm
+                    focus:ring-2 focus:ring-[#556B2F] focus:border-[#556B2F] text-base sm:text-sm ${
+                    errors.externalUrl ? 'border-red-300 bg-red-50' : ''
+                  }`}
+                />
+              </div>
+              {errors.externalUrl ? (
+                <p className="mt-1 text-sm text-red-600">{errors.externalUrl}</p>
+              ) : (
+                <p className="mt-1 text-xs text-gray-500">
+                  The &quot;Apply&quot; button on the opportunity page will open this link.
+                </p>
+              )}
+            </div>
+          )}
+        </div>
+
+        {!formData.isExternal && (
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-3">
             How would applicants apply to the opportunity?
@@ -452,9 +558,13 @@ export default function OpportunityForm({
               </div>
             </div>
           </div>
+          {errors.applicationMethod && (
+            <p className="mt-2 text-sm text-red-600">{errors.applicationMethod}</p>
+          )}
         </div>
+        )}
 
-        {formData.applicationMethod === 'form' && (
+        {!formData.isExternal && formData.applicationMethod === 'form' && (
           <div>
             <label htmlFor="selectedFormId" className="block text-sm font-medium text-gray-700 mb-1">
               Select Form Template
@@ -612,7 +722,7 @@ export default function OpportunityForm({
           </div>
         )}
 
-        {formData.applicationMethod === 'email' && (
+        {!formData.isExternal && formData.applicationMethod === 'email' && (
           <div className="space-y-6">
             {/* Contact Emails */}
             <div className="bg-white p-6 border border-gray-200 rounded-md shadow-sm relative overflow-hidden">

@@ -65,6 +65,8 @@ export interface Opportunity {
   hours?: string;
   contactEmails?: string[];
   referenceCodes?: string[];
+  /** Set when the NGO marked the opportunity as external: applicants apply at this URL. */
+  externalApplicationUrl?: string;
   applicationForm?: {
     id: string;
     title: string;
@@ -1081,6 +1083,18 @@ export async function getOpportunityById(id: string): Promise<{ opportunity: Opp
       formData = Array.isArray(formTemplates) ? formTemplates[0] : formTemplates;
     }
 
+    let externalApplicationUrl: string | undefined;
+    const { data: externalData, error: externalError } = await supabase
+      .from('opportunities')
+      .select('is_external, external_application_url')
+      .eq('id', id)
+      .maybeSingle();
+    if (externalError) {
+      console.error('Error fetching external application settings:', externalError);
+    } else if (externalData?.is_external && externalData.external_application_url) {
+      externalApplicationUrl = externalData.external_application_url;
+    }
+
     const metadata = description?.metadata || {};
     const criteria = description?.criteria || {};
     const user = Array.isArray(description?.users)
@@ -1352,6 +1366,7 @@ export async function getOpportunityById(id: string): Promise<{ opportunity: Opp
       hours,
       contactEmails: emailData?.contact_emails || [],
       referenceCodes: emailData?.reference_codes || [],
+      externalApplicationUrl,
       applicationForm: formData ? {
         id: formData.id,
         title: formData.title,

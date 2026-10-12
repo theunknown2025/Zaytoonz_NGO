@@ -198,6 +198,92 @@ export async function getOpportunityFormEmail(opportunityId: string) {
 }
 
 /**
+ * Returns a normalized absolute http(s) URL, or null when the value is not a valid link.
+ */
+export function normalizeExternalUrl(value: string): string | null {
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  const withProtocol = /^[a-z][a-z\d+\-.]*:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+  try {
+    const url = new URL(withProtocol);
+    if (url.protocol !== 'http:' && url.protocol !== 'https:') return null;
+    if (!url.hostname.includes('.')) return null;
+    return url.toString();
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Save the "External Opportunity" toggle and the URL applicants are redirected to.
+ */
+export async function saveOpportunityExternalSettings(
+  opportunityId: string,
+  isExternal: boolean,
+  externalUrl: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    if (!isValidUUID(opportunityId)) {
+      return { success: false, error: "Invalid opportunity ID. Must be a valid UUID." };
+    }
+
+    let normalizedUrl: string | null = null;
+    if (isExternal) {
+      normalizedUrl = normalizeExternalUrl(externalUrl);
+      if (!normalizedUrl) {
+        return { success: false, error: 'Please provide a valid application URL' };
+      }
+    }
+
+    const opportunityExists = await ensureOpportunityExists(opportunityId);
+    if (!opportunityExists) {
+      return { success: false, error: 'Failed to ensure opportunity exists in database' };
+    }
+
+    const { error } = await supabase
+      .from('opportunities')
+      .update({
+        is_external: isExternal,
+        external_application_url: isExternal ? normalizedUrl : externalUrl.trim() || null,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', opportunityId);
+
+    if (error) {
+      console.error('Error saving external opportunity settings:', error);
+      return { success: false, error: error.message };
+    }
+
+    return { success: true };
+  } catch (error) {
+    console.error('Exception saving external opportunity settings:', error);
+    return { success: false, error: 'Failed to save external opportunity settings' };
+  }
+}
+
+/**
+ * Get the "External Opportunity" settings by opportunity ID
+ */
+export async function getOpportunityExternalSettings(
+  opportunityId: string
+): Promise<{ isExternal: boolean; externalUrl: string }> {
+  const { data, error } = await supabase
+    .from('opportunities')
+    .select('is_external, external_application_url')
+    .eq('id', opportunityId)
+    .maybeSingle();
+
+  if (error) {
+    console.error('Error fetching external opportunity settings:', error);
+  }
+
+  return {
+    isExternal: Boolean(data?.is_external),
+    externalUrl: data?.external_application_url || ''
+  };
+}
+
+/**
  * Ensures an opportunity record exists in the database
  * Creates a draft opportunity if one doesn't exist with the given ID
  */

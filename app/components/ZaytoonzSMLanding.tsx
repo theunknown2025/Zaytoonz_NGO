@@ -6,6 +6,7 @@ import { SOCIAL_LINKS } from '../lib/socialLinks';
 
 interface ZaytoonzSMLandingProps {
   isAuthenticated: boolean;
+  gateEnabled: boolean;
   nextPath: string;
 }
 
@@ -14,6 +15,7 @@ const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '';
 
 export default function ZaytoonzSMLanding({
   isAuthenticated,
+  gateEnabled,
   nextPath,
 }: ZaytoonzSMLandingProps) {
   const [currentSlide, setCurrentSlide] = useState(0);
@@ -21,7 +23,7 @@ export default function ZaytoonzSMLanding({
   const [password, setPassword] = useState('');
   const [accessError, setAccessError] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const [showLogin, setShowLogin] = useState(!isAuthenticated);
+  const [showLogin, setShowLogin] = useState(false);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -72,18 +74,20 @@ export default function ZaytoonzSMLanding({
             className="access-toolbar-button primary"
             onClick={() => setShowLogin(true)}
           >
-            Access web app
+            Access Web App
           </button>
         </div>
       )}
       {isAuthenticated && (
         <div className="access-toolbar">
           <Link href="/app" className="access-toolbar-button primary">
-            Open web app
+            Access Web App
           </Link>
-          <button type="button" className="access-toolbar-button" onClick={handleLogout}>
-            Lock
-          </button>
+          {gateEnabled && (
+            <button type="button" className="access-toolbar-button" onClick={handleLogout}>
+              Lock
+            </button>
+          )}
         </div>
       )}
 
