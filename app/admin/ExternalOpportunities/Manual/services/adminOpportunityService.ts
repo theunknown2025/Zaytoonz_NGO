@@ -1,4 +1,6 @@
 import { supabase } from '@/app/lib/supabase';
+import type { OpportunityDocument } from '@/app/lib/opportunityDocuments';
+import { saveOpportunityExternalSettings } from '@/app/ngo/opportunities/services/opportunityFormService';
 
 export interface AdminOpportunityProgressData {
   title: string;
@@ -327,7 +329,7 @@ export async function createAdminOpportunity(
 }
 
 /**
- * Save final admin opportunity (complete)
+ * Save final admin opportunity (published) with documents metadata and external apply link.
  */
 export async function saveAdminOpportunity(data: {
   opportunityId: string;
@@ -338,6 +340,9 @@ export async function saveAdminOpportunity(data: {
   opportunityType: 'job' | 'funding' | 'training';
   criteria?: any;
   ngoUserId?: string;
+  documents?: OpportunityDocument[];
+  applyLink?: string;
+  metadata?: Record<string, unknown> | null;
 }) {
   try {
     // Use the provided NGO user_id if available, otherwise fall back to admin user
@@ -348,6 +353,21 @@ export async function saveAdminOpportunity(data: {
         success: false,
         error: 'User not authenticated. Please ensure at least one admin user exists in the system.'
       };
+    }
+
+    const applyLink = data.applyLink?.trim() || '';
+    if (applyLink) {
+      const externalResult = await saveOpportunityExternalSettings(
+        data.opportunityId,
+        true,
+        applyLink
+      );
+      if (!externalResult.success) {
+        return {
+          success: false,
+          error: externalResult.error || 'Failed to save apply link'
+        };
+      }
     }
     
     // Update the opportunity
@@ -369,13 +389,26 @@ export async function saveAdminOpportunity(data: {
         error: 'Failed to update opportunity. Please try again.'
       };
     }
+
+    const metadata = {
+      ...(data.metadata && typeof data.metadata === 'object' ? data.metadata : {}),
+      documents: data.documents || [],
+      opportunityType: data.opportunityType,
+    };
     
     // Update or create opportunity_description
     const { data: existingDesc } = await supabase
       .from('opportunity_description')
-      .select('id')
+      .select('id, metadata')
       .eq('opportunity_id', data.opportunityId)
       .maybeSingle();
+
+    const mergedMetadata = {
+      ...(existingDesc?.metadata && typeof existingDesc.metadata === 'object'
+        ? existingDesc.metadata
+        : {}),
+      ...metadata,
+    };
     
     if (existingDesc) {
       // Update existing
@@ -386,15 +419,20 @@ export async function saveAdminOpportunity(data: {
           description: data.description,
           location: data.location || null,
           hours: data.hours || null,
-          status: 'completed',
+          status: 'published',
           step: 'submission',
           criteria: data.criteria || {},
+          metadata: mergedMetadata,
           updated_at: new Date().toISOString()
         })
         .eq('id', existingDesc.id);
       
       if (descError) {
         console.error('Error updating opportunity description:', descError);
+        return {
+          success: false,
+          error: 'Failed to update opportunity description. Please try again.'
+        };
       }
     } else {
       // Create new
@@ -407,15 +445,20 @@ export async function saveAdminOpportunity(data: {
           description: data.description,
           location: data.location || null,
           hours: data.hours || null,
-          status: 'completed',
+          status: 'published',
           step: 'submission',
           criteria: data.criteria || {},
+          metadata: mergedMetadata,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
         });
       
       if (descError) {
         console.error('Error creating opportunity description:', descError);
+        return {
+          success: false,
+          error: 'Failed to create opportunity description. Please try again.'
+        };
       }
     }
     

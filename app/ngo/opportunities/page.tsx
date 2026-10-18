@@ -60,6 +60,7 @@ interface OpportunityFormData {
     level?: string;
     sector?: string;
     location?: string;
+    country?: string | string[];
     fundingType?: string;
     eligibility?: string;
     amountRange?: string;
@@ -629,21 +630,35 @@ export default function OpportunitiesManagementPage() {
     window.scrollTo(0, 0);
   };
 
-  const buildRecapSavePayload = (status: 'draft' | 'published') => ({
-    title: formData.title,
-    description: formData.description,
-    location: formData.location,
-    hours: formData.hours,
-    status,
-    step: status === 'published' ? 'submission' : 'recap',
-    criteria: formData.criteria || {},
-    metadata: {
-      opportunityType: opportunityType,
-      ...(status === 'published' ? { submittedAt: new Date().toISOString() } : {}),
-      documents: includeDocuments ? documents : [],
-    },
-    opportunity_id: opportunityId,
-  });
+  const buildRecapSavePayload = (status: 'draft' | 'published') => {
+    const country = formData.criteria?.country;
+    const countries = Array.isArray(country)
+      ? country.filter(Boolean)
+      : typeof country === 'string' && country.trim()
+        ? country.split(',').map((c) => c.trim()).filter(Boolean)
+        : [];
+    const locationValue =
+      countries.length > 0 ? countries.join(', ') : formData.location;
+
+    return {
+      title: formData.title,
+      description: formData.description,
+      location: locationValue,
+      hours: formData.hours,
+      status,
+      step: status === 'published' ? 'submission' : 'recap',
+      criteria: {
+        ...(formData.criteria || {}),
+        ...(countries.length > 0 ? { country: countries } : {}),
+      },
+      metadata: {
+        opportunityType: opportunityType,
+        ...(status === 'published' ? { submittedAt: new Date().toISOString() } : {}),
+        documents: includeDocuments ? documents : [],
+      },
+      opportunity_id: opportunityId,
+    };
+  };
 
   const persistApplicationMethod = async () => {
     const externalResult = await saveOpportunityExternalSettings(

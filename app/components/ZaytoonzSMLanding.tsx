@@ -2,12 +2,13 @@
 
 import React, { useEffect, useState, FormEvent } from 'react';
 import Link from 'next/link';
-import { SOCIAL_LINKS } from '../lib/socialLinks';
+import { SOCIAL_LINKS, type SocialLink } from '../lib/socialLinks';
 
 interface ZaytoonzSMLandingProps {
   isAuthenticated: boolean;
   gateEnabled: boolean;
   nextPath: string;
+  socialLinks?: SocialLink[];
 }
 
 const slides = ['/Health.png', '/Water.png', '/Green.png', '/Education.png'];
@@ -17,6 +18,7 @@ export default function ZaytoonzSMLanding({
   isAuthenticated,
   gateEnabled,
   nextPath,
+  socialLinks = SOCIAL_LINKS,
 }: ZaytoonzSMLandingProps) {
   const [currentSlide, setCurrentSlide] = useState(0);
   const [email, setEmail] = useState('');
@@ -122,7 +124,7 @@ export default function ZaytoonzSMLanding({
 
         {/* Social Links Grid */}
         <div className="links-container">
-          {SOCIAL_LINKS.map((link) => (
+          {socialLinks.map((link) => (
             <a
               key={link.key}
               href={link.href}

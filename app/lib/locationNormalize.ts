@@ -211,45 +211,60 @@ function splitLocationParts(raw: string): string[] {
 }
 
 /**
- * Extract a canonical country from a free-text location string.
- * Returns null when no country can be determined.
+ * Extract all canonical countries from a free-text location string
+ * (supports comma-separated multi-country values like "Morocco, France").
  */
-export function normalizeLocationToCountry(raw: string | null | undefined): string | null {
-  if (!raw) return null;
+export function normalizeLocationToCountries(raw: string | null | undefined): string[] {
+  if (!raw) return [];
 
   const text = raw.trim();
-  if (!text || UNSPECIFIED.test(text)) return null;
+  if (!text || UNSPECIFIED.test(text)) return [];
 
   const withoutParens = text.replace(/\([^)]*\)/g, '').trim();
   const parts = splitLocationParts(withoutParens);
-  if (parts.length === 0) return null;
+  if (parts.length === 0) return [];
 
-  // "City, Country" — country is usually last
-  for (let i = parts.length - 1; i >= 0; i--) {
-    const match = matchCountryToken(parts[i]);
-    if (match) return match;
+  const found: string[] = [];
+  const seen = new Set<string>();
+
+  for (const part of parts) {
+    const match = matchCountryToken(part);
+    if (match && !seen.has(match)) {
+      seen.add(match);
+      found.push(match);
+    }
   }
 
-  // "Country - City" — country is usually first
-  for (let i = 0; i < parts.length; i++) {
-    const match = matchCountryToken(parts[i]);
-    if (match) return match;
+  if (found.length === 0) {
+    const match = matchCountryToken(withoutParens);
+    if (match) found.push(match);
   }
 
-  return matchCountryToken(withoutParens);
+  return found;
 }
 
-/** Country string safe for UI, or null to hide the row. */
+/**
+ * Extract a canonical country from a free-text location string.
+ * Returns null when no country can be determined.
+ * For multi-country strings, returns the first match.
+ */
+export function normalizeLocationToCountry(raw: string | null | undefined): string | null {
+  return normalizeLocationToCountries(raw)[0] ?? null;
+}
+
+/** Country string safe for UI (comma-joined when multiple), or null to hide the row. */
 export function displayOpportunityCountry(raw: string | null | undefined): string | null {
-  return normalizeLocationToCountry(raw);
+  const countries = normalizeLocationToCountries(raw);
+  return countries.length > 0 ? countries.join(', ') : null;
 }
 
 /** Unique sorted country list for filter dropdowns. */
 export function uniqueCountriesFromLocations(locations: Array<string | null | undefined>): string[] {
   const countries = new Set<string>();
   for (const loc of locations) {
-    const country = normalizeLocationToCountry(loc);
-    if (country) countries.add(country);
+    for (const country of normalizeLocationToCountries(loc)) {
+      countries.add(country);
+    }
   }
   return Array.from(countries).sort((a, b) => a.localeCompare(b));
 }
@@ -260,5 +275,5 @@ export function locationMatchesCountryFilter(
   selectedCountry: string
 ): boolean {
   if (!selectedCountry || selectedCountry === 'all') return true;
-  return normalizeLocationToCountry(rawLocation) === selectedCountry;
+  return normalizeLocationToCountries(rawLocation).includes(selectedCountry);
 }

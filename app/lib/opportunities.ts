@@ -15,6 +15,32 @@ function resolveOpportunityLocation(raw: string | null | undefined): string | un
   return displayOpportunityCountry(raw) ?? undefined;
 }
 
+/** Join criteria.country (string | string[]) into a displayable location string. */
+function countriesFromCriteria(country: unknown): string | undefined {
+  if (!country) return undefined;
+  if (Array.isArray(country)) {
+    const list = country
+      .filter((c): c is string => typeof c === 'string' && Boolean(c.trim()))
+      .map((c) => c.trim());
+    return list.length > 0 ? list.join(', ') : undefined;
+  }
+  if (typeof country === 'string' && country.trim()) return country.trim();
+  return undefined;
+}
+
+function resolveLocationFromDescription(
+  descriptionLocation: string | null | undefined,
+  criteria: Record<string, unknown> | null | undefined
+): string | undefined {
+  return (
+    resolveOpportunityLocation(descriptionLocation) ||
+    resolveOpportunityLocation(countriesFromCriteria(criteria?.country)) ||
+    resolveOpportunityLocation(
+      typeof criteria?.location === 'string' ? criteria.location : null
+    )
+  );
+}
+
 /** Closed / deadline-extended flags stored on opportunity_description.metadata */
 export function resolveOpportunityLifecycleFlags(metadata: any): {
   isClosed: boolean;
@@ -465,7 +491,7 @@ export async function getOpportunities(): Promise<{ opportunities: Opportunity[]
         const formTemplates = formChoice?.forms_templates as any;
         const formData = Array.isArray(formTemplates) ? formTemplates[0] : formTemplates;
 
-        const location = resolveOpportunityLocation(description?.location || criteria?.location || null);
+        const location = resolveLocationFromDescription(description?.location, criteria);
         const type =
           criteria?.contractType ||
           metadata?.employment_type ||
@@ -1122,7 +1148,7 @@ export async function getOpportunityById(id: string): Promise<{ opportunity: Opp
       ? data.opportunity_form_email[0]
       : data.opportunity_form_email;
 
-    const location = resolveOpportunityLocation(description?.location || criteria?.location || null);
+    const location = resolveLocationFromDescription(description?.location, criteria);
     const compensation =
       criteria?.amountRange ||
       metadata?.compensation ||

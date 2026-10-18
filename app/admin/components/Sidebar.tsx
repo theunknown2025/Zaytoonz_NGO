@@ -11,7 +11,6 @@ import {
   BanknotesIcon,
   AcademicCapIcon,
   WrenchScrewdriverIcon,
-  BookOpenIcon,
   ArrowLeftOnRectangleIcon,
   ChevronDownIcon,
   RectangleGroupIcon,
@@ -20,7 +19,10 @@ import {
   StarIcon,
   HomeIcon,
   MagnifyingGlassCircleIcon,
-  DocumentTextIcon
+  DocumentTextIcon,
+  LockClosedIcon,
+  ShareIcon,
+  KeyIcon,
 } from "@heroicons/react/24/outline";
 import { useEffect, useState } from "react";
 
@@ -43,10 +45,16 @@ export function Sidebar({ user }: SidebarProps) {
   const [showInternal, setShowInternal] = useState(false);
   const isInScraper = pathname?.startsWith("/admin/Scraper") ?? false;
   const [showScraper, setShowScraper] = useState(isInScraper);
+  const isInAccessMgmt = pathname?.startsWith("/admin/AccessManagement") ?? false;
+  const [showAccessMgmt, setShowAccessMgmt] = useState(isInAccessMgmt);
 
   useEffect(() => {
     if (isInScraper) setShowScraper(true);
   }, [isInScraper]);
+
+  useEffect(() => {
+    if (isInAccessMgmt) setShowAccessMgmt(true);
+  }, [isInAccessMgmt]);
 
   const subLinkClass = (href: string) =>
     `flex items-center px-4 py-2 text-sm rounded-xl group transition-all duration-200 ${
@@ -118,6 +126,34 @@ export function Sidebar({ user }: SidebarProps) {
               <UserGroupIcon className="mr-3 h-5 w-5 flex-shrink-0 text-[#556B2F]" />
               NGOs Management
             </Link>
+          </li>
+          <li>
+            <button
+              onClick={() => setShowAccessMgmt(!showAccessMgmt)}
+              className={`flex items-center justify-between w-full px-4 py-3 text-sm rounded-xl group transition-all duration-200 hover:bg-[#556B2F]/10 ${
+                isInAccessMgmt ? "text-[#556B2F] font-medium" : "text-gray-700"
+              }`}
+            >
+              <span className="flex items-center">
+                <LockClosedIcon className="mr-3 h-5 w-5 flex-shrink-0 text-[#556B2F]" />
+                Access Management
+              </span>
+              <ChevronDownIcon className={`h-4 w-4 transform transition-transform duration-200 ${showAccessMgmt ? 'rotate-180' : ''}`} />
+            </button>
+            {showAccessMgmt && (
+              <ul className="pl-10 mt-1 space-y-1">
+                <li>
+                  <Link href="/admin/AccessManagement/SocialMedia" className={subLinkClass("/admin/AccessManagement/SocialMedia")}>
+                    <ShareIcon className="mr-3 h-4 w-4 flex-shrink-0 text-[#556B2F]" /> Social Media
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/admin/AccessManagement/Access" className={subLinkClass("/admin/AccessManagement/Access")}>
+                    <KeyIcon className="mr-3 h-4 w-4 flex-shrink-0 text-[#556B2F]" /> Access
+                  </Link>
+                </li>
+              </ul>
+            )}
           </li>
           <li>
             <button

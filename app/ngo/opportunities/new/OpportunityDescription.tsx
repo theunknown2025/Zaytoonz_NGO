@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { DocumentTextIcon, PencilSquareIcon, CloudArrowUpIcon, CalendarIcon, AcademicCapIcon, QuestionMarkCircleIcon } from '@heroicons/react/24/outline';
+import { DocumentTextIcon, PencilSquareIcon, CloudArrowUpIcon, CalendarIcon, AcademicCapIcon, QuestionMarkCircleIcon, LinkIcon } from '@heroicons/react/24/outline';
 import { getTemplates } from '../../resources/tools/OffreMaker/supabaseService';
 import { Template as OffreTemplate, TemplateField } from '../../resources/tools/OffreMaker/NewTemplate';
 import dynamic from 'next/dynamic';
@@ -26,6 +26,8 @@ import { saveOpportunityFlowSteps } from '../services/opportunityFlowService';
 import { saveTrainingProgram } from '../services/opportunityTrainingProgramService';
 import { saveOpportunityFaqItems } from '../services/opportunityFaqService';
 import { saveOpportunityActionButtons } from '../services/opportunityActionButtonsService';
+import { normalizeExternalUrl } from '../services/opportunityFormService';
+import { normalizeLocationToCountries } from '@/app/lib/locationNormalize';
 
 const COUNTRIES = [
   'Afghanistan', 'Albania', 'Algeria', 'Andorra', 'Angola', 'Antigua and Barbuda', 'Argentina', 'Armenia',
@@ -101,6 +103,8 @@ interface OpportunityDescriptionProps {
   onNext: () => void;
   opportunityId: string;
   onCriteriaChange?: (criteria: CriteriaSelection) => void;
+  /** Optional seed for criteria (e.g. admin Manual edit). Used when DB progress load is empty. */
+  initialCriteria?: CriteriaSelection;
   includeProcessFlow?: boolean;
   onIncludeProcessFlowChange?: (enabled: boolean) => void;
   flowSteps?: OpportunityFlowStep[];
@@ -124,6 +128,13 @@ interface OpportunityDescriptionProps {
   onActionButtonsChange?: (buttons: OpportunityActionButton[]) => void;
   includeActionButtons?: boolean;
   onIncludeActionButtonsChange?: (enabled: boolean) => void;
+  /** When true, show Apply Link field immediately after the title (used by admin Manual flow). */
+  showApplyLink?: boolean;
+  applyLink?: string;
+  onApplyLinkChange?: (url: string) => void;
+  applyLinkRequired?: boolean;
+  /** Label for the primary action button (defaults to "Next Step"). */
+  nextButtonLabel?: string;
 }
 
 interface TemplateFields {
@@ -141,7 +152,8 @@ interface CriteriaSelection {
   level?: string;
   sector?: string;
   location?: string;
-  country?: string;
+  /** One or more geographical countries for the opportunity */
+  country?: string | string[];
   fundingType?: string;
   eligibility?: string;
   amountRange?: string;
@@ -154,12 +166,31 @@ interface CriteriaSelection {
   customFilters?: { [key: string]: string };
 }
 
+function normalizeCountryList(country: string | string[] | undefined | null): string[] {
+  if (!country) return [];
+  if (Array.isArray(country)) {
+    return country.map((c) => String(c).trim()).filter(Boolean);
+  }
+  // Support legacy comma-separated or single-country strings
+  return String(country)
+    .split(',')
+    .map((c) => c.trim())
+    .filter(Boolean);
+}
+
+function hasCriteriaValue(value: unknown): boolean {
+  if (Array.isArray(value)) return value.length > 0;
+  if (typeof value === 'object' && value !== null) return Object.keys(value).length > 0;
+  return Boolean(value);
+}
+
 export default function OpportunityDescription({
   formData,
   onChange,
   onNext,
   opportunityId,
   onCriteriaChange,
+  initialCriteria,
   includeProcessFlow = false,
   onIncludeProcessFlowChange,
   flowSteps = [],
@@ -183,6 +214,11 @@ export default function OpportunityDescription({
   onActionButtonsChange,
   includeActionButtons = false,
   onIncludeActionButtonsChange,
+  showApplyLink = false,
+  applyLink = '',
+  onApplyLinkChange,
+  applyLinkRequired = false,
+  nextButtonLabel = 'Next Step',
 }: OpportunityDescriptionProps) {
   const processRef = useRef<OpportunityProcessHandle>(null);
   const trainingProgramRef = useRef<OpportunityTrainingProgramHandle>(null);
@@ -337,9 +373,29 @@ export default function OpportunityDescription({
               }
             }
             
+            const seedCountries = (
+              rawCountry: string | string[] | undefined,
+              rawLocation?: string | null
+            ) => {
+              const fromCriteria = normalizeCountryList(rawCountry);
+              if (fromCriteria.length > 0) return fromCriteria;
+              return normalizeLocationToCountries(rawLocation);
+            };
+
             // Load criteria from dedicated column if available
             if (data.criteria && typeof data.criteria === 'object') {
-              setCriteria(data.criteria);
+              const countries = seedCountries(data.criteria.country, data.location);
+              const normalizedCriteria = {
+                ...data.criteria,
+                country: countries,
+              };
+              setCriteria(normalizedCriteria);
+              if (onCriteriaChange) {
+                onCriteriaChange(normalizedCriteria);
+              }
+              if (countries.length > 0) {
+                onChange({ target: { name: 'location', value: countries.join(', ') } });
+              }
               
               // Load custom filters if available
               if (data.criteria.customFilters && typeof data.criteria.customFilters === 'object') {
@@ -348,12 +404,52 @@ export default function OpportunityDescription({
             }
             // Fallback: Load criteria from metadata (for backward compatibility)
             else if (data.metadata && data.metadata.criteria && typeof data.metadata.criteria === 'object') {
-              setCriteria(data.metadata.criteria);
+              const countries = seedCountries(data.metadata.criteria.country, data.location);
+              const normalizedCriteria = {
+                ...data.metadata.criteria,
+                country: countries,
+              };
+              setCriteria(normalizedCriteria);
+              if (onCriteriaChange) {
+                onCriteriaChange(normalizedCriteria);
+              }
+              if (countries.length > 0) {
+                onChange({ target: { name: 'location', value: countries.join(', ') } });
+              }
               
               // Load custom filters if available
               if (data.metadata.criteria.customFilters && typeof data.metadata.criteria.customFilters === 'object') {
                 setCustomFilters(data.metadata.criteria.customFilters);
               }
+            } else if (data.location) {
+              const countries = normalizeLocationToCountries(data.location);
+              if (countries.length > 0) {
+                const normalizedCriteria = { country: countries };
+                setCriteria(normalizedCriteria);
+                if (onCriteriaChange) {
+                  onCriteriaChange(normalizedCriteria);
+                }
+              }
+            }
+          } else if (initialCriteria && Object.keys(initialCriteria).length > 0) {
+            // Admin Manual edit (and similar) can seed criteria when progress row is missing
+            const countries =
+              normalizeCountryList(initialCriteria.country).length > 0
+                ? normalizeCountryList(initialCriteria.country)
+                : normalizeLocationToCountries(formData.location);
+            const normalizedCriteria = {
+              ...initialCriteria,
+              country: countries,
+            };
+            setCriteria(normalizedCriteria);
+            if (onCriteriaChange) {
+              onCriteriaChange(normalizedCriteria);
+            }
+            if (countries.length > 0) {
+              onChange({ target: { name: 'location', value: countries.join(', ') } });
+            }
+            if (initialCriteria.customFilters && typeof initialCriteria.customFilters === 'object') {
+              setCustomFilters(initialCriteria.customFilters);
             }
           }
           
@@ -408,12 +504,6 @@ export default function OpportunityDescription({
     return options[opportunityType as keyof typeof options] || {};
   };
 
-  useEffect(() => {
-    if (criteria.country && criteria.country !== countrySearch) {
-      setCountrySearch(criteria.country);
-    }
-  }, [criteria.country, countrySearch]);
-
   // Auto-resize multiline textareas when templateFields change (e.g. loaded from saved progress)
   useEffect(() => {
     if (!selectedTemplate) return;
@@ -439,6 +529,41 @@ export default function OpportunityDescription({
     if (onCriteriaChange) {
       onCriteriaChange(newCriteria);
     }
+  };
+
+  const selectedCountries = normalizeCountryList(criteria.country);
+
+  const syncCountries = (countries: string[]) => {
+    const newCriteria = {
+      ...criteria,
+      country: countries,
+    };
+    setCriteria(newCriteria);
+    if (onCriteriaChange) {
+      onCriteriaChange(newCriteria);
+    }
+    // Keep description.location in sync so list/detail pages show all countries
+    onChange({
+      target: {
+        name: 'location',
+        value: countries.join(', '),
+      },
+    });
+  };
+
+  const handleAddCountry = (country: string) => {
+    if (selectedCountries.includes(country)) {
+      setCountrySearch('');
+      setIsCountryListOpen(false);
+      return;
+    }
+    syncCountries([...selectedCountries, country]);
+    setCountrySearch('');
+    setIsCountryListOpen(false);
+  };
+
+  const handleRemoveCountry = (country: string) => {
+    syncCountries(selectedCountries.filter((c) => c !== country));
   };
 
   // Handle custom filter addition
@@ -647,6 +772,16 @@ export default function OpportunityDescription({
     if (!formData.title.trim()) {
       newErrors.title = 'Title is required';
     }
+
+    if (showApplyLink && applyLinkRequired) {
+      if (!applyLink.trim()) {
+        newErrors.applyLink = 'Please provide the URL where applicants should apply';
+      } else if (!normalizeExternalUrl(applyLink)) {
+        newErrors.applyLink = 'Please enter a valid URL (e.g. https://example.org/apply)';
+      }
+    } else if (showApplyLink && applyLink.trim() && !normalizeExternalUrl(applyLink)) {
+      newErrors.applyLink = 'Please enter a valid URL (e.g. https://example.org/apply)';
+    }
     
     if (!formData.description.trim()) {
       newErrors.description = 'Description is required';
@@ -660,6 +795,16 @@ export default function OpportunityDescription({
 
   const handleNext = async () => {
     if (!validateForm()) return;
+
+    // Ensure selected countries are reflected in form location before leaving this step
+    if (selectedCountries.length > 0) {
+      onChange({
+        target: {
+          name: 'location',
+          value: selectedCountries.join(', '),
+        },
+      });
+    }
 
     if (includeProcessFlow && processRef.current) {
       const saved = await processRef.current.validateAndSave();
@@ -781,16 +926,23 @@ export default function OpportunityDescription({
         opportunityType: formData.opportunityType,
       };
       
+      // Prefer selected countries for location persistence
+      const locationValue =
+        selectedCountries.length > 0 ? selectedCountries.join(', ') : formData.location;
+
       // Prepare data for saving
       const progressData = {
         title: formData.title,
         description: formData.description,
-        location: formData.location,
+        location: locationValue,
         hours: formData.hours,
         status: 'draft',
         step: 'description',
         metadata: metadata,
-        criteria: criteria, // Include criteria data
+        criteria: {
+          ...criteria,
+          country: selectedCountries,
+        },
         opportunity_id: opportunityId
       };
 
@@ -839,9 +991,11 @@ export default function OpportunityDescription({
   }
 
   const normalizedCountrySearch = countrySearch.trim().toLowerCase();
-  const filteredCountries = normalizedCountrySearch
-    ? COUNTRIES.filter((country) => country.toLowerCase().includes(normalizedCountrySearch))
-    : COUNTRIES;
+  const filteredCountries = COUNTRIES.filter((country) => {
+    if (selectedCountries.includes(country)) return false;
+    if (!normalizedCountrySearch) return true;
+    return country.toLowerCase().includes(normalizedCountrySearch);
+  });
 
   return (
     <div className="space-y-6">
@@ -919,6 +1073,58 @@ export default function OpportunityDescription({
           </p>
         </div>
 
+        {showApplyLink && (
+          <div>
+            <label htmlFor="applyLink" className="block text-sm font-medium text-gray-700 mb-1 flex items-center">
+              <span className="bg-[#556B2F]/10 text-[#556B2F] p-1 rounded-md mr-2">
+                <LinkIcon className="h-4 w-4" />
+              </span>
+              Apply Link {applyLinkRequired && <span className="text-red-500 ml-1">*</span>}
+            </label>
+            <div className="mt-1 relative rounded-md shadow-sm">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <LinkIcon className="h-5 w-5 text-gray-400" />
+              </div>
+              <input
+                id="applyLink"
+                name="applyLink"
+                type="url"
+                value={applyLink}
+                onChange={(e) => {
+                  if (errors.applyLink) {
+                    setErrors((prev) => {
+                      const next = { ...prev };
+                      delete next.applyLink;
+                      return next;
+                    });
+                  }
+                  onApplyLinkChange?.(e.target.value);
+                }}
+                placeholder="https://your-organization.org/apply"
+                className={`pl-10 pr-3 py-3 block w-full rounded-md shadow-sm border-2
+                  focus:ring-2 focus:ring-[#556B2F] focus:ring-offset-0 focus:border-[#556B2F]
+                  text-base ${
+                  errors.applyLink
+                    ? 'border-red-500 bg-red-50 focus:ring-red-500 focus:border-red-500'
+                    : 'border-[#556B2F]'
+                }`}
+              />
+            </div>
+            {errors.applyLink ? (
+              <p className="mt-1 text-sm text-red-600 flex items-center">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+                {errors.applyLink}
+              </p>
+            ) : (
+              <p className="mt-1 text-xs text-gray-500">
+                The &quot;Apply&quot; button on the opportunity page will open this link.
+              </p>
+            )}
+          </div>
+        )}
+
         {/* Criteria Selection Section */}
         {formData.opportunityType && (
           <div className="bg-gradient-to-r from-[#556B2F]/5 to-[#6B8E23]/5 rounded-xl p-6 border border-[#556B2F]/10 shadow-sm">
@@ -977,10 +1183,13 @@ export default function OpportunityDescription({
                 </div>
               ))}
 
-              <div className="relative">
+              <div className="relative md:col-span-2">
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Country (Geographical Location)
                 </label>
+                <p className="text-xs text-gray-500 mb-2">
+                  Select one or more countries. Selected locations appear below and can be removed.
+                </p>
                 <div className="relative">
                   <input
                     type="text"
@@ -993,7 +1202,7 @@ export default function OpportunityDescription({
                     onBlur={() => {
                       setTimeout(() => setIsCountryListOpen(false), 120);
                     }}
-                    placeholder="Start typing to search for a country..."
+                    placeholder="Start typing to search and add a country..."
                     className="block w-full border border-gray-300 rounded-md shadow-sm focus:ring-2 focus:ring-[#556B2F] focus:border-[#556B2F] sm:text-sm py-2 pl-3 pr-10 hover:border-[#556B2F]/50 transition-colors"
                   />
                   {countrySearch && (
@@ -1001,11 +1210,10 @@ export default function OpportunityDescription({
                       type="button"
                       onClick={() => {
                         setCountrySearch('');
-                        handleCriteriaChange('country', '');
                         setIsCountryListOpen(false);
                       }}
                       className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
-                      aria-label="Clear country"
+                      aria-label="Clear search"
                     >
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -1021,9 +1229,7 @@ export default function OpportunityDescription({
                         key={country}
                         onMouseDown={(e) => {
                           e.preventDefault();
-                          setCountrySearch(country);
-                          handleCriteriaChange('country', country);
-                          setIsCountryListOpen(false);
+                          handleAddCountry(country);
                         }}
                         className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-[#556B2F]/10 hover:text-[#556B2F]"
                       >
@@ -1034,7 +1240,35 @@ export default function OpportunityDescription({
                 )}
                 {isCountryListOpen && filteredCountries.length === 0 && (
                   <div className="absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded-md shadow-lg p-3 text-sm text-gray-500">
-                    No matching countries.
+                    {normalizedCountrySearch
+                      ? 'No matching countries.'
+                      : 'All matching countries are already selected.'}
+                  </div>
+                )}
+                {selectedCountries.length > 0 && (
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {selectedCountries.map((country) => (
+                      <span
+                        key={country}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium bg-[#556B2F]/10 text-[#556B2F] border border-[#556B2F]/20"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                        </svg>
+                        {country}
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveCountry(country)}
+                          className="ml-0.5 rounded-full p-0.5 text-[#556B2F]/70 hover:bg-[#556B2F]/20 hover:text-[#556B2F] transition-colors"
+                          aria-label={`Remove ${country}`}
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                      </span>
+                    ))}
                   </div>
                 )}
               </div>
@@ -1054,12 +1288,13 @@ export default function OpportunityDescription({
             </div>
             
             {/* Selected Criteria Summary */}
-            {(Object.values(criteria).some(value => value) || Object.keys(customFilters).length > 0) && (
+            {(Object.values(criteria).some(hasCriteriaValue) || Object.keys(customFilters).length > 0) && (
               <div className="mt-6 pt-4 border-t border-[#556B2F]/20">
                 <h4 className="text-sm font-medium text-gray-700 mb-3">Selected Criteria:</h4>
                 <div className="flex flex-wrap gap-2">
                   {Object.entries(criteria).map(([field, value]) => {
-                    if (!value || field === 'customFilters') return null;
+                    if (!hasCriteriaValue(value) || field === 'customFilters') return null;
+                    const displayValue = Array.isArray(value) ? value.join(', ') : String(value);
                     return (
                       <span key={field} className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-[#556B2F]/10 text-[#556B2F]">
                         <span className="mr-1">
@@ -1079,7 +1314,7 @@ export default function OpportunityDescription({
                            field === 'deadline' ? 'Deadline:' :
                            field + ':'}
                         </span>
-                        {value}
+                        {displayValue}
                       </span>
                     );
                   })}
@@ -1882,7 +2117,7 @@ export default function OpportunityDescription({
             onClick={handleNext}
             className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-gradient-to-r from-[#556B2F] to-[#6B8E23] hover:shadow-md transition-all duration-200"
           >
-            Next Step
+            {nextButtonLabel}
           </button>
         </div>
       </div>

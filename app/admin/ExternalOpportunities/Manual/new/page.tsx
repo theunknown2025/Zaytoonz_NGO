@@ -11,10 +11,16 @@ import {
   XMarkIcon
 } from '@heroicons/react/24/outline';
 import { toast } from 'react-hot-toast';
-import AdminOpportunityDescription from '../components/AdminOpportunityDescription';
+import OpportunityDescription from '@/app/ngo/opportunities/new/OpportunityDescription';
 import { createAdminOpportunity, saveAdminOpportunity } from '../services/adminOpportunityService';
 import ProgressBar from './ProgressBar';
 import { supabase } from '@/app/lib/supabase';
+import type { OpportunityFlowStep } from '@/app/lib/opportunityFlow';
+import type { OpportunityDocument } from '@/app/lib/opportunityDocuments';
+import type { TrainingDay } from '@/app/lib/opportunityTrainingProgram';
+import type { OpportunityFaqItem } from '@/app/lib/opportunityFaq';
+import type { OpportunityActionButton } from '@/app/lib/opportunityActionButtons';
+import { normalizeExternalUrl } from '@/app/ngo/opportunities/services/opportunityFormService';
 
 interface OpportunityFormData {
   title: string;
@@ -27,6 +33,7 @@ interface OpportunityFormData {
     level?: string;
     sector?: string;
     location?: string;
+    country?: string | string[];
     fundingType?: string;
     eligibility?: string;
     amountRange?: string;
@@ -73,6 +80,18 @@ export default function NewManualOpportunityPage() {
     criteria: {}
   });
 
+  const [applyLink, setApplyLink] = useState('');
+  const [flowSteps, setFlowSteps] = useState<OpportunityFlowStep[]>([]);
+  const [includeProcessFlow, setIncludeProcessFlow] = useState(false);
+  const [documents, setDocuments] = useState<OpportunityDocument[]>([]);
+  const [includeDocuments, setIncludeDocuments] = useState(false);
+  const [trainingDays, setTrainingDays] = useState<TrainingDay[]>([]);
+  const [includeTrainingProgram, setIncludeTrainingProgram] = useState(false);
+  const [faqItems, setFaqItems] = useState<OpportunityFaqItem[]>([]);
+  const [includeFaq, setIncludeFaq] = useState(false);
+  const [actionButtons, setActionButtons] = useState<OpportunityActionButton[]>([]);
+  const [includeActionButtons, setIncludeActionButtons] = useState(false);
+
   // Fetch NGOs on component mount
   useEffect(() => {
     const fetchNGOs = async () => {
@@ -108,7 +127,6 @@ export default function NewManualOpportunityPage() {
 
   const totalSteps = steps.length;
 
-
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement> | { target: { name: string; value: string } }) => {
     const { name, value } = e.target;
     setFormData(prev => ({
@@ -117,11 +135,44 @@ export default function NewManualOpportunityPage() {
     }));
   };
 
-  const handleCriteriaChange = (criteria: any) => {
+  const handleCriteriaChange = (criteria: OpportunityFormData['criteria']) => {
     setFormData(prev => ({
       ...prev,
       criteria
     }));
+  };
+
+  const handleStepAdd = (step: OpportunityFlowStep) => {
+    setFlowSteps((prev) => [...prev, step]);
+  };
+
+  const handleStepRemove = (id: string) => {
+    setFlowSteps((prev) => prev.filter((step) => step.id !== id));
+  };
+
+  const handleStepChange = (id: string, field: string, value: string) => {
+    setFlowSteps((prev) =>
+      prev.map((step) => (step.id === id ? { ...step, [field]: value } : step))
+    );
+  };
+
+  const handleIncludeProcessFlowChange = (enabled: boolean) => {
+    setIncludeProcessFlow(enabled);
+    if (!enabled) setFlowSteps([]);
+  };
+
+  const handleStepsReplace = (steps: OpportunityFlowStep[]) => {
+    setFlowSteps(steps);
+  };
+
+  const handleIncludeDocumentsChange = (enabled: boolean) => {
+    setIncludeDocuments(enabled);
+    if (!enabled) setDocuments([]);
+  };
+
+  const handleIncludeActionButtonsChange = (enabled: boolean) => {
+    setIncludeActionButtons(enabled);
+    if (!enabled) setActionButtons([]);
   };
 
   const handleOpportunityTypeChange = (type: 'job' | 'funding' | 'training') => {
@@ -132,16 +183,10 @@ export default function NewManualOpportunityPage() {
     }));
   };
 
-  const handleOpportunityTypeSelect = (type: 'job' | 'funding' | 'training') => {
-    handleOpportunityTypeChange(type);
-    setCurrentStep(2);
-  };
-
   const navigateToStep = (stepIndex: number) => {
     setCurrentStep(stepIndex + 1);
     window.scrollTo(0, 0);
   };
-
 
   const handleSubmit = async () => {
     if (!formData.title.trim() || !formData.description.trim()) {
@@ -149,18 +194,37 @@ export default function NewManualOpportunityPage() {
       return;
     }
 
+    if (!normalizeExternalUrl(applyLink)) {
+      toast.error('Please provide a valid Apply Link');
+      return;
+    }
+
     setLoading(true);
     
     try {
+      const country = formData.criteria?.country;
+      const countries = Array.isArray(country)
+        ? country.filter(Boolean)
+        : typeof country === 'string' && country.trim()
+          ? country.split(',').map((c) => c.trim()).filter(Boolean)
+          : [];
+      const locationValue =
+        countries.length > 0 ? countries.join(', ') : formData.location;
+
       const result = await saveAdminOpportunity({
         opportunityId,
         title: formData.title,
         description: formData.description,
-        location: formData.location,
+        location: locationValue,
         hours: formData.hours,
         opportunityType: opportunityType as 'job' | 'funding' | 'training',
-        criteria: formData.criteria,
-        ngoUserId: selectedNGO
+        criteria: {
+          ...(formData.criteria || {}),
+          ...(countries.length > 0 ? { country: countries } : {}),
+        },
+        ngoUserId: selectedNGO,
+        documents: includeDocuments ? documents : [],
+        applyLink,
       });
       
       if (!result.success) {
@@ -169,10 +233,8 @@ export default function NewManualOpportunityPage() {
         return;
       }
       
-      // Show success message
       toast.success('Opportunity created successfully!');
       
-      // Navigate back to opportunities list after a short delay
       setTimeout(() => {
         router.push('/admin/ExternalOpportunities/Manual');
       }, 1500);
@@ -196,7 +258,6 @@ export default function NewManualOpportunityPage() {
         return;
       }
       setSavingOpportunity(true);
-      // Create opportunity when moving to next step with selected NGO's user_id
       createAdminOpportunity(opportunityId, opportunityType as 'job' | 'funding' | 'training', selectedNGO)
         .then(result => {
           if (!result.success) {
@@ -209,7 +270,6 @@ export default function NewManualOpportunityPage() {
           setCurrentStep(2);
         });
     } else if (currentStep === 2) {
-      // Description step - validate and submit
       handleSubmit();
     }
   };
@@ -319,7 +379,6 @@ export default function NewManualOpportunityPage() {
                         </button>
                       </div>
                       
-                      {/* Search Bar */}
                       <div className="mb-4">
                         <div className="relative">
                           <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -336,7 +395,6 @@ export default function NewManualOpportunityPage() {
                         </div>
                       </div>
                       
-                      {/* NGO List */}
                       <div className="max-h-96 overflow-y-auto">
                         {filteredNGOs.length === 0 ? (
                           <div className="text-center py-8 text-gray-500">
@@ -370,7 +428,6 @@ export default function NewManualOpportunityPage() {
             <h3 className="text-lg font-medium text-[#556B2F] mb-4">Please define the opportunity you wish to share:</h3>
             
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
-              {/* Job Opportunity */}
               <div 
                 className={`
                   cursor-pointer rounded-xl p-6 border-2 transform transition-all duration-200
@@ -397,7 +454,6 @@ export default function NewManualOpportunityPage() {
                 </div>
               </div>
 
-              {/* Funding Opportunity */}
               <div 
                 className={`
                   cursor-pointer rounded-xl p-6 border-2 transform transition-all duration-200
@@ -424,7 +480,6 @@ export default function NewManualOpportunityPage() {
                 </div>
               </div>
 
-              {/* Training Opportunity */}
               <div 
                 className={`
                   cursor-pointer rounded-xl p-6 border-2 transform transition-all duration-200
@@ -472,7 +527,7 @@ export default function NewManualOpportunityPage() {
                   <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#556B2F]/10 text-[#556B2F] text-xs mr-3 mt-0.5">
                     2
                   </span>
-                  <span>Description - Basic information</span>
+                  <span>Description - Full opportunity details & apply link</span>
                 </li>
               </ul>
             </div>
@@ -497,7 +552,7 @@ export default function NewManualOpportunityPage() {
                 </li>
                 <li className="flex items-start">
                   <span className="text-[#556B2F] mr-2">✓</span>
-                  <span>Include any specific skills or qualifications needed</span>
+                  <span>Include a valid Apply Link for applicants</span>
                 </li>
               </ul>
             </div>
@@ -534,13 +589,44 @@ export default function NewManualOpportunityPage() {
     
     if (currentStep === 2) {
       return (
-        <AdminOpportunityDescription
-          formData={formData}
-          onChange={handleChange}
-          onNext={handleNext}
-          opportunityId={opportunityId}
-          onCriteriaChange={handleCriteriaChange}
-        />
+        <div className={loading ? 'opacity-60 pointer-events-none' : ''}>
+          <OpportunityDescription
+            formData={formData}
+            onChange={handleChange}
+            onNext={handleNext}
+            opportunityId={opportunityId}
+            onCriteriaChange={handleCriteriaChange}
+            initialCriteria={formData.criteria}
+            includeProcessFlow={includeProcessFlow}
+            onIncludeProcessFlowChange={handleIncludeProcessFlowChange}
+            flowSteps={flowSteps}
+            onStepAdd={handleStepAdd}
+            onStepRemove={handleStepRemove}
+            onStepChange={handleStepChange}
+            onStepsReplace={handleStepsReplace}
+            documents={documents}
+            onDocumentsChange={setDocuments}
+            includeDocuments={includeDocuments}
+            onIncludeDocumentsChange={handleIncludeDocumentsChange}
+            includeTrainingProgram={includeTrainingProgram}
+            onIncludeTrainingProgramChange={setIncludeTrainingProgram}
+            trainingDays={trainingDays}
+            onTrainingDaysReplace={setTrainingDays}
+            includeFaq={includeFaq}
+            onIncludeFaqChange={setIncludeFaq}
+            faqItems={faqItems}
+            onFaqItemsReplace={setFaqItems}
+            actionButtons={actionButtons}
+            onActionButtonsChange={setActionButtons}
+            includeActionButtons={includeActionButtons}
+            onIncludeActionButtonsChange={handleIncludeActionButtonsChange}
+            showApplyLink
+            applyLink={applyLink}
+            onApplyLinkChange={setApplyLink}
+            applyLinkRequired
+            nextButtonLabel="Publish Opportunity"
+          />
+        </div>
       );
     }
     
@@ -573,7 +659,6 @@ export default function NewManualOpportunityPage() {
         </div>
         
         <div className="bg-white shadow-sm rounded-xl border border-gray-100 p-6">
-          {/* Progress Bar */}
           <ProgressBar
             currentStep={currentStep}
             totalSteps={totalSteps}
@@ -581,7 +666,6 @@ export default function NewManualOpportunityPage() {
             onStepClick={navigateToStep}
           />
             
-          {/* Step Content */}
           <div className="pt-6">
             {renderStepContent()}
           </div>

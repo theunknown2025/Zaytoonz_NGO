@@ -70,7 +70,7 @@ interface RecapProps {
     level?: string;
     sector?: string;
     location?: string;
-    country?: string;
+    country?: string | string[];
     fundingType?: string;
     eligibility?: string;
     amountRange?: string;
@@ -427,7 +427,13 @@ export default function Recap({
                       <MapPinIcon className="h-4 w-4 mr-1 text-[#556B2F]" />
                       Location
                     </h4>
-                    <p className="text-gray-600">{descriptionData.location || 'Not specified'}</p>
+                    <p className="text-gray-600">
+                      {descriptionData.location ||
+                        (Array.isArray(criteria?.country)
+                          ? criteria.country.join(', ')
+                          : criteria?.country) ||
+                        'Not specified'}
+                    </p>
             </div>
                   
                   <div>

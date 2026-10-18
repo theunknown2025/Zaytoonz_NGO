@@ -1,7 +1,8 @@
 'use client';
 
-import { useState } from 'react';
-import { SOCIAL_LINKS, type SocialLink } from '@/app/lib/socialLinks';
+import { useEffect, useState } from 'react';
+import { SOCIAL_LINKS, mergeSocialLinks, type SocialLink } from '@/app/lib/socialLinks';
+import { supabase } from '@/app/lib/supabase';
 
 function SocialCard({ link }: { link: SocialLink }) {
   const [qrFailed, setQrFailed] = useState(false);
@@ -49,9 +50,31 @@ function SocialCard({ link }: { link: SocialLink }) {
 }
 
 export default function SocialMediaLinks() {
+  const [links, setLinks] = useState<SocialLink[]>(SOCIAL_LINKS);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data, error } = await supabase
+          .from('social_media_links')
+          .select('key, href, qr_url, sort_order')
+          .order('sort_order', { ascending: true });
+        if (!cancelled && !error && data?.length) {
+          setLinks(mergeSocialLinks(data));
+        }
+      } catch {
+        // keep defaults
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   return (
     <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-2 gap-4">
-      {SOCIAL_LINKS.map((link) => (
+      {links.map((link) => (
         <SocialCard key={link.key} link={link} />
       ))}
     </div>

@@ -37,7 +37,7 @@ interface CriteriaSelection {
   level?: string;
   sector?: string;
   location?: string;
-  country?: string;
+  country?: string | string[];
   fundingType?: string;
   eligibility?: string;
   amountRange?: string;
@@ -149,8 +149,13 @@ export default function FullPreview({
   if (!isOpen) return null;
 
   const typeDetails = getOpportunityTypeDetails(opportunityType);
+  const hasCriteriaValue = (value: unknown) => {
+    if (Array.isArray(value)) return value.length > 0;
+    if (typeof value === 'object' && value !== null) return Object.keys(value).length > 0;
+    return Boolean(value);
+  };
   const hasCriteria = Object.entries(criteria).some(
-    ([key, value]) => key !== 'customFilters' && value
+    ([key, value]) => key !== 'customFilters' && hasCriteriaValue(value)
   );
   const customFilters = criteria?.customFilters || {};
 
@@ -209,7 +214,13 @@ export default function FullPreview({
                       <MapPinIcon className="h-4 w-4 mr-1 text-[#556B2F]" />
                       Location
                     </h4>
-                    <p className="text-gray-900">{descriptionData.location || 'Not specified'}</p>
+                    <p className="text-gray-900">
+                      {descriptionData.location ||
+                        (Array.isArray(criteria?.country)
+                          ? criteria.country.join(', ')
+                          : criteria?.country) ||
+                        'Not specified'}
+                    </p>
                   </div>
                   <div>
                     <h4 className="text-sm font-medium text-gray-500 mb-1 flex items-center">
@@ -245,13 +256,14 @@ export default function FullPreview({
                 <h3 className="text-lg font-semibold text-[#556B2F] mb-4">Opportunity Criteria</h3>
                 <div className="flex flex-wrap gap-2">
                   {Object.entries(criteria).map(([field, value]) => {
-                    if (!value || field === 'customFilters') return null;
+                    if (!hasCriteriaValue(value) || field === 'customFilters') return null;
+                    const displayValue = Array.isArray(value) ? value.join(', ') : String(value);
                     return (
                       <span
                         key={field}
                         className="inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium bg-[#556B2F]/10 text-[#556B2F]"
                       >
-                        {getCriteriaFieldLabel(field)}: {value}
+                        {getCriteriaFieldLabel(field)}: {displayValue}
                       </span>
                     );
                   })}

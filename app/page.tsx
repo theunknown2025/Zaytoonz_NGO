@@ -11,6 +11,7 @@ import {
   isAccessGateEnabled,
   sanitizeNextPath,
 } from './lib/accessGate';
+import { fetchSocialLinks } from './lib/socialLinksServer';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -20,12 +21,17 @@ export default async function Home({
 }: {
   searchParams?: { next?: string };
 }) {
-  const isAuthenticated = await hasAccess(cookies().get(ACCESS_COOKIE_NAME)?.value);
+  const [isAuthenticated, gateEnabled, socialLinks] = await Promise.all([
+    hasAccess(cookies().get(ACCESS_COOKIE_NAME)?.value),
+    isAccessGateEnabled(),
+    fetchSocialLinks(),
+  ]);
   return (
     <ZaytoonzSMLanding
       isAuthenticated={isAuthenticated}
-      gateEnabled={isAccessGateEnabled()}
+      gateEnabled={gateEnabled}
       nextPath={sanitizeNextPath(searchParams?.next)}
+      socialLinks={socialLinks}
     />
   );
 }

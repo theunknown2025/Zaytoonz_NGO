@@ -40,6 +40,7 @@ import { useAuth } from '@/app/lib/auth';
 import {
   uniqueCountriesFromLocations,
   displayOpportunityCountry,
+  locationMatchesCountryFilter,
 } from '@/app/lib/locationNormalize';
 import {
   buildOrganizationCanonicalMap,
@@ -359,10 +360,11 @@ function OpportunitiesPageContent() {
     }
 
     if (filters.location.length > 0) {
-      filtered = filtered.filter((opp) => {
-        const country = displayOpportunityCountry(opp.location);
-        return country ? filters.location.includes(country) : false;
-      });
+      filtered = filtered.filter((opp) =>
+        filters.location.some((selected) =>
+          locationMatchesCountryFilter(opp.location, selected)
+        )
+      );
     }
 
     if (filters.organization.length > 0) {

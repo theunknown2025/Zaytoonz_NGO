@@ -30,8 +30,60 @@ export const GATED_ROUTES: GatedRoute[] = [
   { path: '/admin', match: 'prefix' },
 ];
 
-export function isAccessGateEnabled(): boolean {
+const ACCESS_GATE_SETTING_KEY = 'access_gate_enabled';
+let cachedGateEnabled: { value: boolean; at: number } | null = null;
+const GATE_CACHE_MS = 5_000;
+
+function envAccessGateEnabled(): boolean {
   return process.env.ACCESS_GATE_ENABLED !== 'false';
+}
+
+/** Clear the short-lived gate cache (call after admin toggles the lock). */
+export function clearAccessGateCache(): void {
+  cachedGateEnabled = null;
+}
+
+/**
+ * Whether the exclusive access lock is active.
+ * Prefers `platform_settings.access_gate_enabled` (admin toggle), falls back to ACCESS_GATE_ENABLED env.
+ */
+export async function isAccessGateEnabled(): Promise<boolean> {
+  const now = Date.now();
+  if (cachedGateEnabled && now - cachedGateEnabled.at < GATE_CACHE_MS) {
+    return cachedGateEnabled.value;
+  }
+
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+  if (url && key && !url.includes('placeholder') && !key.includes('your_')) {
+    try {
+      const res = await fetch(
+        `${url}/rest/v1/platform_settings?key=eq.${ACCESS_GATE_SETTING_KEY}&select=value&limit=1`,
+        {
+          headers: {
+            apikey: key,
+            Authorization: `Bearer ${key}`,
+          },
+          cache: 'no-store',
+        }
+      );
+      if (res.ok) {
+        const rows = (await res.json()) as Array<{ value: unknown }>;
+        if (rows[0] && rows[0].value !== undefined && rows[0].value !== null) {
+          const raw = rows[0].value;
+          const resolved = typeof raw === 'boolean' ? raw : String(raw) === 'true';
+          cachedGateEnabled = { value: resolved, at: now };
+          return resolved;
+        }
+      }
+    } catch {
+      // fall through to env
+    }
+  }
+
+  const fallback = envAccessGateEnabled();
+  cachedGateEnabled = { value: fallback, at: now };
+  return fallback;
 }
 
 function getCredentials() {
@@ -115,6 +167,6 @@ export async function verifyAccessToken(token: string | null | undefined): Promi
 
 /** True when the visitor holds a valid access cookie, or the gate is disabled. */
 export async function hasAccess(token: string | null | undefined): Promise<boolean> {
-  if (!isAccessGateEnabled()) return true;
+  if (!(await isAccessGateEnabled())) return true;
   return verifyAccessToken(token);
 }
