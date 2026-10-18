@@ -30,7 +30,7 @@ import { normalizeLocationToCountries } from '@/app/lib/locationNormalize';
 function normalizeCriteriaCountries(
   criteria: OpportunityFormData['criteria'] | null | undefined,
   location?: string | null
-): OpportunityFormData['criteria'] {
+): NonNullable<OpportunityFormData['criteria']> {
   const base = criteria && typeof criteria === 'object' ? { ...criteria } : {};
   const rawCountry = base.country;
   let countries: string[] = [];
