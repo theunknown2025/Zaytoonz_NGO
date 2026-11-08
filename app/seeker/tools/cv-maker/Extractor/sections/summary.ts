@@ -1,9 +1,11 @@
+import { textWithLineBreaks } from '../preserveLineBreaks';
+
 export const SUMMARY_INSTRUCTIONS = `
-"summary": string (professional profile / objective paragraph)`;
+"summary": string (copy the original profile or objective verbatim; empty string if the source has none)`;
 
 export function parseSummary(raw: unknown): string {
-  if (typeof raw !== 'string') return '';
-  return raw.trim();
+  if (typeof raw !== 'string' && !Array.isArray(raw)) return '';
+  return textWithLineBreaks(raw);
 }
 
 export function hasSummaryContent(summary: string): boolean {

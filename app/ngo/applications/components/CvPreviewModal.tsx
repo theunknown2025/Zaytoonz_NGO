@@ -3,9 +3,10 @@
 import { useEffect, useState } from 'react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import CVPreview from '@/app/seeker/tools/cv-maker/components/CVPreview';
+import { getCvTheme, type CvPaletteId } from '@/app/seeker/tools/cv-maker/sectionConfig';
 import type { CVData } from '@/app/seeker/tools/cv-maker/types';
 
-export function mapStoredCv(raw: any): { cvData: CVData; addedSections: string[] } {
+export function mapStoredCv(raw: any): { cvData: CVData; addedSections: string[]; palette: CvPaletteId } {
   const general = raw.general_info || {};
   const cvData: CVData = {
     general: {
@@ -80,7 +81,7 @@ export function mapStoredCv(raw: any): { cvData: CVData; addedSections: string[]
     ? raw.sections
     : ['general', 'summary', 'work', 'education', 'skills', 'languages', 'certificates', 'projects', 'additional', 'externalLinks'];
 
-  return { cvData, addedSections };
+  return { cvData, addedSections, palette: getCvTheme(general.palette).id };
 }
 
 export default function CvPreviewModal({
@@ -92,7 +93,7 @@ export default function CvPreviewModal({
   cvName?: string | null;
   onClose: () => void;
 }) {
-  const [preview, setPreview] = useState<{ cvData: CVData; addedSections: string[] } | null>(null);
+  const [preview, setPreview] = useState<{ cvData: CVData; addedSections: string[]; palette: CvPaletteId } | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -137,7 +138,7 @@ export default function CvPreviewModal({
           {loading && <p className="py-12 text-center text-sm text-gray-600">Loading CV…</p>}
           {error && <p className="py-12 text-center text-sm text-red-700">{error}</p>}
           {preview && (
-            <CVPreview cvData={preview.cvData} addedSections={preview.addedSections} />
+            <CVPreview cvData={preview.cvData} addedSections={preview.addedSections} palette={preview.palette} />
           )}
         </div>
       </div>

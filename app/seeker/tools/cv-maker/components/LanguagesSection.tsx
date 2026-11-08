@@ -67,8 +67,8 @@ const LanguagesSection: React.FC<LanguagesSectionProps> = ({
                 value={lang.proficiency}
                 onChange={(e) => onLanguageChange(index, 'proficiency', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-olive-light"
-                required
               >
+                <option value="">Not specified</option>
                 {proficiencyLevels.map(level => (
                   <option key={level.value} value={level.value}>
                     {level.label}

@@ -1,4 +1,5 @@
 import type { WorkExperience } from '../../types';
+import { textWithLineBreaks } from '../preserveLineBreaks';
 
 export const WORK_INSTRUCTIONS = `
 "work": [{
@@ -8,7 +9,7 @@ export const WORK_INSTRUCTIONS = `
   "startDate": string (YYYY-MM or YYYY-MM-DD),
   "endDate": string (YYYY-MM or YYYY-MM-DD, empty if current),
   "current": boolean,
-  "description": string
+  "description": string (copy the original responsibilities and bullets verbatim, one bullet per line)
 }]`;
 
 export function parseWork(raw: unknown): Omit<WorkExperience, 'id'>[] {
@@ -25,7 +26,7 @@ export function parseWork(raw: unknown): Omit<WorkExperience, 'id'>[] {
         startDate: String(w.startDate ?? '').trim(),
         endDate: String(w.endDate ?? '').trim(),
         current: Boolean(w.current),
-        description: String(w.description ?? '').trim(),
+        description: textWithLineBreaks(w.description),
       };
     })
     .filter((w) => w.position || w.company || w.description);

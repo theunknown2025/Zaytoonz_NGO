@@ -67,8 +67,8 @@ const SkillsSection: React.FC<SkillsSectionProps> = ({
                 value={skill.level}
                 onChange={(e) => onSkillChange(index, 'level', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-olive-light"
-                required
               >
+                <option value="">Not specified</option>
                 {skillLevels.map(level => (
                   <option key={level.value} value={level.value}>
                     {level.label}

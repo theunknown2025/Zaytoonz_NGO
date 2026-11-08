@@ -23,9 +23,6 @@ import {
   ListBulletIcon,
   EyeIcon,
 } from '@heroicons/react/24/outline';
-import jsPDF from 'jspdf';
-import html2canvas from 'html2canvas';
-
 // Import components
 import GeneralSection from './components/GeneralSection';
 import WorkSection from './components/WorkSection';
@@ -38,7 +35,11 @@ import ProjectsSection from './components/ProjectsSection';
 import AdditionalSection from './components/AdditionalSection';
 import PlaceholderSection from './components/PlaceholderSection';
 import ExternalLinksSection from './components/ExternalLinksSection';
+
 import CVPreview from './components/CVPreview';
+import { downloadCvPdf } from './exportCvPdf';
+import CvColorPicker from './components/CvColorPicker';
+import { getCvTheme, type CvPaletteId } from './sectionConfig';
 import { getSectionTitle, getSectionIcon } from './sectionConfig';
 import CvSettingsMenu from './components/CvSettingsMenu';
 
@@ -87,6 +88,7 @@ export default function CVMaker() {
   const cvRef = useRef<HTMLDivElement>(null);
   const [exportLoading, setExportLoading] = useState(false);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
+  const [cvPalette, setCvPalette] = useState<CvPaletteId>('green');
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   // CV Data State
@@ -629,382 +631,15 @@ export default function CVMaker() {
       // Short delay to ensure modal appears
       await new Promise(resolve => setTimeout(resolve, 100));
       
-      // Create a temporary div for the CV content
-      const cvContent = document.createElement('div');
-      cvContent.className = 'cv-export-container';
-      document.body.appendChild(cvContent);
-      
-      // Create styles for the CV export
-      const styleElement = document.createElement('style');
-      styleElement.textContent = `
-        .cv-export-container {
-          width: 210mm;
-          padding: 15mm;
-          background: white;
-          font-family: Arial, sans-serif;
-          color: #333;
-        }
-        .cv-export-header {
-          border-bottom: 2px solid #004d00;
-          padding-bottom: 10mm;
-          margin-bottom: 10mm;
-        }
-        .cv-export-name {
-          font-size: 24pt;
-          font-weight: bold;
-          color: #004d00;
-          margin-bottom: 5mm;
-        }
-        .cv-export-contact {
-          display: flex;
-          flex-wrap: wrap;
-          gap: 5mm;
-          font-size: 10pt;
-        }
-        .cv-export-section {
-          margin-bottom: 10mm;
-        }
-        .cv-export-section-title {
-          font-size: 14pt;
-          font-weight: bold;
-          color: #004d00;
-          border-bottom: 1px solid #ccc;
-          padding-bottom: 2mm;
-          margin-bottom: 5mm;
-        }
-        .cv-export-item {
-          margin-bottom: 5mm;
-        }
-        .cv-export-item-header {
-          display: flex;
-          justify-content: space-between;
-          font-weight: bold;
-          margin-bottom: 2mm;
-        }
-        .cv-export-item-title {
-          font-weight: bold;
-        }
-        .cv-export-item-subtitle {
-          font-style: italic;
-        }
-        .cv-export-item-dates {
-          font-size: 9pt;
-          color: #666;
-        }
-        .cv-export-item-description {
-          font-size: 10pt;
-          margin-top: 2mm;
-        }
-        .cv-export-skills {
-          display: flex;
-          flex-wrap: wrap;
-          gap: 3mm;
-        }
-        .cv-export-skill {
-          background: #f5f5f5;
-          padding: 2mm 3mm;
-          border-radius: 3mm;
-          font-size: 9pt;
-        }
-      `;
-      document.head.appendChild(styleElement);
-      
-      // Generate content based on CV data
-      let europassContent = '';
-      
-      // Header with personal info
-      if (cvData.general) {
-        const { firstName, lastName, email, phone, address } = cvData.general;
-        europassContent += `
-          <div class="cv-export-header">
-            <div class="cv-export-name">${firstName || ''} ${lastName || ''}</div>
-            <div class="cv-export-contact">
-              ${email ? `<div>${email}</div>` : ''}
-              ${phone ? `<div>${phone}</div>` : ''}
-              ${address ? `<div>${address}</div>` : ''}
-            </div>
-          </div>
-        `;
-      }
-      
-      // Generate content for each section in the order they appear
-      addedSections.forEach(section => {
-        switch(section) {
-          case 'summary':
-            if (cvData.summary) {
-              europassContent += `
-                <div class="cv-export-section">
-                  <div class="cv-export-section-title">Profile</div>
-                  <div class="cv-export-item-description">${cvData.summary}</div>
-                </div>
-              `;
-            }
-            break;
-            
-          case 'work':
-            if (cvData.work && cvData.work.length > 0) {
-              let workContent = `
-                <div class="cv-export-section">
-                  <div class="cv-export-section-title">Work Experience</div>
-              `;
-              
-              cvData.work.forEach(work => {
-                const { position, company, location, startDate, endDate, current, description } = work;
-                const formattedStartDate = startDate ? new Date(startDate).toLocaleDateString('en-GB', { month: 'short', year: 'numeric' }) : '';
-                const formattedEndDate = current ? 'Present' : (endDate ? new Date(endDate).toLocaleDateString('en-GB', { month: 'short', year: 'numeric' }) : '');
-                
-                workContent += `
-                  <div class="cv-export-item">
-                    <div class="cv-export-item-header">
-                      <div class="cv-export-item-title">${position || ''}</div>
-                      <div class="cv-export-item-dates">${formattedStartDate} - ${formattedEndDate}</div>
-                    </div>
-                    <div class="cv-export-item-subtitle">${company || ''}${location ? `, ${location}` : ''}</div>
-                    ${description ? `<div class="cv-export-item-description">${description}</div>` : ''}
-                  </div>
-                `;
-              });
-              
-              workContent += `</div>`;
-              europassContent += workContent;
-            }
-            break;
-            
-          case 'education':
-            if (cvData.education && cvData.education.length > 0) {
-              let educationContent = `
-                <div class="cv-export-section">
-                  <div class="cv-export-section-title">Education and Training</div>
-              `;
-              
-              cvData.education.forEach(education => {
-                const { degree, institution, location, startDate, endDate, description } = education;
-                const formattedStartDate = startDate ? new Date(startDate).toLocaleDateString('en-GB', { month: 'short', year: 'numeric' }) : '';
-                const formattedEndDate = endDate ? new Date(endDate).toLocaleDateString('en-GB', { month: 'short', year: 'numeric' }) : '';
-                
-                educationContent += `
-                  <div class="cv-export-item">
-                    <div class="cv-export-item-header">
-                      <div class="cv-export-item-title">${degree}</div>
-                      <div class="cv-export-item-dates">${formattedStartDate} - ${formattedEndDate}</div>
-                    </div>
-                    <div class="cv-export-item-subtitle">${institution}${location ? `, ${location}` : ''}</div>
-                    ${description ? `<div class="cv-export-item-description">${description}</div>` : ''}
-                  </div>
-                `;
-              });
-              
-              educationContent += `</div>`;
-              europassContent += educationContent;
-            }
-            break;
-            
-          case 'skills':
-            if (cvData.skills && cvData.skills.length > 0) {
-              let skillsContent = `
-                <div class="cv-export-section">
-                  <div class="cv-export-section-title">Skills</div>
-                  <div class="cv-export-skills">
-              `;
-              
-              cvData.skills.forEach(skill => {
-                if (skill.name) {
-                  skillsContent += `
-                    <div class="cv-export-skill">
-                      ${skill.name} (${skill.level.charAt(0).toUpperCase() + skill.level.slice(1)})
-                    </div>
-                  `;
-                }
-              });
-              
-              skillsContent += `</div></div>`;
-              europassContent += skillsContent;
-            }
-            break;
-            
-          case 'languages':
-            if (cvData.languages && cvData.languages.length > 0) {
-              let languagesContent = `
-                <div class="cv-export-section">
-                  <div class="cv-export-section-title">Languages</div>
-                  <div class="cv-export-skills">
-              `;
-              
-              cvData.languages.forEach(language => {
-                if (language.language) {
-                  const proficiencyMap: {[key: string]: string} = {
-                    'beginner': 'A1/A2',
-                    'intermediate': 'B1/B2',
-                    'advanced': 'C1',
-                    'native': 'C2/Native'
-                  };
-                  
-                  languagesContent += `
-                    <div class="cv-export-skill">
-                      ${language.language} (${proficiencyMap[language.proficiency] || language.proficiency})
-                    </div>
-                  `;
-                }
-              });
-              
-              languagesContent += `</div></div>`;
-              europassContent += languagesContent;
-            }
-            break;
-            
-          case 'certificates':
-            if (cvData.certificates && cvData.certificates.length > 0) {
-              let certificatesContent = `
-                <div class="cv-export-section">
-                  <div class="cv-export-section-title">Certificates & Courses</div>
-              `;
-              
-              cvData.certificates.forEach(certificate => {
-                const { name, issuer, date, description } = certificate;
-                const formattedDate = date ? new Date(date).toLocaleDateString('en-GB', { month: 'short', year: 'numeric' }) : '';
-                
-                certificatesContent += `
-                  <div class="cv-export-item">
-                    <div class="cv-export-item-title">${name}</div>
-                    <div class="cv-export-item-subtitle">${issuer}${formattedDate ? ` (${formattedDate})` : ''}</div>
-                    ${description ? `<div class="cv-export-item-description">${description}</div>` : ''}
-                  </div>
-                `;
-              });
-              
-              certificatesContent += `</div>`;
-              europassContent += certificatesContent;
-            }
-            break;
-            
-          case 'projects':
-            if (cvData.projects && cvData.projects.length > 0) {
-              let projectsContent = `
-                <div class="cv-export-section">
-                  <div class="cv-export-section-title">Projects</div>
-              `;
-              
-              cvData.projects.forEach(project => {
-                const { title, role, startDate, endDate, description, url } = project;
-                const formattedStartDate = startDate ? new Date(startDate).toLocaleDateString('en-GB', { month: 'short', year: 'numeric' }) : '';
-                const formattedEndDate = endDate ? new Date(endDate).toLocaleDateString('en-GB', { month: 'short', year: 'numeric' }) : '';
-                const dateRange = formattedStartDate || formattedEndDate ? `${formattedStartDate} - ${formattedEndDate}` : '';
-                
-                projectsContent += `
-                  <div class="cv-export-item">
-                    <div class="cv-export-item-header">
-                      <div class="cv-export-item-title">${title}</div>
-                      ${dateRange ? `<div class="cv-export-item-dates">${dateRange}</div>` : ''}
-                    </div>
-                    ${role ? `<div class="cv-export-item-subtitle">${role}</div>` : ''}
-                    ${description ? `<div class="cv-export-item-description">${description}</div>` : ''}
-                    ${url ? `<div class="cv-export-item-description"><a href="${url}" target="_blank">${url}</a></div>` : ''}
-                  </div>
-                `;
-              });
-              
-              projectsContent += `</div>`;
-              europassContent += projectsContent;
-            }
-            break;
-            
-          case 'additional':
-            if (cvData.additional) {
-              europassContent += `
-                <div class="cv-export-section">
-                  <div class="cv-export-section-title">Additional Information</div>
-                  <div class="cv-export-item-description">${cvData.additional.replace(/\n/g, '<br>')}</div>
-                </div>
-              `;
-            }
-            break;
-            
-          case 'externalLinks':
-            if (cvData.externalLinks && cvData.externalLinks.length > 0) {
-              let externalLinksContent = `
-                <div class="cv-export-section">
-                  <div class="cv-export-section-title">External Profiles</div>
-              `;
-              
-              cvData.externalLinks.forEach(link => {
-                const { displayName, url } = link;
-                externalLinksContent += `
-                  <div class="cv-export-item">
-                    <div class="cv-export-item-header">
-                      <div class="cv-export-item-title">${displayName || link.platform}</div>
-                    </div>
-                    <div class="cv-export-item-description"><a href="${url}" target="_blank">${url}</a></div>
-                  </div>
-                `;
-              });
-              
-              externalLinksContent += `</div>`;
-              europassContent += externalLinksContent;
-            }
-            break;
-            
-          // Other sections can be added as needed
-          default:
-            break;
-        }
-      });
-      
-      // Set the content to the temporary div
-      cvContent.innerHTML = europassContent;
-      
-      // Generate PDF from the temporary div
-      console.log('Generating PDF from HTML content');
-      const canvas = await html2canvas(cvContent, { 
-        scale: 2,
-        useCORS: true,
-        logging: true, // Enable logging for debugging
-        onclone: (doc) => {
-          // Make the cloned document visible during capture for debugging
-          const clonedContent = doc.querySelector('.cv-export-container');
-          if (clonedContent) {
-            (clonedContent as HTMLElement).style.position = 'absolute';
-            (clonedContent as HTMLElement).style.left = '0';
-            (clonedContent as HTMLElement).style.top = '0';
-            (clonedContent as HTMLElement).style.visibility = 'visible';
-            console.log('Content cloned successfully');
-          }
-        }
-      });
-      
-      console.log('Canvas generated, creating PDF');
-      const imgData = canvas.toDataURL('image/png');
-      
-      // A4 dimensions in mm: 210 x 297
-      const pdf = new jsPDF('p', 'mm', 'a4');
-      const imgWidth = 210;
-      const pageHeight = 297;
-      const imgHeight = canvas.height * imgWidth / canvas.width;
-      let heightLeft = imgHeight;
-      let position = 0;
-      
-      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-      heightLeft -= pageHeight;
-      
-      // Add new pages if content overflows
-      while (heightLeft > 0) {
-        position = heightLeft - imgHeight;
-        pdf.addPage();
-        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-        heightLeft -= pageHeight;
-      }
-      
-      // Generate filename based on user's name
       const { firstName, lastName } = cvData.general;
       const filename = `${firstName || 'CV'}_${lastName || 'Document'}_${new Date().toISOString().slice(0, 10)}.pdf`.replace(/\s+/g, '_');
-      
-      console.log('Saving PDF:', filename);
-      // Save the PDF
-      pdf.save(filename);
-      
-      // Clean up
-      document.body.removeChild(cvContent);
-      document.head.removeChild(styleElement);
-      
+      await downloadCvPdf({
+        cvData,
+        addedSections,
+        palette: cvPalette,
+        filename,
+      });
+
       // Reset state
       setExportLoading(false);
       setIsExportModalOpen(false);
@@ -1033,7 +668,7 @@ export default function CVMaker() {
     
     try {
       const { data, error } = await saveCV(
-        cvData, 
+        { ...cvData, general: { ...cvData.general, palette: cvPalette } },
         cvName, 
         currentCVId || undefined, 
         addedSections, 
@@ -1133,7 +768,11 @@ export default function CVMaker() {
       }
       
       if (data) {
-        setCvData(data.data);
+        const storedGeneral = { ...(data.data.general || {}) };
+        const storedPalette = getCvTheme(storedGeneral.palette).id;
+        delete storedGeneral.palette;
+        setCvPalette(storedPalette);
+        setCvData({ ...data.data, general: storedGeneral });
         setAddedSections(data.sections);
         setAvailableSections(data.availableSections);
         setCurrentCVId(data.id);
@@ -1290,6 +929,7 @@ export default function CVMaker() {
     ]);
     setCurrentCVId(null);
     setCvName('');
+    setCvPalette('green');
     setIsCVModified(false);
   };
 
@@ -1341,6 +981,7 @@ export default function CVMaker() {
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 items-start">
         {/* CV Maker */}
         <div className="min-w-0 space-y-6">
+          <CvSettingsMenu onExtracted={handleCvExtracted} disabled={exportLoading} />
           <div className="bg-white rounded-xl shadow-sm p-6">
             <h2 className="text-2xl font-semibold text-gray-800 mb-2">Build Your Professional CV</h2>
             <p className="text-gray-600">
@@ -1490,11 +1131,20 @@ export default function CVMaker() {
             <div className="p-4 border-b border-gray-200 bg-gray-50 flex items-center gap-2">
               <EyeIcon className="w-5 h-5 text-olive-dark" />
               <h3 className="font-semibold text-gray-800">Live Preview</h3>
-              <span className="text-xs text-gray-500 ml-auto">Updates as you type</span>
+              <div className="ml-auto flex items-center gap-3">
+                <CvColorPicker
+                  value={cvPalette}
+                  onChange={(palette) => {
+                    setCvPalette(palette);
+                    setIsCVModified(true);
+                  }}
+                />
+                <span className="text-xs text-gray-500">Updates as you type</span>
+              </div>
             </div>
             <div className="overflow-auto max-h-[calc(100vh-10rem)] bg-olive-50 p-4">
               <div className="mx-auto shadow-lg rounded-sm overflow-hidden" style={{ width: 'fit-content', maxWidth: '100%' }}>
-                <CVPreview ref={cvRef} cvData={cvData} addedSections={addedSections} />
+                <CVPreview ref={cvRef} cvData={cvData} addedSections={addedSections} palette={cvPalette} />
               </div>
             </div>
           </div>
@@ -1692,7 +1342,6 @@ export default function CVMaker() {
       <header className="flex items-center p-4 bg-white shadow-sm">
         <h1 className="text-xl font-semibold text-gray-800">CV Maker {cvName && activeTab === 'create' ? ` - ${cvName}` : ''}</h1>
         <div className="ml-auto flex gap-3 items-center">
-          <CvSettingsMenu onExtracted={handleCvExtracted} disabled={exportLoading} />
           <button 
             className="px-4 py-2 bg-olive-dark text-white rounded flex items-center gap-2 hover:bg-olive-medium transition-colors"
             onClick={handleExportCV}

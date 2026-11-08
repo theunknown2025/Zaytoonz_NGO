@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useRef, useState, useEffect } from 'react';
-import { Cog6ToothIcon, ArrowUpTrayIcon } from '@heroicons/react/24/outline';
+import React, { useRef, useState } from 'react';
+import { ArrowUpTrayIcon } from '@heroicons/react/24/outline';
 import type { CVData } from '../types';
 
 interface CvSettingsMenuProps {
@@ -16,23 +16,10 @@ interface CvSettingsMenuProps {
 const ACCEPTED_TYPES = '.txt,.pdf,.docx';
 
 export default function CvSettingsMenu({ onExtracted, disabled }: CvSettingsMenuProps) {
-  const [isOpen, setIsOpen] = useState(false);
   const [isExtracting, setIsExtracting] = useState(false);
-  const menuRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
-        setIsOpen(false);
-      }
-    }
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-
   const handleUploadClick = () => {
-    setIsOpen(false);
     fileInputRef.current?.click();
   };
 
@@ -72,35 +59,23 @@ export default function CvSettingsMenu({ onExtracted, disabled }: CvSettingsMenu
 
   return (
     <>
-      <div ref={menuRef} className="relative">
-        <button
-          type="button"
-          className="p-2 rounded-full hover:bg-gray-100 transition-colors disabled:opacity-50"
-          onClick={() => setIsOpen((prev) => !prev)}
-          disabled={disabled || isExtracting}
-          title="CV settings"
-          aria-label="CV settings"
-          aria-expanded={isOpen}
-        >
-          <Cog6ToothIcon className="w-6 h-6 text-gray-600" />
-        </button>
-
-        {isOpen && (
-          <div className="absolute right-0 mt-2 w-52 bg-white rounded-md shadow-lg border border-gray-200 z-20">
-            <button
-              type="button"
-              className="w-full text-left px-4 py-3 hover:bg-gray-50 text-gray-800 flex items-center gap-2"
-              onClick={handleUploadClick}
-            >
-              <ArrowUpTrayIcon className="w-5 h-5 text-olive-dark" />
-              Upload CV
-            </button>
-            <p className="px-4 pb-3 text-xs text-gray-500">
-              Supports .txt, .pdf, and .docx
-            </p>
+      <div className="bg-white rounded-xl shadow-sm p-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h2 className="text-lg font-semibold text-gray-800">Upload CV</h2>
+            <p className="text-sm text-gray-600 mt-1">Upload is assisted by our AI AGENT</p>
+            <p className="text-xs text-gray-500 mt-1">Supports .txt, .pdf, and .docx</p>
           </div>
-        )}
-
+          <button
+            type="button"
+            className="px-4 py-2 bg-olive-dark text-white rounded-md flex items-center justify-center gap-2 hover:bg-olive-medium transition-colors disabled:opacity-50 shrink-0"
+            onClick={handleUploadClick}
+            disabled={disabled || isExtracting}
+          >
+            <ArrowUpTrayIcon className="w-5 h-5" />
+            Upload CV
+          </button>
+        </div>
         <input
           ref={fileInputRef}
           type="file"
@@ -139,7 +114,7 @@ export default function CvSettingsMenu({ onExtracted, disabled }: CvSettingsMenu
               Analyzing your CV
             </h3>
             <p className="text-sm text-gray-500 text-center mt-2">
-              OpenAI is restructuring your content into CV Maker sections…
+              Your original wording is being placed into CV Maker sections…
             </p>
           </div>
         </div>

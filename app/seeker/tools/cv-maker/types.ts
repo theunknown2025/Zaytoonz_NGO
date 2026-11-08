@@ -23,6 +23,7 @@ export interface GeneralInfo {
   nationality: string;
   birthDate: string;
   gender: string;
+  palette?: 'green' | 'blue' | 'red' | 'black' | 'brown';
 }
 
 export interface WorkExperience {

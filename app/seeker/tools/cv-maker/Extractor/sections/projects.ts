@@ -1,4 +1,5 @@
 import type { Project } from '../../types';
+import { textWithLineBreaks } from '../preserveLineBreaks';
 
 export const PROJECTS_INSTRUCTIONS = `
 "projects": [{
@@ -6,7 +7,7 @@ export const PROJECTS_INSTRUCTIONS = `
   "role": string,
   "startDate": string (YYYY-MM or YYYY-MM-DD),
   "endDate": string (YYYY-MM or YYYY-MM-DD),
-  "description": string,
+  "description": string (copy the original project text verbatim),
   "url": string
 }]`;
 
@@ -22,7 +23,7 @@ export function parseProjects(raw: unknown): Omit<Project, 'id'>[] {
         role: String(p.role ?? '').trim(),
         startDate: String(p.startDate ?? '').trim(),
         endDate: String(p.endDate ?? '').trim(),
-        description: String(p.description ?? '').trim(),
+        description: textWithLineBreaks(p.description),
         url: String(p.url ?? '').trim(),
       };
     })

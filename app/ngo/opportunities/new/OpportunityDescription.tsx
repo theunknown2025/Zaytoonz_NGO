@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { DocumentTextIcon, PencilSquareIcon, CloudArrowUpIcon, CalendarIcon, AcademicCapIcon, QuestionMarkCircleIcon, LinkIcon } from '@heroicons/react/24/outline';
+import { DocumentTextIcon, PencilSquareIcon, CloudArrowUpIcon, CalendarIcon, AcademicCapIcon, QuestionMarkCircleIcon, LinkIcon, GlobeAltIcon } from '@heroicons/react/24/outline';
 import { getTemplates } from '../../resources/tools/OffreMaker/supabaseService';
 import { Template as OffreTemplate, TemplateField } from '../../resources/tools/OffreMaker/NewTemplate';
 import dynamic from 'next/dynamic';
@@ -30,6 +30,7 @@ import { normalizeExternalUrl } from '../services/opportunityFormService';
 import { normalizeLocationToCountries } from '@/app/lib/locationNormalize';
 
 const COUNTRIES = [
+  'Global',
   'Afghanistan', 'Albania', 'Algeria', 'Andorra', 'Angola', 'Antigua and Barbuda', 'Argentina', 'Armenia',
   'Australia', 'Austria', 'Azerbaijan', 'Bahamas', 'Bahrain', 'Bangladesh', 'Barbados', 'Belarus', 'Belgium',
   'Belize', 'Benin', 'Bhutan', 'Bolivia', 'Bosnia and Herzegovina', 'Botswana', 'Brazil', 'Brunei', 'Bulgaria',
@@ -788,6 +789,10 @@ export default function OpportunityDescription({
     } else if (formData.description.trim().length < 50) {
       newErrors.description = 'Description should be at least 50 characters';
     }
+
+    if (criteria.sector === 'Other') {
+      newErrors.sectorOther = 'Please enter the sector';
+    }
     
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -1141,7 +1146,17 @@ export default function OpportunityDescription({
             </p>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {Object.entries(getCriteriaOptions(formData.opportunityType)).map(([field, options]) => (
+              {Object.entries(getCriteriaOptions(formData.opportunityType)).map(([field, options]) => {
+                const storedValue =
+                  typeof criteria[field as keyof CriteriaSelection] === 'string'
+                    ? (criteria[field as keyof CriteriaSelection] as string)
+                    : '';
+                const isOtherSector =
+                  field === 'sector' &&
+                  (storedValue === 'Other' || (storedValue !== '' && !options.includes(storedValue)));
+                const selectValue = isOtherSector ? 'Other' : storedValue;
+
+                return (
                 <div key={field}>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     {field === 'contractType' ? 'Contract Type' :
@@ -1159,8 +1174,16 @@ export default function OpportunityDescription({
                      field}
                   </label>
                   <select
-                    value={typeof criteria[field as keyof CriteriaSelection] === 'string' ? criteria[field as keyof CriteriaSelection] as string : ''}
-                    onChange={(e) => handleCriteriaChange(field, e.target.value)}
+                    value={selectValue}
+                    onChange={(e) => {
+                      if (field === 'sector' && e.target.value !== 'Other' && errors.sectorOther) {
+                        setErrors((prev) => {
+                          const { sectorOther: _removed, ...rest } = prev;
+                          return rest;
+                        });
+                      }
+                      handleCriteriaChange(field, e.target.value);
+                    }}
                     className="block w-full border border-gray-300 rounded-md shadow-sm focus:ring-2 focus:ring-[#556B2F] focus:border-[#556B2F] sm:text-sm py-2 pl-3 pr-10 hover:border-[#556B2F]/50 transition-colors"
                   >
                     <option value="">Select {field === 'contractType' ? 'contract type' :
@@ -1180,15 +1203,55 @@ export default function OpportunityDescription({
                       <option key={option} value={option}>{option}</option>
                     ))}
                   </select>
+                  {isOtherSector && (
+                    <div className="mt-3">
+                      <label htmlFor="sector-other" className="block text-sm font-medium text-gray-700 mb-2">
+                        Specify sector
+                      </label>
+                      <input
+                        id="sector-other"
+                        type="text"
+                        value={storedValue === 'Other' ? '' : storedValue}
+                        onChange={(e) => {
+                          const typed = e.target.value;
+                          handleCriteriaChange('sector', typed.trim() === '' ? 'Other' : typed);
+                          if (errors.sectorOther) {
+                            setErrors((prev) => {
+                              const { sectorOther: _removed, ...rest } = prev;
+                              return rest;
+                            });
+                          }
+                        }}
+                        onBlur={(e) => {
+                          const trimmed = e.target.value.trim();
+                          handleCriteriaChange('sector', trimmed === '' ? 'Other' : trimmed);
+                        }}
+                        placeholder="Enter the sector"
+                        className={`block w-full border rounded-md shadow-sm focus:ring-2 sm:text-sm py-2 pl-3 pr-3 transition-colors ${
+                          errors.sectorOther
+                            ? 'border-red-500 bg-red-50 focus:ring-red-500 focus:border-red-500'
+                            : 'border-gray-300 focus:ring-[#556B2F] focus:border-[#556B2F] hover:border-[#556B2F]/50'
+                        }`}
+                      />
+                      {errors.sectorOther ? (
+                        <p className="mt-1 text-sm text-red-600">{errors.sectorOther}</p>
+                      ) : (
+                        <p className="mt-1 text-xs text-gray-500">
+                          This name is saved as the sector for the opportunity.
+                        </p>
+                      )}
+                    </div>
+                  )}
                 </div>
-              ))}
+                );
+              })}
 
               <div className="relative md:col-span-2">
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Country (Geographical Location)
                 </label>
                 <p className="text-xs text-gray-500 mb-2">
-                  Select one or more countries. Selected locations appear below and can be removed.
+                  Select one or more countries, or Global if the opportunity is not limited to one country. Selected locations appear below and can be removed.
                 </p>
                 <div className="relative">
                   <input
@@ -1231,8 +1294,11 @@ export default function OpportunityDescription({
                           e.preventDefault();
                           handleAddCountry(country);
                         }}
-                        className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-[#556B2F]/10 hover:text-[#556B2F]"
+                        className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-[#556B2F]/10 hover:text-[#556B2F] flex items-center gap-2"
                       >
+                        {country === 'Global' && (
+                          <GlobeAltIcon className="h-4 w-4 shrink-0" aria-hidden="true" />
+                        )}
                         {country}
                       </button>
                     ))}
@@ -1252,10 +1318,14 @@ export default function OpportunityDescription({
                         key={country}
                         className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium bg-[#556B2F]/10 text-[#556B2F] border border-[#556B2F]/20"
                       >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                        </svg>
+                        {country === 'Global' ? (
+                          <GlobeAltIcon className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                        ) : (
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                          </svg>
+                        )}
                         {country}
                         <button
                           type="button"

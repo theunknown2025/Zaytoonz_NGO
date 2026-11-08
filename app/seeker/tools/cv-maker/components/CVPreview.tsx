@@ -1,6 +1,6 @@
 'use client';
 
-import React, { forwardRef } from 'react';
+import React, { createContext, forwardRef, useContext } from 'react';
 import {
   EnvelopeIcon,
   PhoneIcon,
@@ -15,12 +15,21 @@ import {
   getSectionIcon,
   getPlatformIcon,
   getPlatformLabel,
-  CV_THEME,
+  getCvTheme,
+  type CvPaletteId,
+  type CvTheme,
 } from '../sectionConfig';
 
 interface CVPreviewProps {
   cvData: CVData;
   addedSections: string[];
+  palette?: CvPaletteId;
+}
+
+const CvThemeContext = createContext<CvTheme>(getCvTheme('green'));
+
+function useCvTheme() {
+  return useContext(CvThemeContext);
 }
 
 const formatMonthYear = (date: string) =>
@@ -37,24 +46,61 @@ const proficiencyMap: Record<string, string> = {
 };
 
 function SectionHeader({ section }: { section: string }) {
+  const theme = useCvTheme();
   return (
     <div
       className="flex items-center gap-2.5 pb-2 mb-3"
-      style={{ borderBottom: `2px solid ${CV_THEME.accentBorder}` }}
+      style={{ borderBottom: `2px solid ${theme.accentBorder}` }}
     >
       <span
         className="flex items-center justify-center w-8 h-8 rounded-lg flex-shrink-0"
-        style={{ backgroundColor: CV_THEME.accentLight, color: CV_THEME.accentMedium }}
+        style={{ backgroundColor: theme.accentLight, color: theme.accentMedium }}
       >
         {getSectionIcon(section, 'w-[18px] h-[18px]')}
       </span>
       <h3
         className="text-[13px] font-bold uppercase tracking-wide"
-        style={{ color: CV_THEME.accent }}
+        style={{ color: theme.accent }}
       >
         {getSectionTitle(section)}
       </h3>
     </div>
+  );
+}
+
+function MultilineText({ text, className }: { text: string; className?: string }) {
+  const theme = useCvTheme();
+  return (
+    <p
+      className={`whitespace-pre-line leading-relaxed ${className ?? ''}`}
+      style={{ color: theme.text }}
+    >
+      {text}
+    </p>
+  );
+}
+
+function TwoColumnBullets({
+  items,
+}: {
+  items: { id: number; label: string }[];
+}) {
+  const theme = useCvTheme();
+  return (
+    <ul className="grid grid-cols-2 gap-x-6 gap-y-1 list-none m-0 p-0">
+      {items.map((item) => (
+        <li
+          key={item.id}
+          className="flex items-start gap-1.5 text-[10px] leading-snug"
+          style={{ color: theme.text }}
+        >
+          <span aria-hidden="true" className="leading-snug" style={{ color: theme.accentMedium }}>
+            •
+          </span>
+          <span>{item.label}</span>
+        </li>
+      ))}
+    </ul>
   );
 }
 
@@ -65,9 +111,10 @@ function ContactItem({
   icon: React.ReactNode;
   children: React.ReactNode;
 }) {
+  const theme = useCvTheme();
   return (
-    <div className="flex items-center gap-1.5 text-[10px]" style={{ color: CV_THEME.textMuted }}>
-      <span style={{ color: CV_THEME.accentMedium }} className="flex-shrink-0">
+    <div className="flex items-center gap-1.5 text-[10px]" style={{ color: theme.textMuted }}>
+      <span style={{ color: theme.accentMedium }} className="flex-shrink-0">
         {icon}
       </span>
       <span>{children}</span>
@@ -76,9 +123,10 @@ function ContactItem({
 }
 
 const CVPreview = forwardRef<HTMLDivElement, CVPreviewProps>(function CVPreview(
-  { cvData, addedSections },
+  { cvData, addedSections, palette },
   ref
 ) {
+  const theme = getCvTheme(palette);
   const { firstName, lastName, email, phone, address, nationality, birthDate, gender } =
     cvData.general;
   const hasName = firstName || lastName;
@@ -118,9 +166,7 @@ const CVPreview = forwardRef<HTMLDivElement, CVPreviewProps>(function CVPreview(
         return (
           <div key="summary" className="mb-5">
             <SectionHeader section="summary" />
-            <p className="text-[10px] leading-relaxed" style={{ color: CV_THEME.text }}>
-              {cvData.summary}
-            </p>
+            <MultilineText text={cvData.summary} className="text-[10px]" />
           </div>
         );
 
@@ -136,13 +182,13 @@ const CVPreview = forwardRef<HTMLDivElement, CVPreviewProps>(function CVPreview(
               return (
                 <div key={work.id} className="mb-3 last:mb-0">
                   <div className="flex justify-between gap-2 items-start">
-                    <div className="text-[11px] font-bold" style={{ color: CV_THEME.text }}>
+                    <div className="text-[11px] font-bold" style={{ color: theme.text }}>
                       {work.position}
                     </div>
                     {(formattedStart || formattedEnd) && (
                       <div
                         className="text-[9px] whitespace-nowrap flex-shrink-0"
-                        style={{ color: CV_THEME.textMuted }}
+                        style={{ color: theme.textMuted }}
                       >
                         {formattedStart} – {formattedEnd}
                       </div>
@@ -150,15 +196,13 @@ const CVPreview = forwardRef<HTMLDivElement, CVPreviewProps>(function CVPreview(
                   </div>
                   <div
                     className="text-[10px] italic"
-                    style={{ color: CV_THEME.accentMedium }}
+                    style={{ color: theme.accentMedium }}
                   >
                     {work.company}
                     {work.location ? `, ${work.location}` : ''}
                   </div>
                   {work.description && (
-                    <p className="text-[10px] mt-1 leading-relaxed" style={{ color: CV_THEME.text }}>
-                      {work.description}
-                    </p>
+                    <MultilineText text={work.description} className="text-[10px] mt-1" />
                   )}
                 </div>
               );
@@ -179,13 +223,13 @@ const CVPreview = forwardRef<HTMLDivElement, CVPreviewProps>(function CVPreview(
               return (
                 <div key={education.id} className="mb-3 last:mb-0">
                   <div className="flex justify-between gap-2 items-start">
-                    <div className="text-[11px] font-bold" style={{ color: CV_THEME.text }}>
+                    <div className="text-[11px] font-bold" style={{ color: theme.text }}>
                       {education.degree}
                     </div>
                     {(formattedStart || formattedEnd) && (
                       <div
                         className="text-[9px] whitespace-nowrap flex-shrink-0"
-                        style={{ color: CV_THEME.textMuted }}
+                        style={{ color: theme.textMuted }}
                       >
                         {formattedStart} – {formattedEnd}
                       </div>
@@ -193,15 +237,13 @@ const CVPreview = forwardRef<HTMLDivElement, CVPreviewProps>(function CVPreview(
                   </div>
                   <div
                     className="text-[10px] italic"
-                    style={{ color: CV_THEME.accentMedium }}
+                    style={{ color: theme.accentMedium }}
                   >
                     {education.institution}
                     {education.location ? `, ${education.location}` : ''}
                   </div>
                   {education.description && (
-                    <p className="text-[10px] mt-1 leading-relaxed" style={{ color: CV_THEME.text }}>
-                      {education.description}
-                    </p>
+                    <MultilineText text={education.description} className="text-[10px] mt-1" />
                   )}
                 </div>
               );
@@ -216,17 +258,14 @@ const CVPreview = forwardRef<HTMLDivElement, CVPreviewProps>(function CVPreview(
         return (
           <div key="skills" className="mb-5">
             <SectionHeader section="skills" />
-            <div className="flex flex-wrap gap-1.5">
-              {items.map((skill) => (
-                <span
-                  key={skill.id}
-                  className="text-[9px] px-2 py-1 rounded-md font-medium"
-                  style={{ backgroundColor: CV_THEME.skillBg, color: CV_THEME.skillText }}
-                >
-                  {skill.name} ({skill.level.charAt(0).toUpperCase() + skill.level.slice(1)})
-                </span>
-              ))}
-            </div>
+            <TwoColumnBullets
+              items={items.map((skill) => ({
+                id: skill.id,
+                label: skill.level
+                  ? `${skill.name} (${skill.level.charAt(0).toUpperCase() + skill.level.slice(1)})`
+                  : skill.name,
+              }))}
+            />
           </div>
         );
       }
@@ -237,18 +276,14 @@ const CVPreview = forwardRef<HTMLDivElement, CVPreviewProps>(function CVPreview(
         return (
           <div key="languages" className="mb-5">
             <SectionHeader section="languages" />
-            <div className="flex flex-wrap gap-1.5">
-              {items.map((language) => (
-                <span
-                  key={language.id}
-                  className="text-[9px] px-2 py-1 rounded-md font-medium"
-                  style={{ backgroundColor: CV_THEME.skillBg, color: CV_THEME.skillText }}
-                >
-                  {language.language} (
-                  {proficiencyMap[language.proficiency] || language.proficiency})
-                </span>
-              ))}
-            </div>
+            <TwoColumnBullets
+              items={items.map((language) => ({
+                id: language.id,
+                label: language.proficiency
+                  ? `${language.language} (${proficiencyMap[language.proficiency] || language.proficiency})`
+                  : language.language,
+              }))}
+            />
           </div>
         );
       }
@@ -263,17 +298,15 @@ const CVPreview = forwardRef<HTMLDivElement, CVPreviewProps>(function CVPreview(
               const formattedDate = formatMonthYear(certificate.date);
               return (
                 <div key={certificate.id} className="mb-3 last:mb-0">
-                  <div className="text-[11px] font-bold" style={{ color: CV_THEME.text }}>
+                  <div className="text-[11px] font-bold" style={{ color: theme.text }}>
                     {certificate.name}
                   </div>
-                  <div className="text-[10px] italic" style={{ color: CV_THEME.accentMedium }}>
+                  <div className="text-[10px] italic" style={{ color: theme.accentMedium }}>
                     {certificate.issuer}
                     {formattedDate ? ` (${formattedDate})` : ''}
                   </div>
                   {certificate.description && (
-                    <p className="text-[10px] mt-1 leading-relaxed" style={{ color: CV_THEME.text }}>
-                      {certificate.description}
-                    </p>
+                    <MultilineText text={certificate.description} className="text-[10px] mt-1" />
                   )}
                 </div>
               );
@@ -296,27 +329,25 @@ const CVPreview = forwardRef<HTMLDivElement, CVPreviewProps>(function CVPreview(
               return (
                 <div key={project.id} className="mb-3 last:mb-0">
                   <div className="flex justify-between gap-2 items-start">
-                    <div className="text-[11px] font-bold" style={{ color: CV_THEME.text }}>
+                    <div className="text-[11px] font-bold" style={{ color: theme.text }}>
                       {project.title}
                     </div>
                     {dateRange && (
                       <div
                         className="text-[9px] whitespace-nowrap flex-shrink-0"
-                        style={{ color: CV_THEME.textMuted }}
+                        style={{ color: theme.textMuted }}
                       >
                         {dateRange}
                       </div>
                     )}
                   </div>
                   {project.role && (
-                    <div className="text-[10px] italic" style={{ color: CV_THEME.accentMedium }}>
+                    <div className="text-[10px] italic" style={{ color: theme.accentMedium }}>
                       {project.role}
                     </div>
                   )}
                   {project.description && (
-                    <p className="text-[10px] mt-1 leading-relaxed" style={{ color: CV_THEME.text }}>
-                      {project.description}
-                    </p>
+                    <MultilineText text={project.description} className="text-[10px] mt-1" />
                   )}
                   {project.url && (
                     <a
@@ -324,7 +355,7 @@ const CVPreview = forwardRef<HTMLDivElement, CVPreviewProps>(function CVPreview(
                       target="_blank"
                       rel="noopener noreferrer"
                       className="text-[9px] mt-0.5 inline-block hover:underline"
-                      style={{ color: CV_THEME.accentMedium }}
+                      style={{ color: theme.accentMedium }}
                     >
                       {project.url}
                     </a>
@@ -341,9 +372,7 @@ const CVPreview = forwardRef<HTMLDivElement, CVPreviewProps>(function CVPreview(
         return (
           <div key="additional" className="mb-5">
             <SectionHeader section="additional" />
-            <p className="text-[10px] leading-relaxed whitespace-pre-wrap" style={{ color: CV_THEME.text }}>
-              {cvData.additional}
-            </p>
+            <MultilineText text={cvData.additional} className="text-[10px]" />
           </div>
         );
 
@@ -359,7 +388,7 @@ const CVPreview = forwardRef<HTMLDivElement, CVPreviewProps>(function CVPreview(
                   {getPlatformIcon(link.platform)}
                 </span>
                 <div>
-                  <div className="text-[11px] font-bold" style={{ color: CV_THEME.text }}>
+                  <div className="text-[11px] font-bold" style={{ color: theme.text }}>
                     {link.displayName || getPlatformLabel(link.platform)}
                   </div>
                   <a
@@ -367,7 +396,7 @@ const CVPreview = forwardRef<HTMLDivElement, CVPreviewProps>(function CVPreview(
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-[9px] hover:underline break-all"
-                    style={{ color: CV_THEME.accentMedium }}
+                    style={{ color: theme.accentMedium }}
                   >
                     {link.url}
                   </a>
@@ -390,6 +419,7 @@ const CVPreview = forwardRef<HTMLDivElement, CVPreviewProps>(function CVPreview(
   const showEmptyState = !hasName && !hasContact && !hasPersonalDetails && sectionElements.length === 0;
 
   return (
+    <CvThemeContext.Provider value={theme}>
     <div
       ref={ref}
       className="bg-white font-sans"
@@ -397,19 +427,19 @@ const CVPreview = forwardRef<HTMLDivElement, CVPreviewProps>(function CVPreview(
         width: '210mm',
         minHeight: '297mm',
         padding: '15mm',
-        color: CV_THEME.text,
+        color: theme.text,
         fontSize: '10pt',
       }}
     >
       {(hasName || hasContact) && (
         <div
           className="pb-4 mb-5"
-          style={{ borderBottom: `3px solid ${CV_THEME.accent}` }}
+          style={{ borderBottom: `3px solid ${theme.accent}` }}
         >
           {hasName && (
             <h1
               className="text-[22px] font-bold mb-3"
-              style={{ color: CV_THEME.accent }}
+              style={{ color: theme.accent }}
             >
               {firstName} {lastName}
             </h1>
@@ -441,12 +471,13 @@ const CVPreview = forwardRef<HTMLDivElement, CVPreviewProps>(function CVPreview(
       {showEmptyState && (
         <div
           className="text-center py-12 text-[11px] italic"
-          style={{ color: CV_THEME.textMuted }}
+          style={{ color: theme.textMuted }}
         >
           Start filling in your CV sections to see a live preview here.
         </div>
       )}
     </div>
+    </CvThemeContext.Provider>
   );
 });
 

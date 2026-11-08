@@ -1,11 +1,12 @@
 import type { Certificate } from '../../types';
+import { textWithLineBreaks } from '../preserveLineBreaks';
 
 export const CERTIFICATES_INSTRUCTIONS = `
 "certificates": [{
   "name": string,
   "issuer": string,
   "date": string (YYYY-MM or YYYY-MM-DD),
-  "description": string
+  "description": string (copy any original notes verbatim)
 }]`;
 
 export function parseCertificates(raw: unknown): Omit<Certificate, 'id'>[] {
@@ -19,7 +20,7 @@ export function parseCertificates(raw: unknown): Omit<Certificate, 'id'>[] {
         name: String(c.name ?? '').trim(),
         issuer: String(c.issuer ?? '').trim(),
         date: String(c.date ?? '').trim(),
-        description: String(c.description ?? '').trim(),
+        description: textWithLineBreaks(c.description),
       };
     })
     .filter((c) => c.name || c.issuer);

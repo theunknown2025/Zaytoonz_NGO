@@ -2,9 +2,9 @@
 
 import { createRoot } from 'react-dom/client';
 import html2canvas from 'html2canvas';
-import jsPDF from 'jspdf';
 import JSZip from 'jszip';
 import CVPreview from '@/app/seeker/tools/cv-maker/components/CVPreview';
+import { canvasToPdf, rasterizeSvgIcons } from '@/app/seeker/tools/cv-maker/exportCvPdf';
 import { mapStoredCv } from '../components/CvPreviewModal';
 
 export interface CvExportItem {
@@ -34,37 +34,33 @@ async function renderCvToPdf(cvId: string): Promise<Blob> {
   const response = await fetch(`/api/cvs/${cvId}`);
   const data = await response.json();
   if (!response.ok) throw new Error(data.error || 'Failed to load CV');
-  const { cvData, addedSections } = mapStoredCv(data);
+  const { cvData, addedSections, palette } = mapStoredCv(data);
 
   const container = document.createElement('div');
-  container.style.cssText = `position:fixed;left:-10000px;top:0;width:${A4_WIDTH_PX}px;background:#fff;`;
+  container.style.cssText = `position:absolute;left:0;top:${typeof window !== 'undefined' ? window.scrollY : 0}px;width:${A4_WIDTH_PX}px;background:#fff;z-index:-1;pointer-events:none;`;
   document.body.appendChild(container);
   const root = createRoot(container);
 
   try {
-    root.render(<CVPreview cvData={cvData} addedSections={addedSections} />);
+    root.render(<CVPreview cvData={cvData} addedSections={addedSections} palette={palette} />);
     await waitForPaint();
 
-    const canvas = await html2canvas(container, { scale: 2, useCORS: true, backgroundColor: '#ffffff', logging: false });
-    const imgData = canvas.toDataURL('image/jpeg', 0.92);
+    const preview = (container.firstElementChild as HTMLElement | null) ?? container;
+    await rasterizeSvgIcons(preview);
+    const canvas = await html2canvas(preview, {
+      scale: 2,
+      useCORS: true,
+      backgroundColor: '#ffffff',
+      logging: false,
+      width: preview.scrollWidth,
+      height: preview.scrollHeight + 16,
+      windowWidth: preview.scrollWidth,
+      windowHeight: preview.scrollHeight + 16,
+      scrollX: 0,
+      scrollY: -window.scrollY,
+    });
 
-    const pdf = new jsPDF('p', 'mm', 'a4');
-    const pageWidth = 210;
-    const pageHeight = 297;
-    const imgHeight = (canvas.height * pageWidth) / canvas.width;
-    let heightLeft = imgHeight;
-    let position = 0;
-
-    pdf.addImage(imgData, 'JPEG', 0, position, pageWidth, imgHeight);
-    heightLeft -= pageHeight;
-    while (heightLeft > 0) {
-      position = heightLeft - imgHeight;
-      pdf.addPage();
-      pdf.addImage(imgData, 'JPEG', 0, position, pageWidth, imgHeight);
-      heightLeft -= pageHeight;
-    }
-
-    return pdf.output('blob');
+    return canvasToPdf(canvas).output('blob');
   } finally {
     root.unmount();
     container.remove();

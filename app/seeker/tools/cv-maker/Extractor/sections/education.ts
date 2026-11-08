@@ -1,4 +1,5 @@
 import type { Education } from '../../types';
+import { textWithLineBreaks } from '../preserveLineBreaks';
 
 export const EDUCATION_INSTRUCTIONS = `
 "education": [{
@@ -7,7 +8,7 @@ export const EDUCATION_INSTRUCTIONS = `
   "location": string,
   "startDate": string (YYYY-MM or YYYY-MM-DD),
   "endDate": string (YYYY-MM or YYYY-MM-DD),
-  "description": string
+  "description": string (copy any original notes verbatim)
 }]`;
 
 export function parseEducation(raw: unknown): Omit<Education, 'id'>[] {
@@ -23,7 +24,7 @@ export function parseEducation(raw: unknown): Omit<Education, 'id'>[] {
         location: String(e.location ?? '').trim(),
         startDate: String(e.startDate ?? '').trim(),
         endDate: String(e.endDate ?? '').trim(),
-        description: String(e.description ?? '').trim(),
+        description: textWithLineBreaks(e.description),
       };
     })
     .filter((e) => e.degree || e.institution || e.description);

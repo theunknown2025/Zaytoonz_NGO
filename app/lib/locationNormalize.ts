@@ -160,10 +160,10 @@ const COUNTRY_ALIASES: Record<string, string> = {
   fiji: 'Fiji',
   'papua new guinea': 'Papua New Guinea',
 
-  // Remote / virtual (optional bucket — excluded from country filters by default)
+  // Remote / virtual, plus an explicit worldwide option
   remote: 'Remote',
   worldwide: 'Remote',
-  global: 'Remote',
+  global: 'Global',
   international: 'Remote',
 };
 

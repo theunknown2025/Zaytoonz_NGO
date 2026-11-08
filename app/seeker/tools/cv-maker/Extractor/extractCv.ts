@@ -72,13 +72,13 @@ export async function extractCvFromText(cvText: string): Promise<ExtractionResul
 
   const completion = await openai.chat.completions.create({
     model,
-    temperature: 0.2,
+    temperature: 0,
     response_format: { type: 'json_object' },
     messages: [
       {
         role: 'system',
         content:
-          'You extract structured CV data from resume text. Return only valid JSON with no markdown.',
+          'You structure an existing CV into JSON. Copy the source wording exactly. Do not rewrite, improve, translate, or add anything. Return only valid JSON with no markdown.',
       },
       { role: 'user', content: prompt },
     ],
