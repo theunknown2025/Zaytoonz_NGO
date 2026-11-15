@@ -1,5 +1,6 @@
 "use client";
 
+import type { ComponentType } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { User } from "@/app/types";
@@ -24,6 +25,13 @@ interface SidebarProps {
   user: User;
 }
 
+interface MenuItem {
+  name: string;
+  href: string;
+  icon: ComponentType<{ className?: string }>;
+  children?: { name: string; href: string }[];
+}
+
 export const Sidebar: React.FC<SidebarProps> = ({ user }) => {
   const pathname = usePathname();
   const router = useRouter();
@@ -44,7 +52,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ user }) => {
     }
   };
   
-  const menuItems = [
+  const menuItems: MenuItem[] = [
     { 
       name: "Profile", 
       href: "/seeker/profile", 
@@ -62,7 +70,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ user }) => {
     },
     { 
       name: "Navigate Opportunities", 
-      href: "/seeker/opportunities/navigate", 
+      href: "/seeker/opportunities", 
       icon: MapIcon 
     },
     { 
@@ -71,9 +79,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ user }) => {
       icon: ClipboardDocumentListIcon 
     },
     { 
-      name: "My Job Alerts", 
+      name: "Opportunities Alerts", 
       href: "/seeker/opportunities/alerts", 
-      icon: BellIcon 
+      icon: BellIcon,
+      children: [
+        { name: "Manage Alerts", href: "/seeker/opportunities/alerts" },
+        { name: "Results", href: "/seeker/opportunities/alerts/results" },
+      ],
     },
     { 
       name: "Morchid AI", 
@@ -109,7 +121,11 @@ export const Sidebar: React.FC<SidebarProps> = ({ user }) => {
       <nav className="flex-1 overflow-y-auto py-6 px-3">
         <ul className="space-y-2">
           {menuItems.map((item) => {
-            const isActive = pathname === item.href;
+            const currentPath = pathname?.replace(/\/$/, '') || '';
+            const itemPath = item.href.replace(/\/$/, '');
+            const isActive = item.children
+              ? currentPath === itemPath || currentPath.startsWith(`${itemPath}/`)
+              : currentPath === itemPath;
             const Icon = item.icon;
             
             return (
@@ -125,6 +141,30 @@ export const Sidebar: React.FC<SidebarProps> = ({ user }) => {
                   <Icon className={`mr-3 h-5 w-5 flex-shrink-0 ${isActive ? 'text-white' : 'text-[#556B2F]'}`} />
                   {item.name}
                 </Link>
+                {item.children && (
+                  <ul className="mt-1 ml-7 space-y-1 border-l border-[#556B2F]/20 pl-2">
+                    {item.children.map((child) => {
+                      const childPath = child.href.replace(/\/$/, '');
+                      const childActive = childPath === itemPath
+                        ? currentPath === itemPath
+                        : currentPath === childPath || currentPath.startsWith(`${childPath}/`);
+                      return (
+                        <li key={child.href}>
+                          <Link
+                            href={child.href}
+                            className={`block rounded-lg px-3 py-2 text-sm transition-colors ${
+                              childActive
+                                ? 'bg-[#556B2F]/15 text-[#556B2F] font-medium'
+                                : 'text-gray-600 hover:bg-[#556B2F]/10 hover:text-[#556B2F]'
+                            }`}
+                          >
+                            {child.name}
+                          </Link>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
               </li>
             );
           })}

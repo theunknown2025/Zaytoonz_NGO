@@ -1,366 +1,410 @@
 'use client';
 
-import React, { useState } from 'react';
-import { BellIcon, PlusIcon, TrashIcon, PencilIcon, BriefcaseIcon, BanknotesIcon, AcademicCapIcon } from '@heroicons/react/24/outline';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
+import { usePathname, useRouter } from 'next/navigation';
+import toast from 'react-hot-toast';
+import {
+  AcademicCapIcon,
+  BanknotesIcon,
+  BellIcon,
+  BriefcaseIcon,
+  BuildingOffice2Icon,
+  CalendarIcon,
+  ChevronDownIcon,
+  PencilIcon,
+  TrashIcon,
+} from '@heroicons/react/24/outline';
+import { AuthService } from '@/app/lib/auth';
+import { getOpportunities, type Opportunity } from '@/app/lib/opportunities';
+import {
+  ALERT_TYPE_LABELS,
+  deleteSeekerAlert,
+  describeAlertFilters,
+  formatAlertDeadline,
+  loadSeekerAlerts,
+  matchingOpportunities,
+  saveSeekerAlert,
+  shortOpportunityDescription,
+  type AlertDraft,
+  type OpportunityAlertType,
+  type SeekerOpportunityAlert,
+} from '@/app/lib/opportunityAlerts';
+import AlertEditor from './AlertEditor';
 
-// Sample alert data
-const SAMPLE_ALERTS = [
-  {
-    id: 1,
-    title: 'Frontend Developer',
-    category: 'job',
-    location: 'Remote',
-    frequency: 'Daily',
-    created: '2 weeks ago',
-    keywords: ['React', 'TypeScript', 'JavaScript'],
-    isActive: true
-  },
-  {
-    id: 2,
-    title: 'Tech Startup Grants',
-    category: 'funding',
-    location: 'Global',
-    frequency: 'Weekly',
-    created: '1 month ago',
-    keywords: ['Startup', 'Innovation', 'Technology'],
-    isActive: true
-  },
-  {
-    id: 3,
-    title: 'Web Development Bootcamps',
-    category: 'training',
-    location: 'Online',
-    frequency: 'Weekly',
-    created: '3 weeks ago',
-    keywords: ['Full Stack', 'Bootcamp', 'Web Development'],
-    isActive: false
-  },
-  {
-    id: 4,
-    title: 'UX Designer',
-    category: 'job',
-    location: 'New York, NY',
-    frequency: 'Daily',
-    created: '5 days ago',
-    keywords: ['Figma', 'UI Design', 'Prototyping'],
-    isActive: true
-  }
-];
+type Section = 'manage' | 'results';
+type ManageTab = 'new' | 'list';
 
-export default function AlertsPage() {
-  const [alerts, setAlerts] = useState(SAMPLE_ALERTS);
-  const [showNewAlertForm, setShowNewAlertForm] = useState(false);
-  const [selectedCategory, setSelectedCategory] = useState('all');
-  const [newAlert, setNewAlert] = useState({
-    title: '',
-    category: 'job',
-    location: '',
-    frequency: 'Daily',
-    keywords: ''
-  });
+const TYPE_STYLES: Record<OpportunityAlertType, string> = {
+  job: 'bg-blue-100 text-blue-800',
+  funding: 'bg-green-100 text-green-800',
+  training: 'bg-purple-100 text-purple-800',
+};
 
-  const filteredAlerts = selectedCategory === 'all' 
-    ? alerts 
-    : alerts.filter(alert => alert.category === selectedCategory);
+function TypeIcon({ type, className }: { type: OpportunityAlertType; className?: string }) {
+  if (type === 'funding') return <BanknotesIcon className={className} />;
+  if (type === 'training') return <AcademicCapIcon className={className} />;
+  return <BriefcaseIcon className={className} />;
+}
 
-  const handleDeleteAlert = (id: number) => {
-    setAlerts(alerts.filter(alert => alert.id !== id));
-  };
+export default function OpportunitiesAlertsPage() {
+  const router = useRouter();
+  const pathname = usePathname();
+  const section: Section = pathname?.includes('/alerts/results') ? 'results' : 'manage';
+  const [userId, setUserId] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [storedLocally, setStoredLocally] = useState(false);
+  const [alerts, setAlerts] = useState<SeekerOpportunityAlert[]>([]);
+  const [manageTab, setManageTab] = useState<ManageTab>('new');
+  const [editing, setEditing] = useState<SeekerOpportunityAlert | null>(null);
+  const [formKey, setFormKey] = useState(0);
+  const [saving, setSaving] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
-  const handleToggleAlert = (id: number) => {
-    setAlerts(alerts.map(alert => 
-      alert.id === id ? { ...alert, isActive: !alert.isActive } : alert
-    ));
-  };
+  const [opportunities, setOpportunities] = useState<Opportunity[]>([]);
+  const [resultsLoading, setResultsLoading] = useState(false);
+  const [resultsError, setResultsError] = useState<string | null>(null);
+  const [now, setNow] = useState(() => Date.now());
+  const [openAlertIds, setOpenAlertIds] = useState<string[]>([]);
 
-  const handleSubmitAlert = (e: React.FormEvent) => {
-    e.preventDefault();
-    const keywordsArray = newAlert.keywords
-      .split(',')
-      .map(k => k.trim())
-      .filter(k => k !== '');
-      
-    const alert = {
-      id: Date.now(),
-      title: newAlert.title,
-      category: newAlert.category as 'job' | 'funding' | 'training',
-      location: newAlert.location,
-      frequency: newAlert.frequency,
-      created: 'Just now',
-      keywords: keywordsArray,
-      isActive: true
+  useEffect(() => {
+    const load = async () => {
+      const { user } = await AuthService.getUser();
+      if (!user) {
+        router.push('/auth/signin');
+        return;
+      }
+      setUserId(user.id);
+      try {
+        const result = await loadSeekerAlerts(user.id);
+        setAlerts(result.alerts);
+        setStoredLocally(result.storedLocally);
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : 'Could not load alerts');
+      } finally {
+        setLoading(false);
+      }
     };
-    
-    setAlerts([alert, ...alerts]);
-    setNewAlert({ title: '', category: 'job', location: '', frequency: 'Daily', keywords: '' });
-    setShowNewAlertForm(false);
+    load();
+  }, [router]);
+
+  const loadResults = useCallback(async () => {
+    setResultsLoading(true);
+    setResultsError(null);
+    const { opportunities: data, error } = await getOpportunities();
+    if (error) setResultsError(error);
+    else setOpportunities(data || []);
+    setNow(Date.now());
+    setResultsLoading(false);
+  }, []);
+
+  useEffect(() => {
+    if (section !== 'results') return;
+    loadResults();
+    const timer = window.setInterval(() => setNow(Date.now()), 15000);
+    return () => window.clearInterval(timer);
+  }, [section, loadResults]);
+
+  const results = useMemo(
+    () => alerts.map((alert) => ({ alert, opportunities: matchingOpportunities(alert, opportunities, now) })),
+    [alerts, opportunities, now]
+  );
+
+  const startNew = () => {
+    setEditing(null);
+    setFormKey((key) => key + 1);
+    setManageTab('new');
+    if (section !== 'manage') router.push('/seeker/opportunities/alerts');
   };
 
-  const getCategoryIcon = (category: string) => {
-    switch (category) {
-      case 'job': return <BriefcaseIcon className="w-5 h-5" />;
-      case 'funding': return <BanknotesIcon className="w-5 h-5" />;
-      case 'training': return <AcademicCapIcon className="w-5 h-5" />;
-      default: return <BellIcon className="w-5 h-5" />;
+  const startEdit = (alert: SeekerOpportunityAlert) => {
+    setEditing(alert);
+    setFormKey((key) => key + 1);
+    setManageTab('new');
+    if (section !== 'manage') router.push('/seeker/opportunities/alerts');
+  };
+
+  const handleSave = async (draft: AlertDraft) => {
+    if (!userId) return;
+    setSaving(true);
+    try {
+      const saved = await saveSeekerAlert(userId, draft, editing?.id);
+      setAlerts((current) => {
+        const without = current.filter((alert) => alert.id !== saved.id);
+        return [saved, ...without].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+      });
+      toast.success(editing ? 'Alert updated' : 'Alert saved');
+      setEditing(null);
+      setFormKey((key) => key + 1);
+      setManageTab('list');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Could not save the alert');
+    } finally {
+      setSaving(false);
     }
   };
 
-  const getCategoryColor = (category: string) => {
-    switch (category) {
-      case 'job': return 'bg-blue-100 text-blue-800';
-      case 'funding': return 'bg-green-100 text-green-800';
-      case 'training': return 'bg-purple-100 text-purple-800';
-      default: return 'bg-gray-100 text-gray-800';
+  const handleDelete = async (alertId: string) => {
+    if (!userId) return;
+    setDeletingId(alertId);
+    try {
+      await deleteSeekerAlert(userId, alertId);
+      setAlerts((current) => current.filter((alert) => alert.id !== alertId));
+      if (editing?.id === alertId) {
+        setEditing(null);
+        setFormKey((key) => key + 1);
+      }
+      setConfirmDeleteId(null);
+      toast.success('Alert deleted');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Could not delete the alert');
+    } finally {
+      setDeletingId(null);
     }
   };
+
+  const toggleAlert = (alertId: string) => {
+    setOpenAlertIds((current) =>
+      current.includes(alertId) ? current.filter((id) => id !== alertId) : [...current, alertId]
+    );
+  };
+
+  if (loading) {
+    return (
+      <div className="flex h-full items-center justify-center">
+        <div className="h-10 w-10 animate-spin rounded-full border-b-2 border-olive" />
+      </div>
+    );
+  }
 
   return (
     <>
       <header className="flex items-center p-4 bg-white shadow-sm">
-        <h1 className="text-xl font-semibold text-gray-800">Opportunity Alerts</h1>
-        <div className="ml-auto flex gap-3">
-          <button className="p-2 rounded-full hover:bg-gray-100 transition-colors">
-            <BellIcon className="w-6 h-6 text-gray-600" />
-          </button>
-        </div>
+        <h1 className="text-xl font-semibold text-gray-800">
+          {section === 'results' ? 'Results' : 'Manage Alerts'}
+        </h1>
       </header>
-      
+
       <div className="p-6">
-        <div className="bg-white rounded-xl shadow-sm p-6 mb-8">
-          <div className="flex justify-between items-center mb-6">
-            <div>
-              <h2 className="text-2xl font-semibold text-gray-800 mb-2">Your Opportunity Alerts</h2>
-              <p className="text-gray-600">
-                Create alerts for jobs, funding, and training opportunities. Get notified when matching opportunities are posted.
-              </p>
-            </div>
-            <button 
-              onClick={() => setShowNewAlertForm(true)}
-              className="px-4 py-2 bg-olive-dark text-white rounded-md flex items-center gap-2 hover:bg-olive-medium transition-colors"
-            >
-              <PlusIcon className="w-5 h-5" />
-              New Alert
-            </button>
+        <p className="text-gray-600 mb-6">
+          {section === 'results'
+            ? 'Open an alert to see the opportunities that still match it. A listing stays here until its deadline has passed.'
+            : 'Save the jobs, funding, and training you want to follow. Choose New Alert or List of Alerts below.'}
+        </p>
+
+        {storedLocally && (
+          <div className="mb-6 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+            Alerts are saved in this browser. Run <span className="font-medium">database/migrations/create_seeker_opportunity_alerts.sql</span> in Supabase to keep them on your account.
           </div>
-          
-          {/* Category Filter */}
-          <div className="mb-6">
-            <select
-              value={selectedCategory}
-              onChange={(e) => setSelectedCategory(e.target.value)}
-              className="px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-olive-light"
-            >
-              <option value="all">All Categories</option>
-              <option value="job">Jobs</option>
-              <option value="funding">Funding</option>
-              <option value="training">Training</option>
-            </select>
-          </div>
-          
-          {/* Alert Statistics */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-            <div className="bg-blue-50 p-4 rounded-lg border border-blue-100">
-              <h3 className="font-medium text-blue-800 mb-1">Total Alerts</h3>
-              <p className="text-2xl font-bold text-blue-900">{filteredAlerts.length}</p>
-            </div>
-            <div className="bg-green-50 p-4 rounded-lg border border-green-100">
-              <h3 className="font-medium text-green-800 mb-1">Active</h3>
-              <p className="text-2xl font-bold text-green-900">
-                {filteredAlerts.filter(alert => alert.isActive).length}
-              </p>
-            </div>
-            <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-100">
-              <h3 className="font-medium text-yellow-800 mb-1">Jobs</h3>
-              <p className="text-2xl font-bold text-yellow-900">
-                {alerts.filter(alert => alert.category === 'job').length}
-              </p>
-            </div>
-            <div className="bg-purple-50 p-4 rounded-lg border border-purple-100">
-              <h3 className="font-medium text-purple-800 mb-1">Funding + Training</h3>
-              <p className="text-2xl font-bold text-purple-900">
-                {alerts.filter(alert => ['funding', 'training'].includes(alert.category)).length}
-              </p>
-            </div>
-          </div>
-          
-          {/* New Alert Form */}
-          {showNewAlertForm && (
-            <div className="bg-gray-50 p-6 rounded-lg mb-8 border border-gray-200">
-              <h3 className="text-lg font-medium text-gray-800 mb-4">Create New Alert</h3>
-              <form onSubmit={handleSubmitAlert}>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Title*
-                    </label>
-                    <input
-                      type="text"
-                      value={newAlert.title}
-                      onChange={(e) => setNewAlert({...newAlert, title: e.target.value})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-olive-light"
-                      placeholder="e.g. Frontend Developer, Tech Grants"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Category*
-                    </label>
-                    <select
-                      value={newAlert.category}
-                      onChange={(e) => setNewAlert({...newAlert, category: e.target.value})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-olive-light"
-                      required
-                    >
-                      <option value="job">Jobs</option>
-                      <option value="funding">Funding</option>
-                      <option value="training">Training</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Location
-                    </label>
-                    <input
-                      type="text"
-                      value={newAlert.location}
-                      onChange={(e) => setNewAlert({...newAlert, location: e.target.value})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-olive-light"
-                      placeholder="e.g. Remote, Global, New York"
-                    />
-                  </div>
-                </div>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Keywords (comma-separated)
-                    </label>
-                    <input
-                      type="text"
-                      value={newAlert.keywords}
-                      onChange={(e) => setNewAlert({...newAlert, keywords: e.target.value})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-olive-light"
-                      placeholder="e.g. React, Startup, Bootcamp"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Frequency
-                    </label>
-                    <select
-                      value={newAlert.frequency}
-                      onChange={(e) => setNewAlert({...newAlert, frequency: e.target.value})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-olive-light"
-                    >
-                      <option value="Daily">Daily</option>
-                      <option value="Weekly">Weekly</option>
-                      <option value="Instant">Instant</option>
-                    </select>
-                  </div>
-                </div>
-                
-                <div className="flex justify-end gap-3 mt-6">
-                  <button
-                    type="button"
-                    onClick={() => setShowNewAlertForm(false)}
-                    className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 transition-colors"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    className="px-4 py-2 bg-olive-dark text-white rounded-md hover:bg-olive-medium transition-colors"
-                  >
-                    Create Alert
-                  </button>
-                </div>
-              </form>
-            </div>
-          )}
-          
-          {/* Alerts List */}
-          {filteredAlerts.length > 0 ? (
-            <div className="space-y-4">
-              {filteredAlerts.map(alert => (
-                <div key={alert.id} className={`border rounded-lg p-5 transition-all ${
-                  alert.isActive 
-                    ? 'bg-white border-gray-200 hover:shadow-sm' 
-                    : 'bg-gray-50 border-gray-200 opacity-75'
-                }`}>
-                  <div className="flex justify-between items-start">
-                    <div className="flex items-center gap-3">
-                      <div className={`p-2 rounded-lg ${getCategoryColor(alert.category)}`}>
-                        {getCategoryIcon(alert.category)}
-                      </div>
-                      <div>
-                        <h3 className="text-lg font-medium text-gray-800">{alert.title}</h3>
-                        <p className="text-gray-600 text-sm">
-                          {alert.location} • {alert.frequency} alerts • Created {alert.created}
-                        </p>
-                        <span className={`inline-block mt-1 px-2 py-1 text-xs rounded-full capitalize ${getCategoryColor(alert.category)}`}>
-                          {alert.category}
-                        </span>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <label className="flex items-center cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={alert.isActive}
-                          onChange={() => handleToggleAlert(alert.id)}
-                          className="sr-only"
-                        />
-                        <div className={`relative w-10 h-6 rounded-full transition-colors ${
-                          alert.isActive ? 'bg-olive-dark' : 'bg-gray-300'
-                        }`}>
-                          <div className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform ${
-                            alert.isActive ? 'translate-x-4' : 'translate-x-0'
-                          }`} />
-                        </div>
-                      </label>
-                      <button className="p-2 text-gray-500 hover:text-olive-medium rounded-full transition-colors">
-                        <PencilIcon className="w-5 h-5" />
-                      </button>
-                      <button 
-                        className="p-2 text-gray-500 hover:text-red-500 rounded-full transition-colors"
-                        onClick={() => handleDeleteAlert(alert.id)}
-                      >
-                        <TrashIcon className="w-5 h-5" />
-                      </button>
-                    </div>
-                  </div>
-                  
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    {alert.keywords.map(keyword => (
-                      <span key={keyword} className="px-3 py-1 bg-gray-100 text-gray-800 text-sm rounded-full">
-                        {keyword}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="text-center py-12">
-              <BellIcon className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-600 mb-2">No alerts found</h3>
-              <p className="text-gray-500 mb-4">
-                {selectedCategory === 'all' 
-                  ? 'Create your first alert to get notified of new opportunities'
-                  : `No ${selectedCategory} alerts found. Try a different category or create a new alert.`
-                }
-              </p>
-              <button 
-                onClick={() => setShowNewAlertForm(true)}
-                className="px-4 py-2 bg-olive-dark text-white rounded-md hover:bg-olive-medium transition-colors"
+        )}
+
+        {section === 'manage' && (
+          <>
+            <div className="mb-4 flex gap-2 border-b border-olive-100">
+              <button
+                type="button"
+                onClick={() => (editing ? setManageTab('new') : startNew())}
+                className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px ${
+                  manageTab === 'new'
+                    ? 'border-olive text-olive'
+                    : 'border-transparent text-gray-500 hover:text-gray-800'
+                }`}
               >
-                Create Alert
+                {editing ? 'Edit Alert' : 'New Alert'}
+              </button>
+              <button
+                type="button"
+                onClick={() => setManageTab('list')}
+                className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px ${
+                  manageTab === 'list'
+                    ? 'border-olive text-olive'
+                    : 'border-transparent text-gray-500 hover:text-gray-800'
+                }`}
+              >
+                List of Alerts
               </button>
             </div>
-          )}
-        </div>
+
+            {manageTab === 'new' ? (
+              <AlertEditor
+                key={formKey}
+                initial={editing}
+                saving={saving}
+                onSave={handleSave}
+                onCancel={editing ? () => { setEditing(null); setManageTab('list'); } : undefined}
+              />
+            ) : alerts.length === 0 ? (
+              <div className="bg-white rounded-xl border border-olive-100 shadow-sm text-center py-14 px-6">
+                <BellIcon className="w-14 h-14 text-olive-300 mx-auto mb-3" />
+                <h2 className="text-lg font-medium text-gray-700">No alerts yet</h2>
+                <p className="text-gray-500 mt-1 mb-4">Create an alert to follow opportunities that match your criteria.</p>
+                <button
+                  type="button"
+                  onClick={startNew}
+                  className="px-4 py-2 bg-olive text-white rounded-lg hover:bg-olive-medium"
+                >
+                  New Alert
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {alerts.map((alert) => {
+                  const details = describeAlertFilters(alert.filters);
+                  return (
+                    <article key={alert.id} className="bg-white rounded-xl border border-olive-100 shadow-sm p-5">
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${TYPE_STYLES[alert.opportunityType]}`}>
+                              <TypeIcon type={alert.opportunityType} className="h-3.5 w-3.5" />
+                              {ALERT_TYPE_LABELS[alert.opportunityType]}
+                            </span>
+                            <h2 className="text-lg font-medium text-gray-800">{alert.name}</h2>
+                          </div>
+                          <div className="mt-3 flex flex-wrap gap-2">
+                            {details.length > 0 ? details.map((detail) => (
+                              <span key={detail} className="px-3 py-1 bg-olive-50 text-olive-800 text-sm rounded-full">
+                                {detail}
+                              </span>
+                            )) : (
+                              <span className="text-sm text-gray-500">All open {alert.opportunityType} opportunities</span>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1 shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => startEdit(alert)}
+                            className="p-2 text-gray-500 hover:text-olive rounded-full"
+                            aria-label={`Edit ${alert.name}`}
+                          >
+                            <PencilIcon className="w-5 h-5" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setConfirmDeleteId(alert.id)}
+                            className="p-2 text-gray-500 hover:text-red-600 rounded-full"
+                            aria-label={`Delete ${alert.name}`}
+                          >
+                            <TrashIcon className="w-5 h-5" />
+                          </button>
+                        </div>
+                      </div>
+
+                      {confirmDeleteId === alert.id && (
+                        <div className="mt-4 flex items-center justify-between gap-3 rounded-lg bg-red-50 border border-red-100 px-3 py-2">
+                          <p className="text-sm text-red-800">Delete this alert?</p>
+                          <div className="flex gap-2">
+                            <button
+                              type="button"
+                              onClick={() => setConfirmDeleteId(null)}
+                              className="px-3 py-1.5 text-sm rounded-md border border-gray-300 text-gray-700"
+                            >
+                              Cancel
+                            </button>
+                            <button
+                              type="button"
+                              disabled={deletingId === alert.id}
+                              onClick={() => handleDelete(alert.id)}
+                              className="px-3 py-1.5 text-sm rounded-md bg-red-600 text-white disabled:opacity-60"
+                            >
+                              {deletingId === alert.id ? 'Deleting…' : 'Delete'}
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </article>
+                  );
+                })}
+              </div>
+            )}
+          </>
+        )}
+
+        {section === 'results' && (
+          <div className="space-y-3">
+            {resultsLoading && opportunities.length === 0 ? (
+              <div className="flex justify-center py-16">
+                <div className="h-10 w-10 animate-spin rounded-full border-b-2 border-olive" />
+              </div>
+            ) : resultsError ? (
+              <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">{resultsError}</div>
+            ) : alerts.length === 0 ? (
+              <div className="bg-white rounded-xl border border-olive-100 shadow-sm text-center py-14 px-6">
+                <BellIcon className="w-14 h-14 text-olive-300 mx-auto mb-3" />
+                <h2 className="text-lg font-medium text-gray-700">No alerts to check</h2>
+                <p className="text-gray-500 mt-1 mb-4">Create an alert first, then matching opportunities will show up here.</p>
+                <button
+                  type="button"
+                  onClick={startNew}
+                  className="px-4 py-2 bg-olive text-white rounded-lg hover:bg-olive-medium"
+                >
+                  New Alert
+                </button>
+              </div>
+            ) : (
+              results.map(({ alert, opportunities: matches }) => {
+                const open = openAlertIds.includes(alert.id);
+                const countLabel = matches.length === 1 ? '1 opportunity' : `${matches.length} opportunities`;
+                return (
+                  <section key={alert.id} className="bg-white rounded-xl border border-olive-100 shadow-sm overflow-hidden">
+                    <button
+                      type="button"
+                      onClick={() => toggleAlert(alert.id)}
+                      aria-expanded={open}
+                      className="w-full flex items-center gap-3 px-5 py-4 text-left hover:bg-olive-50/60"
+                    >
+                      <ChevronDownIcon className={`h-5 w-5 text-olive-600 shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} />
+                      <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${TYPE_STYLES[alert.opportunityType]}`}>
+                        <TypeIcon type={alert.opportunityType} className="h-3.5 w-3.5" />
+                        {ALERT_TYPE_LABELS[alert.opportunityType]}
+                      </span>
+                      <span className="font-medium text-gray-800 truncate">{alert.name}</span>
+                      <span className="ml-auto shrink-0 inline-flex items-center rounded-full bg-olive px-2.5 py-1 text-xs font-semibold text-white">
+                        {countLabel}
+                      </span>
+                    </button>
+
+                    {open && (
+                      <div className="border-t border-olive-100 px-5 py-4 space-y-3">
+                        {matches.length === 0 ? (
+                          <p className="text-sm text-gray-500">
+                            No open opportunities match this alert. Listings leave this alert as soon as their deadline has passed.
+                          </p>
+                        ) : (
+                          matches.map((opportunity) => (
+                            <article key={opportunity.id} className="rounded-lg border border-gray-200 p-4">
+                              <h3 className="font-medium text-gray-900">{opportunity.title}</h3>
+                              <p className="mt-1 text-sm text-gray-600">{shortOpportunityDescription(opportunity.description)}</p>
+                              <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-sm text-gray-500">
+                                <span className="inline-flex items-center gap-1">
+                                  <CalendarIcon className="h-4 w-4" />
+                                  {formatAlertDeadline(opportunity.deadline)}
+                                </span>
+                                <span className="inline-flex items-center gap-1">
+                                  <BuildingOffice2Icon className="h-4 w-4" />
+                                  {opportunity.organization || 'Organization not listed'}
+                                </span>
+                              </div>
+                              <Link
+                                href={`/seeker/opportunities/${opportunity.id}`}
+                                className="inline-flex mt-3 text-sm font-medium text-olive hover:text-olive-medium"
+                              >
+                                View opportunity
+                              </Link>
+                            </article>
+                          ))
+                        )}
+                      </div>
+                    )}
+                  </section>
+                );
+              })
+            )}
+          </div>
+        )}
       </div>
     </>
   );
-} 
+}
