@@ -1038,7 +1038,7 @@ export default function OpportunityDetailClient({ opportunity }: OpportunityDeta
                                       View All Applications
                                     </button>
                                     <button
-                                      onClick={() => router.push('/seeker/opportunities/navigate')}
+                                      onClick={() => router.push('/seeker/opportunities')}
                                       className="bg-gray-100 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-200 transition-colors text-sm font-medium"
                                     >
                                       Browse Other Opportunities

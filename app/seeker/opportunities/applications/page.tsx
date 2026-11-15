@@ -463,7 +463,7 @@ export default function ApplicationsPage() {
           <div className="p-4 border-b border-gray-200 bg-gray-50 flex justify-between items-center">
             <h3 className="font-medium text-gray-700">Application History ({filteredApplications.length})</h3>
             <button 
-              onClick={() => router.push('/seeker/opportunities/navigate')}
+              onClick={() => router.push('/seeker/opportunities')}
               className="px-3 py-1 text-sm bg-olive-dark text-white rounded-md hover:bg-olive-medium transition-colors"
             >
               + New Application
@@ -480,7 +480,7 @@ export default function ApplicationsPage() {
                 You haven't submitted any applications yet. Start by browsing opportunities.
               </p>
               <button
-                onClick={() => router.push('/seeker/opportunities/navigate')}
+                onClick={() => router.push('/seeker/opportunities')}
                 className="bg-olive-dark text-white px-6 py-3 rounded-lg hover:bg-olive-medium transition-colors font-medium"
               >
                 Browse Opportunities

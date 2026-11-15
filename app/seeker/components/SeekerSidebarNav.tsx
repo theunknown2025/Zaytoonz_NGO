@@ -95,9 +95,9 @@ export default function SeekerSidebarNav() {
           {isOpportunitiesOpen && (
             <div className="bg-black/20">
               <Link 
-                href="/seeker/opportunities/navigate" 
+                href="/seeker/opportunities" 
                 className={`flex items-center w-full px-6 py-2.5 pl-14 ${
-                  pathname === '/seeker/opportunities/navigate' 
+                  pathname?.replace(/\/$/, '') === '/seeker/opportunities' 
                     ? 'bg-white/10 text-white' 
                     : 'text-gray-300 hover:bg-white/5 hover:text-white'
                 } transition-colors`}

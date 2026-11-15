@@ -1,6 +1,15 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  async redirects() {
+    return [
+      {
+        source: '/seeker/opportunities/navigate',
+        destination: '/seeker/opportunities',
+        permanent: true,
+      },
+    ];
+  },
   // Remove 'output: export' for Netlify deployment with API routes
   trailingSlash: true,
   // Configure basePath for deployment (empty for root deployment)

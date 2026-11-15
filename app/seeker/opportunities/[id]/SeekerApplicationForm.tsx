@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { CheckCircleIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
 import type { Opportunity } from '@/app/lib/opportunities';
@@ -43,10 +43,13 @@ export default function SeekerApplicationForm({
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [existing, setExisting] = useState<ExistingApplication | null>(null);
   const [loadingExisting, setLoadingExisting] = useState(true);
-  const [includeCv, setIncludeCv] = useState(false);
   const [savedCvs, setSavedCvs] = useState<SavedCv[]>([]);
   const [cvLoading, setCvLoading] = useState(false);
   const [selectedCvId, setSelectedCvId] = useState<string>('');
+  const [skipCvConfirmed, setSkipCvConfirmed] = useState(false);
+  const [showCvPrompt, setShowCvPrompt] = useState(false);
+  const [cvPromptIntent, setCvPromptIntent] = useState<'choice' | 'submit'>('choice');
+  const cvSectionRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!user) {
@@ -66,8 +69,8 @@ export default function SeekerApplicationForm({
         setExisting(match);
         setAnswers(match.application_data || {});
         if (match.selected_cv_id) {
-          setIncludeCv(true);
           setSelectedCvId(match.selected_cv_id);
+          setSkipCvConfirmed(false);
         }
       } catch (error) {
         console.error('Error loading existing application:', error);
@@ -81,7 +84,7 @@ export default function SeekerApplicationForm({
   }, [user, opportunity.id]);
 
   useEffect(() => {
-    if (!includeCv || !user) return;
+    if (!user) return;
     let cancelled = false;
     (async () => {
       setCvLoading(true);
@@ -94,7 +97,7 @@ export default function SeekerApplicationForm({
     return () => {
       cancelled = true;
     };
-  }, [includeCv, user]);
+  }, [user]);
 
   const setAnswer = (questionId: string, value: AnswerValue) => {
     setAnswers((prev) => ({ ...prev, [questionId]: value }));
@@ -104,8 +107,19 @@ export default function SeekerApplicationForm({
   };
 
   const selectedCvName = savedCvs.find((cv) => cv.id === selectedCvId)?.name || existing?.selected_cv_name || null;
+  const hasCv = Boolean(selectedCvId);
 
-  const persist = async (mode: 'draft' | 'submit') => {
+  const openCvPrompt = (intent: 'choice' | 'submit') => {
+    setCvPromptIntent(intent);
+    setShowCvPrompt(true);
+  };
+
+  const closeCvPrompt = () => {
+    setShowCvPrompt(false);
+    cvSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  };
+
+  const persist = async (mode: 'draft' | 'submit', options?: { allowMissingCv?: boolean }) => {
     setSubmitError(null);
     if (!user) {
       setSubmitError('Sign in to save this application.');
@@ -130,11 +144,12 @@ export default function SeekerApplicationForm({
           if (empty) nextErrors[question.id] = `${question.label} is required`;
         });
       });
-      if (includeCv && !selectedCvId) {
-        nextErrors._cv = 'Select a saved CV, or turn off Add CV.';
-      }
       setErrors(nextErrors);
       if (Object.keys(nextErrors).length > 0) return;
+      if (!hasCv && !options?.allowMissingCv && !skipCvConfirmed) {
+        openCvPrompt('submit');
+        return;
+      }
     }
 
     setSaving(mode);
@@ -144,8 +159,8 @@ export default function SeekerApplicationForm({
         seekerUserId: user.id,
         formId: opportunity.applicationForm.id,
         applicationData: answers,
-        selectedCVId: includeCv ? selectedCvId || null : null,
-        selectedCVName: includeCv ? selectedCvName : null,
+        selectedCVId: hasCv ? selectedCvId : null,
+        selectedCVName: hasCv ? selectedCvName : null,
         notes: mode === 'draft'
           ? `Draft saved for ${opportunity.title}`
           : `Application submitted for ${opportunity.title}`,
@@ -168,6 +183,24 @@ export default function SeekerApplicationForm({
       setSaving(null);
     }
   };
+
+  const confirmWithoutCv = () => {
+    setSkipCvConfirmed(true);
+    setSelectedCvId('');
+    setShowCvPrompt(false);
+    if (cvPromptIntent === 'submit') {
+      void persist('submit', { allowMissingCv: true });
+    }
+  };
+
+  useEffect(() => {
+    if (!showCvPrompt) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') closeCvPrompt();
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [showCvPrompt]);
 
   if (loadingExisting) {
     return <p className="text-sm text-olive-600">Checking your application…</p>;
@@ -239,60 +272,111 @@ export default function SeekerApplicationForm({
         ))
       )}
 
-      <div className="rounded-xl border border-olive-200 bg-olive-50/60 p-4">
-        <div className="flex items-center justify-between gap-3">
-          <div>
-            <p className="text-sm font-semibold text-olive-900">Include a CV</p>
-            <p className="text-xs text-olive-700">Optional. Choose one of your saved CVs.</p>
-          </div>
-          <button
-            type="button"
-            onClick={() => {
-              setIncludeCv((current) => !current);
-              if (includeCv) setSelectedCvId('');
-            }}
-            className={`relative h-7 w-12 rounded-full transition ${includeCv ? 'bg-olive-700' : 'bg-olive-200'}`}
-            aria-pressed={includeCv}
-            aria-label="Include a CV"
-          >
-            <span
-              className={`absolute top-0.5 h-6 w-6 rounded-full bg-white shadow transition ${includeCv ? 'left-5' : 'left-0.5'}`}
+      <div ref={cvSectionRef} className="rounded-xl border border-olive-200 bg-olive-50/60 p-4">
+        <p className="text-sm font-semibold text-olive-900">
+          Add a CV <span className="text-red-500">*</span>
+        </p>
+        <p className="mt-1 text-xs text-olive-700">
+          Select one of your saved CVs to include with this application.
+        </p>
+        <div className="mt-4">
+          {cvLoading ? (
+            <p className="text-sm text-olive-600">Loading your CVs…</p>
+          ) : savedCvs.length === 0 ? (
+            <p className="text-sm text-olive-700">
+              You have no saved CVs.{' '}
+              <Link href="/seeker/tools/cv-maker" className="font-semibold underline">
+                Create one in CV Maker
+              </Link>
+              .
+            </p>
+          ) : (
+            <select
+              value={selectedCvId}
+              onChange={(event) => {
+                setSelectedCvId(event.target.value);
+                if (event.target.value) setSkipCvConfirmed(false);
+              }}
+              disabled={skipCvConfirmed}
+              className="w-full rounded-xl border border-olive-200 bg-white px-4 py-3 text-sm text-olive-900 disabled:bg-olive-100 disabled:text-olive-500"
+            >
+              <option value="">Select a saved CV</option>
+              {savedCvs.map((cv) => (
+                <option key={cv.id} value={cv.id}>
+                  {cv.name}
+                </option>
+              ))}
+              {selectedCvId && !savedCvs.some((cv) => cv.id === selectedCvId) && existing?.selected_cv_name && (
+                <option value={selectedCvId}>{existing.selected_cv_name}</option>
+              )}
+            </select>
+          )}
+          <label className="mt-4 flex items-start gap-2 text-sm text-olive-800">
+            <input
+              type="checkbox"
+              checked={skipCvConfirmed}
+              onChange={() => {
+                if (skipCvConfirmed) {
+                  setSkipCvConfirmed(false);
+                  return;
+                }
+                openCvPrompt('choice');
+              }}
+              className="mt-0.5 rounded border-olive-300 text-olive-700 focus:ring-olive-500"
             />
-          </button>
+            <span>I don&apos;t want to add a CV</span>
+          </label>
+          {skipCvConfirmed && (
+            <p className="mt-2 text-sm text-amber-800">
+              You confirmed this application will be sent without a CV.
+            </p>
+          )}
         </div>
-        {includeCv && (
-          <div className="mt-4">
-            {cvLoading ? (
-              <p className="text-sm text-olive-600">Loading your CVs…</p>
-            ) : savedCvs.length === 0 ? (
-              <p className="text-sm text-olive-700">
-                You have no saved CVs.{' '}
-                <Link href="/seeker/cv-maker" className="font-semibold underline">
-                  Create one in CV Maker
-                </Link>
-                .
-              </p>
-            ) : (
-              <select
-                value={selectedCvId}
-                onChange={(event) => setSelectedCvId(event.target.value)}
-                className="w-full rounded-xl border border-olive-200 bg-white px-4 py-3 text-sm text-olive-900"
-              >
-                <option value="">Select a saved CV</option>
-                {savedCvs.map((cv) => (
-                  <option key={cv.id} value={cv.id}>
-                    {cv.name}
-                  </option>
-                ))}
-                {selectedCvId && !savedCvs.some((cv) => cv.id === selectedCvId) && existing?.selected_cv_name && (
-                  <option value={selectedCvId}>{existing.selected_cv_name}</option>
-                )}
-              </select>
-            )}
-            {errors._cv && <p className="mt-2 text-sm text-red-600">{errors._cv}</p>}
-          </div>
-        )}
       </div>
+
+      {showCvPrompt && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+          onClick={closeCvPrompt}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="missing-cv-title"
+            className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="flex items-start gap-3">
+              <ExclamationTriangleIcon className="mt-0.5 h-6 w-6 shrink-0 text-amber-600" />
+              <div>
+                <h3 id="missing-cv-title" className="text-lg font-semibold text-olive-900">
+                  You didn&apos;t include a CV
+                </h3>
+                <p className="mt-2 text-sm leading-relaxed text-olive-700">
+                  A CV is part of this application, and you haven&apos;t added one. Go back to select a saved CV, or
+                  confirm that you want to continue without it.
+                </p>
+              </div>
+            </div>
+            <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+              <button
+                type="button"
+                onClick={closeCvPrompt}
+                className="rounded-xl border border-olive-200 px-4 py-2 text-sm font-medium text-olive-800 hover:bg-olive-50"
+              >
+                Add a CV
+              </button>
+              <button
+                type="button"
+                onClick={confirmWithoutCv}
+                className="rounded-xl bg-olive-700 px-4 py-2 text-sm font-semibold text-white hover:bg-olive-800"
+              >
+                {cvPromptIntent === 'submit' ? 'Submit without a CV' : 'Confirm, continue without a CV'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {submitError && (
         <p className="flex items-start gap-2 text-sm text-red-700">
