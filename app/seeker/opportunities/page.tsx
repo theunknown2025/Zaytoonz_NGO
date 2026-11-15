@@ -36,6 +36,11 @@ import {
 } from '@heroicons/react/24/outline';
 import { HeartIcon as HeartSolidIcon } from '@heroicons/react/24/solid';
 import { getOpportunities, searchOpportunities, type Opportunity } from '@/app/lib/opportunities';
+import {
+  FAVORITES_CHANGED_EVENT,
+  readFavoriteIds,
+  toggleFavoriteId,
+} from './favoriteOpportunities';
 import { useAuth } from '@/app/lib/auth';
 import {
   uniqueCountriesFromLocations,
@@ -220,6 +225,8 @@ function OpportunitiesPageContent() {
   const [filters, setFilters] = useState<Filters>(initialFilters);
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const [savedOpportunities, setSavedOpportunities] = useState<Set<string>>(new Set());
+  const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
+  const [favoriteAuthTitle, setFavoriteAuthTitle] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
@@ -324,10 +331,21 @@ function OpportunitiesPageContent() {
   useEffect(() => {
     fetchOpportunities();
   }, []);
+
+  useEffect(() => {
+    const syncFavorites = () => setSavedOpportunities(new Set(readFavoriteIds()));
+    syncFavorites();
+    window.addEventListener(FAVORITES_CHANGED_EVENT, syncFavorites);
+    window.addEventListener('storage', syncFavorites);
+    return () => {
+      window.removeEventListener(FAVORITES_CHANGED_EVENT, syncFavorites);
+      window.removeEventListener('storage', syncFavorites);
+    };
+  }, []);
   
   useEffect(() => {
     filterOpportunities();
-  }, [filters, opportunities, searchQuery]);
+  }, [filters, opportunities, searchQuery, showFavoritesOnly, savedOpportunities]);
 
   const fetchOpportunities = async () => {
     try {
@@ -445,6 +463,10 @@ function OpportunitiesPageContent() {
       });
     }
 
+    if (showFavoritesOnly) {
+      filtered = filtered.filter((opp) => savedOpportunities.has(opp.id));
+    }
+
     // Search query filter (text search)
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
@@ -524,15 +546,12 @@ function OpportunitiesPageContent() {
 
   const toggleSaveOpportunity = (opportunityId: string, event: React.MouseEvent) => {
     event.stopPropagation(); // Prevent navigation when clicking save button
-    setSavedOpportunities(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(opportunityId)) {
-        newSet.delete(opportunityId);
-      } else {
-        newSet.add(opportunityId);
-      }
-      return newSet;
-    });
+    if (!user) {
+      const title = opportunities.find((opp) => opp.id === opportunityId)?.title || 'this opportunity';
+      setFavoriteAuthTitle(title);
+      return;
+    }
+    toggleFavoriteId(opportunityId);
   };
 
   const getCategoryIcon = (type: string) => {
@@ -591,10 +610,11 @@ function OpportunitiesPageContent() {
           
           <button
             onClick={(e) => toggleSaveOpportunity(opportunity.id, e)}
+            aria-label={isSaved ? 'Remove from favorites' : 'Save to favorites'}
             className={`p-2 rounded-full transition-all duration-200 ${
               isSaved 
-                ? 'bg-olive-100 text-olive-700 hover:bg-olive-200' 
-                : 'bg-olive-50 text-olive-400 hover:bg-olive-100 hover:text-olive-600'
+                ? 'bg-rose-50 text-rose-600 hover:bg-rose-100' 
+                : 'bg-olive-50 text-olive-400 hover:bg-olive-100 hover:text-rose-500'
             }`}
           >
             {isSaved ? (
@@ -814,10 +834,11 @@ function OpportunitiesPageContent() {
             {/* Save Button */}
             <button
               onClick={(e) => toggleSaveOpportunity(opportunity.id, e)}
+              aria-label={isSaved ? 'Remove from favorites' : 'Save to favorites'}
               className={`p-2 rounded-full transition-all duration-200 ${
                 isSaved 
-                  ? 'bg-olive-100 text-olive-700 hover:bg-olive-200' 
-                  : 'bg-olive-50 text-olive-400 hover:bg-olive-100 hover:text-olive-600'
+                  ? 'bg-rose-50 text-rose-600 hover:bg-rose-100' 
+                  : 'bg-olive-50 text-olive-400 hover:bg-olive-100 hover:text-rose-500'
               }`}
             >
               {isSaved ? (
@@ -1309,6 +1330,16 @@ function OpportunitiesPageContent() {
                 </span>
               )}
               
+              {showFavoritesOnly && (
+                <span className="inline-flex items-center gap-1 px-2 py-1 bg-rose-50 text-rose-700 text-xs rounded-full">
+                  <HeartSolidIcon className="w-3 h-3" />
+                  Favorites
+                  <button type="button" onClick={() => setShowFavoritesOnly(false)} className="ml-1 hover:text-rose-900" aria-label="Show all opportunities">
+                    <XMarkIcon className="w-3 h-3" />
+                  </button>
+                </span>
+              )}
+
               {savedOpportunities.size > 0 && (
                 <span className="text-olive-700 font-medium text-sm">
                   • {savedOpportunities.size} saved
@@ -1318,26 +1349,50 @@ function OpportunitiesPageContent() {
           </div>
           
           {/* View Mode Toggle */}
-          <div className="flex items-center gap-2 bg-olive-100 rounded-lg p-1">
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 bg-olive-100 rounded-lg p-1">
+              <button
+                type="button"
+                aria-label="Show as cards"
+                onClick={() => setViewMode('grid')}
+                className={`p-2 rounded-md transition-colors ${
+                  viewMode === 'grid' 
+                    ? 'bg-white text-olive-700 shadow-sm' 
+                    : 'text-olive-500 hover:text-olive-700'
+                }`}
+              >
+                <Squares2X2Icon className="w-5 h-5" />
+              </button>
+              <button
+                type="button"
+                aria-label="Show as lines"
+                onClick={() => setViewMode('list')}
+                className={`p-2 rounded-md transition-colors ${
+                  viewMode === 'list' 
+                    ? 'bg-white text-olive-700 shadow-sm' 
+                    : 'text-olive-500 hover:text-olive-700'
+                }`}
+              >
+                <ListBulletIcon className="w-5 h-5" />
+              </button>
+            </div>
             <button
-              onClick={() => setViewMode('grid')}
-              className={`p-2 rounded-md transition-colors ${
-                viewMode === 'grid' 
-                  ? 'bg-white text-olive-700 shadow-sm' 
-                  : 'text-olive-500 hover:text-olive-700'
+              type="button"
+              aria-pressed={showFavoritesOnly}
+              aria-label={showFavoritesOnly ? 'Show all opportunities' : 'Show favorite opportunities'}
+              title={showFavoritesOnly ? 'Show all opportunities' : 'Show favorite opportunities'}
+              onClick={() => setShowFavoritesOnly((current) => !current)}
+              className={`p-2 rounded-lg border transition-colors ${
+                showFavoritesOnly
+                  ? 'bg-rose-50 border-rose-200 text-rose-600 shadow-sm'
+                  : 'bg-olive-100 border-transparent text-olive-500 hover:text-rose-600'
               }`}
             >
-              <Squares2X2Icon className="w-5 h-5" />
-            </button>
-            <button
-              onClick={() => setViewMode('list')}
-              className={`p-2 rounded-md transition-colors ${
-                viewMode === 'list' 
-                  ? 'bg-white text-olive-700 shadow-sm' 
-                  : 'text-olive-500 hover:text-olive-700'
-              }`}
-            >
-              <ListBulletIcon className="w-5 h-5" />
+              {showFavoritesOnly ? (
+                <HeartSolidIcon className="w-5 h-5" />
+              ) : (
+                <HeartIcon className="w-5 h-5" />
+              )}
             </button>
           </div>
         </div>
@@ -1376,20 +1431,35 @@ function OpportunitiesPageContent() {
         {!loading && filteredOpportunities.length === 0 && !error && (
           <div className="text-center py-16 bg-white rounded-2xl shadow-sm border border-olive-100">
             <div className="inline-flex items-center justify-center w-20 h-20 bg-olive-100 rounded-full mb-6">
-              <BriefcaseIcon className="w-10 h-10 text-olive-500" />
+              {showFavoritesOnly ? (
+                <HeartSolidIcon className="w-10 h-10 text-rose-500" />
+              ) : (
+                <BriefcaseIcon className="w-10 h-10 text-olive-500" />
+              )}
             </div>
-            <h3 className="text-2xl font-semibold text-olive-800 mb-4">No opportunities found</h3>
+            <h3 className="text-2xl font-semibold text-olive-800 mb-4">
+              {showFavoritesOnly && savedOpportunities.size === 0
+                ? 'No favorite opportunities yet'
+                : 'No opportunities found'}
+            </h3>
             <p className="text-lg text-olive-600 mb-6 max-w-md mx-auto">
-              {activeFilterCount > 0
-                ? 'No opportunities match your current filters. Try adjusting your search criteria.'
-                : filters.category.length === 0
-                  ? 'No opportunities are currently available'
-                  : `No ${filters.category.join(', ')} opportunities are currently available`
+              {showFavoritesOnly && savedOpportunities.size === 0
+                ? 'Save an opportunity with the heart on its card. This heart shows only those favorites.'
+                : showFavoritesOnly
+                  ? 'None of your saved favorites match the current filters.'
+                  : activeFilterCount > 0
+                    ? 'No opportunities match your current filters. Try adjusting your search criteria.'
+                    : filters.category.length === 0
+                      ? 'No opportunities are currently available'
+                      : `No ${filters.category.join(', ')} opportunities are currently available`
               }
             </p>
-            {activeFilterCount > 0 && (
+            {(activeFilterCount > 0 || showFavoritesOnly) && (
               <button 
-                onClick={resetFilters}
+                onClick={() => {
+                  resetFilters();
+                  setShowFavoritesOnly(false);
+                }}
                 className="inline-flex items-center gap-2 px-6 py-3 bg-olive-700 text-white rounded-lg hover:bg-olive-800 transition-colors font-medium"
               >
                 <ArrowPathIcon className="w-5 h-5" />
@@ -1416,6 +1486,40 @@ function OpportunitiesPageContent() {
               </div>
             )}
           </>
+        )}
+
+        {favoriteAuthTitle && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+            <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 relative">
+              <button
+                type="button"
+                onClick={() => setFavoriteAuthTitle(null)}
+                className="absolute top-3 right-3 text-olive-500 hover:text-olive-700"
+                aria-label="Close"
+              >
+                <XMarkIcon className="h-5 w-5" />
+              </button>
+              <p className="text-sm uppercase tracking-wide text-olive-500 mb-2">Save to favorites</p>
+              <h3 className="text-lg font-semibold text-olive-900">Create an account to save opportunities</h3>
+              <p className="text-olive-700 text-sm mt-2">
+                Sign up or sign in to keep “{favoriteAuthTitle}” in your favorites and see it here and on its page.
+              </p>
+              <div className="mt-4 flex gap-3">
+                <a
+                  href="/auth/signup"
+                  className="flex-1 inline-flex items-center justify-center px-4 py-2 rounded-lg bg-olive-700 text-white font-semibold hover:bg-olive-800 transition"
+                >
+                  Subscribe (Sign up)
+                </a>
+                <a
+                  href="/auth/signin"
+                  className="flex-1 inline-flex items-center justify-center px-4 py-2 rounded-lg border border-olive-200 text-olive-800 hover:bg-olive-50 transition font-semibold"
+                >
+                  Sign in
+                </a>
+              </div>
+            </div>
+          </div>
         )}
       </div>
     </div>

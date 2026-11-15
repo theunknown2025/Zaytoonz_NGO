@@ -4,13 +4,16 @@ import React, { useEffect, useState } from 'react';
 import { HeartIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import { HeartIcon as HeartSolidIcon } from '@heroicons/react/24/solid';
 import { useAuth } from '@/app/lib/auth';
+import {
+  FAVORITES_CHANGED_EVENT,
+  readFavoriteIds,
+  toggleFavoriteId,
+} from '../favoriteOpportunities';
 
 interface FavoriteOpportunityProps {
   opportunityId: string;
   title: string;
 }
-
-const STORAGE_KEY = 'favorite_opportunities';
 
 export default function FavoriteOpportunity({ opportunityId, title }: FavoriteOpportunityProps) {
   const { user } = useAuth();
@@ -19,19 +22,15 @@ export default function FavoriteOpportunity({ opportunityId, title }: FavoriteOp
   const [showSavedToast, setShowSavedToast] = useState(false);
 
   useEffect(() => {
-    if (typeof window === 'undefined') return;
-    try {
-      const saved: string[] = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
-      setIsSaved(saved.includes(opportunityId));
-    } catch (err) {
-      console.error('Failed to load favorites', err);
-    }
+    const sync = () => setIsSaved(readFavoriteIds().includes(opportunityId));
+    sync();
+    window.addEventListener(FAVORITES_CHANGED_EVENT, sync);
+    window.addEventListener('storage', sync);
+    return () => {
+      window.removeEventListener(FAVORITES_CHANGED_EVENT, sync);
+      window.removeEventListener('storage', sync);
+    };
   }, [opportunityId]);
-
-  const persistFavorites = (ids: string[]) => {
-    if (typeof window === 'undefined') return;
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(ids));
-  };
 
   const handleToggle = () => {
     if (!user) {
@@ -39,21 +38,16 @@ export default function FavoriteOpportunity({ opportunityId, title }: FavoriteOp
       return;
     }
 
-    setIsSaved((prev) => {
-      const next = !prev;
-      try {
-        const saved: string[] = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
-        const updated = next ? Array.from(new Set([...saved, opportunityId])) : saved.filter((id) => id !== opportunityId);
-        persistFavorites(updated);
-        setShowSavedToast(next);
-        if (next) {
-          setTimeout(() => setShowSavedToast(false), 1500);
-        }
-      } catch (err) {
-        console.error('Failed to save favorite', err);
+    try {
+      const { saved } = toggleFavoriteId(opportunityId);
+      setIsSaved(saved);
+      setShowSavedToast(saved);
+      if (saved) {
+        setTimeout(() => setShowSavedToast(false), 1500);
       }
-      return next;
-    });
+    } catch (err) {
+      console.error('Failed to save favorite', err);
+    }
   };
 
   return (
