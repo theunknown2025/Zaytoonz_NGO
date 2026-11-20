@@ -47,7 +47,7 @@ function stripHtml(html: string, max = 180): string {
  * (entity_name / post_title / job_description / …)
  * or the already-normalized ScrapedJob shape.
  */
-export function normalizeManualJsonItem(
+function normalizeManualJsonItem(
   raw: Record<string, unknown>
 ): NormalizedOpportunity | null {
   const title =
