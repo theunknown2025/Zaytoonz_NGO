@@ -618,13 +618,22 @@ export default function ScraperPage() {
             <p className="text-gray-500 text-sm">AI-powered web scraping for opportunities</p>
           </div>
           </div>
-          <Link
-            href="/admin/Scraper/extracted"
-            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-[#556B2F] bg-[#556B2F]/10 hover:bg-[#556B2F]/20 rounded-lg transition-colors border border-[#556B2F]/20"
-          >
-            <DocumentTextIcon className="h-5 w-5" />
-            View Extracted
-          </Link>
+          <div className="flex items-center gap-2">
+            <Link
+              href="/admin/Scraper/manual"
+              className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-[#556B2F] bg-[#556B2F]/10 hover:bg-[#556B2F]/20 rounded-lg transition-colors border border-[#556B2F]/20"
+            >
+              <ArchiveBoxArrowDownIcon className="h-5 w-5" />
+              Manual Scraper
+            </Link>
+            <Link
+              href="/admin/Scraper/extracted"
+              className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-[#556B2F] bg-[#556B2F]/10 hover:bg-[#556B2F]/20 rounded-lg transition-colors border border-[#556B2F]/20"
+            >
+              <DocumentTextIcon className="h-5 w-5" />
+              View Extracted
+            </Link>
+          </div>
         </div>
       </div>
 

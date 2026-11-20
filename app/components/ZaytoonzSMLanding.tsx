@@ -190,7 +190,7 @@ export default function ZaytoonzSMLanding({
                     setEmail(e.target.value);
                     setAccessError('');
                   }}
-                  placeholder="admin@zaytoonz.com"
+                  placeholder=""
                   autoComplete="username"
                   autoFocus
                   required

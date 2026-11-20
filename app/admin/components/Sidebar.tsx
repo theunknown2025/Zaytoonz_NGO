@@ -20,6 +20,7 @@ import {
   HomeIcon,
   MagnifyingGlassCircleIcon,
   DocumentTextIcon,
+  ArrowUpTrayIcon,
   LockClosedIcon,
   ShareIcon,
   KeyIcon,
@@ -252,6 +253,11 @@ export function Sidebar({ user }: SidebarProps) {
                 <li>
                   <Link href="/admin/Scraper/extracted" className={subLinkClass("/admin/Scraper/extracted")}>
                     <DocumentTextIcon className="mr-3 h-4 w-4 flex-shrink-0 text-[#556B2F]" /> Extracted Opportunities
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/admin/Scraper/manual" className={subLinkClass("/admin/Scraper/manual")}>
+                    <ArrowUpTrayIcon className="mr-3 h-4 w-4 flex-shrink-0 text-[#556B2F]" /> Manual Scraper
                   </Link>
                 </li>
               </ul>
